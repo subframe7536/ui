@@ -558,7 +558,7 @@ export function ComboboxLabel(props: PartProps<'label', ComboboxState>) {
 }
 
 export function ComboboxInput(
-  props: Omit<PartProps<'input', ComboboxInputState>, 'type' | 'value'>,
+  props: Omit<PartProps<'input', ComboboxInputState>, 'type' | 'value' | 'readonly'>,
 ) {
   const ctx = useCombobox('Input')
   const rest = omit(props, 'role')

@@ -424,7 +424,7 @@ export function NumberInputGroup(props: PartProps<'div', NumberInputState>) {
 }
 
 export function NumberInputControl(
-  props: Omit<PartProps<'input', NumberInputState>, 'type' | 'value' | 'defaultValue'>,
+  props: Omit<PartProps<'input', NumberInputState>, 'type' | 'value' | 'defaultValue' | 'readonly'>,
 ) {
   const ctx = useNumberInput('Control')
   return renderPart('input', props, ctx.state, {
