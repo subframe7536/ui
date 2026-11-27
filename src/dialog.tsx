@@ -2,6 +2,7 @@ import type { JSX } from '@solidjs/web'
 import {
   Show,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   createUniqueId,
@@ -123,7 +124,9 @@ export type DialogContentState<Payload = unknown> = {
 export type DialogCloseProps<Result = string> = {
   disabled?: boolean
   returnValue?: Result
-  action?: (details: DialogCloseActionDetails) => unknown
+  action?:
+    | ((details: DialogCloseActionDetails) => unknown)
+    | ((event: Event | undefined, details: DialogCloseActionDetails) => unknown)
 }
 
 export type DialogCloseState = {
@@ -141,9 +144,12 @@ type DialogContextValue = {
   modal: () => boolean
   payload: () => unknown
   container: () => HTMLElement | null | undefined
-  contentId: string
-  titleId: string
-  descriptionId: string
+  contentId: () => string
+  titleId: () => string
+  descriptionId: () => string
+  setCustomContentId: (id: string | undefined) => void
+  setCustomTitleId: (id: string | undefined) => void
+  setCustomDescriptionId: (id: string | undefined) => void
   hasTitle: () => boolean
   hasDescription: () => boolean
   setHasTitle: (v: boolean) => void
@@ -151,6 +157,7 @@ type DialogContextValue = {
   openFromTrigger: (payload: unknown, event?: Event) => void
   close: (reason: DialogOpenChangeReason, event?: Event, returnValue?: unknown) => void
   setTriggerEl: (el: HTMLElement) => void
+  triggerLabel: () => string | undefined
   setContentEl: (el: HTMLElement) => void
   getContentEl: () => HTMLElement | undefined
   initialFocus: () => DialogInitialFocus | undefined
@@ -176,9 +183,17 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
     props: DialogProps<Payload, Result>,
   ) {
     const uid = createUniqueId()
-    const contentId = `ui-${role}-${uid}`
-    const titleId = `ui-${role}-title-${uid}`
-    const descriptionId = `ui-${role}-desc-${uid}`
+    const defaultContentId = `ui-${role}-${uid}`
+    const defaultTitleId = `ui-${role}-title-${uid}`
+    const defaultDescriptionId = `ui-${role}-desc-${uid}`
+    const [customContentId, setCustomContentId] = createSignal<string | undefined>(undefined)
+    const [customTitleId, setCustomTitleId] = createSignal<string | undefined>(undefined)
+    const [customDescriptionId, setCustomDescriptionId] = createSignal<string | undefined>(
+      undefined,
+    )
+    const contentId = () => customContentId() ?? defaultContentId
+    const titleId = () => customTitleId() ?? defaultTitleId
+    const descriptionId = () => customDescriptionId() ?? defaultDescriptionId
 
     const [open, setOpen] = createControlledSignal<boolean>({
       value: () => props.open,
@@ -190,7 +205,7 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
     const [hasTitle, setHasTitle] = createSignal(false)
     const [hasDescription, setHasDescription] = createSignal(false)
 
-    let triggerEl: HTMLElement | undefined
+    const [triggerEl, setTriggerElSignal] = createSignal<HTMLElement | undefined>(undefined)
     let contentEl: HTMLElement | undefined
     let pendingResolve: ((result: Result | undefined) => void) | undefined
 
@@ -265,14 +280,14 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
 
     const reg = registerComponent({
       component: role,
-      getElements: () => [contentEl, triggerEl],
+      getElements: () => [contentEl, triggerEl()],
       getState: () => ({ open: open() }),
       getText: () => {
         if (!contentEl) {
           return []
         }
-        const title = document.getElementById(titleId)?.textContent?.trim()
-        const desc = document.getElementById(descriptionId)?.textContent?.trim()
+        const title = document.getElementById(titleId())?.textContent?.trim()
+        const desc = document.getElementById(descriptionId())?.textContent?.trim()
         return [title, desc].filter((t): t is string => !!t)
       },
       getButtons: () => {
@@ -317,6 +332,9 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
       contentId,
       titleId,
       descriptionId,
+      setCustomContentId,
+      setCustomTitleId,
+      setCustomDescriptionId,
       hasTitle,
       hasDescription,
       setHasTitle,
@@ -330,8 +348,9 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
       close: (reason, event, returnValue) =>
         applyOpen(false, reason, event, undefined, returnValue as Result | undefined),
       setTriggerEl: (el) => {
-        triggerEl = el
+        setTriggerElSignal(el)
       },
+      triggerLabel: () => triggerEl()?.textContent?.trim() || undefined,
       setContentEl: (el) => {
         contentEl = el
       },
@@ -380,7 +399,7 @@ export function DialogTrigger<Payload = unknown>(
             'data-slot': 'dialog-trigger',
             'aria-haspopup': 'dialog',
             'aria-expanded': isModal ? undefined : s.open ? 'true' : 'false',
-            'aria-controls': ctx?.contentId,
+            'aria-controls': ctx?.contentId(),
             'aria-keyshortcuts': formatAriaKeyShortcuts(props.shortcut),
             disabled: s.disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
@@ -434,6 +453,13 @@ export function DialogContent<Payload = unknown>(
     Omit<PartProps<'div', DialogContentState<Payload>>, keyof DialogContentProps>,
 ) {
   const ctx = useDialogContext('Content')
+  createEffect(
+    () => (typeof props.id === 'string' ? props.id : undefined),
+    (id) => {
+      ctx.setCustomContentId(id)
+      return () => ctx.setCustomContentId(undefined)
+    },
+  )
   const rest = omit(props, 'container', 'keepMounted', 'initialFocus', 'finalFocus')
   const state = (): DialogContentState<Payload> => ({
     open: ctx.open(),
@@ -461,12 +487,16 @@ export function DialogContent<Payload = unknown>(
             return {
               role: ctx.role,
               'data-slot': 'dialog-content',
-              id: props.id ?? ctx.contentId,
+              id: props.id ?? ctx.contentId(),
               tabindex: -1,
               'aria-modal': ctx.modal() ? 'true' : undefined,
               'aria-labelledby':
-                ctx.hasTitle() || typeof window === 'undefined' ? ctx.titleId : undefined,
-              'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
+                ctx.hasTitle() || typeof window === 'undefined' ? ctx.titleId() : undefined,
+              'aria-label':
+                !ctx.hasTitle() && !props['aria-label'] && !props['aria-labelledby']
+                  ? ctx.triggerLabel()
+                  : undefined,
+              'aria-describedby': ctx.hasDescription() ? ctx.descriptionId() : undefined,
               hidden: open ? undefined : true,
               'data-open': open ? '' : undefined,
               'data-closed': !open ? '' : undefined,
@@ -484,12 +514,19 @@ export function DialogContent<Payload = unknown>(
  */
 export function DialogTitle(props: PartProps<'h2'>) {
   const ctx = useDialogContext('Title')
+  createEffect(
+    () => (typeof props.id === 'string' ? props.id : undefined),
+    (id) => {
+      ctx.setCustomTitleId(id)
+      return () => ctx.setCustomTitleId(undefined)
+    },
+  )
   onSettled(() => {
     ctx.setHasTitle(true)
     return () => ctx.setHasTitle(false)
   })
   return renderPart('h2', props, () => ({}), {
-    attrs: () => ({ id: props.id ?? ctx.titleId, 'data-slot': 'dialog-title' }),
+    attrs: () => ({ id: props.id ?? ctx.titleId(), 'data-slot': 'dialog-title' }),
   })
 }
 
@@ -498,12 +535,19 @@ export function DialogTitle(props: PartProps<'h2'>) {
  */
 export function DialogDescription(props: PartProps<'p'>) {
   const ctx = useDialogContext('Description')
+  createEffect(
+    () => (typeof props.id === 'string' ? props.id : undefined),
+    (id) => {
+      ctx.setCustomDescriptionId(id)
+      return () => ctx.setCustomDescriptionId(undefined)
+    },
+  )
   onSettled(() => {
     ctx.setHasDescription(true)
     return () => ctx.setHasDescription(false)
   })
   return renderPart('p', props, () => ({}), {
-    attrs: () => ({ id: props.id ?? ctx.descriptionId, 'data-slot': 'dialog-description' }),
+    attrs: () => ({ id: props.id ?? ctx.descriptionId(), 'data-slot': 'dialog-description' }),
   })
 }
 
@@ -546,7 +590,15 @@ export function DialogClose<Result = string>(
           return
         }
         setError(undefined)
-        runAction(props.action, inferSource(event), {
+        const fn = props.action
+        const wrapped = (details: DialogCloseActionDetails) =>
+          fn.length >= 2
+            ? (fn as unknown as (e: Event | undefined, d: DialogCloseActionDetails) => unknown)(
+                event,
+                details,
+              )
+            : (fn as (d: DialogCloseActionDetails) => unknown)(details)
+        runAction(wrapped, inferSource(event), {
           pending: setPending,
           done: () => ctx.close('action', event, props.returnValue),
           failed: setError,
