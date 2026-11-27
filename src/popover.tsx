@@ -4,6 +4,7 @@ import {
   createMemo,
   onSettled,
   createContext,
+  createEffect,
   createSignal,
   createUniqueId,
   merge,
@@ -78,6 +79,7 @@ export type PopoverOptions<Payload = unknown, Result = string> = PortalProps & {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<PopoverOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   modal?: boolean
   closeOnEscape?: boolean
   closeOnOutsidePress?: boolean
@@ -131,7 +133,8 @@ type PopoverContextValue = {
   modal: () => boolean
   payload: () => unknown
   container: () => HTMLElement | null | undefined
-  contentId: string
+  contentId: () => string
+  setCustomContentId: (id: string | undefined) => void
   triggerId: () => string | undefined
   setTriggerId: (id: string) => void
   titleId: string
@@ -171,7 +174,9 @@ function usePopoverContext(part: string): PopoverContextValue {
  */
 export function Popover<Payload = unknown, Result = string>(props: PopoverProps<Payload, Result>) {
   const uid = createUniqueId()
-  const contentId = `ui-popover-${uid}`
+  const defaultContentId = `ui-popover-${uid}`
+  const [customContentId, setCustomContentId] = createSignal<string | undefined>(undefined)
+  const contentId = () => customContentId() ?? defaultContentId
   const titleId = `ui-popover-title-${uid}`
   const descriptionId = `ui-popover-desc-${uid}`
 
@@ -249,6 +254,14 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   useDismissLayer({
     active: open,
@@ -276,6 +289,7 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
+    setCustomContentId,
     triggerId: () => customTriggerId,
     setTriggerId: (id) => {
       customTriggerId = id
@@ -352,7 +366,7 @@ export function PopoverTrigger<Payload = unknown, Result = string>(
             type: 'button',
             'aria-haspopup': 'dialog',
             'aria-expanded': s.open ? 'true' : 'false',
-            'aria-controls': ctx?.contentId,
+            'aria-controls': ctx?.contentId(),
             'aria-keyshortcuts': formatAriaKeyShortcuts(props.shortcut),
             disabled: s.disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
@@ -383,6 +397,13 @@ export function PopoverContent<Payload = unknown>(
     Omit<PartProps<'div', PopoverContentState<Payload>>, keyof PopoverContentProps>,
 ) {
   const ctx = usePopoverContext('Content')
+  createEffect(
+    () => (typeof props.id === 'string' ? props.id : undefined),
+    (id) => {
+      ctx.setCustomContentId(id)
+      return () => ctx.setCustomContentId(undefined)
+    },
+  )
   const rest = omit(
     props,
     'container',
@@ -419,7 +440,7 @@ export function PopoverContent<Payload = unknown>(
     active: ctx.open,
     container: ctx.contentEl,
     trap: ctx.modal,
-    initialFocus: () => props.initialFocus ?? false,
+    initialFocus: () => props.initialFocus ?? true,
     finalFocus: () => props.finalFocus,
   })
 
@@ -439,7 +460,8 @@ export function PopoverContent<Payload = unknown>(
         const open = ctx.open()
         return {
           role: 'dialog',
-          id: props.id ?? ctx.contentId,
+          'data-slot': 'popover-content',
+          id: props.id ?? ctx.contentId(),
           tabindex: -1,
           'aria-labelledby': ctx.hasTitle() ? ctx.titleId : ctx.triggerId(),
           'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,

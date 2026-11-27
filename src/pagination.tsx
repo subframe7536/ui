@@ -1,4 +1,12 @@
-import { createContext, createUniqueId, merge, omit, Show, useContext } from 'solid-js'
+import {
+  createContext,
+  createProjection,
+  createUniqueId,
+  merge,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -20,7 +28,8 @@ export type PaginationChangeOptions = ChangeOptions<PaginationPageChangeReason>
 
 export type PaginationRangeOptions = {
   page: number
-  count: number
+  count?: number
+  pageCount?: number
   siblingCount?: number
   boundaryCount?: number
 }
@@ -37,8 +46,15 @@ function numRange(start: number, end: number): Array<number> {
   return out
 }
 
-export function paginationRange(options: PaginationRangeOptions): Array<PaginationRangeItem> {
-  const count = Math.max(1, Math.floor(options.count))
+export function paginationRange(
+  options: PaginationRangeOptions & { pageCount: number; count?: undefined },
+): Array<number | 'ellipsis'>
+export function paginationRange(options: PaginationRangeOptions): Array<PaginationRangeItem>
+export function paginationRange(
+  options: PaginationRangeOptions,
+): Array<PaginationRangeItem> | Array<number | 'ellipsis'> {
+  const isCompact = options.pageCount !== undefined && options.count === undefined
+  const count = Math.max(1, Math.floor(options.count ?? options.pageCount ?? 1))
   const page = Math.min(count, Math.max(1, Math.floor(options.page)))
   const siblingCount = Math.max(0, Math.floor(options.siblingCount ?? 1))
   const boundaryCount = Math.max(0, Math.floor(options.boundaryCount ?? 1))
@@ -83,7 +99,7 @@ export function paginationRange(options: PaginationRangeOptions): Array<Paginati
     pushPage(p)
   }
 
-  return result
+  return isCompact ? result.map((r) => (r.type === 'page' ? r.page : 'ellipsis')) : result
 }
 
 export type PaginationApi = {
@@ -278,7 +294,49 @@ export function Pagination(
 
 export function PaginationList(props: PartProps<'ul', PaginationState>) {
   const ctx = usePagination('List')
-  return renderPart('ul', props, ctx.state, {
+  const items = createProjection<Array<number | 'ellipsis'>>((draft) => {
+    const next = ctx.state().items
+    draft.length = next.length
+    for (let i = 0; i < next.length; i++) {
+      const item = next[i]
+      if (item !== undefined && draft[i] !== item) {
+        draft[i] = item
+      }
+    }
+  }, [])
+  const view: PaginationState = {
+    get page() {
+      return ctx.state().page
+    },
+    get count() {
+      return ctx.state().count
+    },
+    get canPrevious() {
+      return ctx.state().canPrevious
+    },
+    get canNext() {
+      return ctx.state().canNext
+    },
+    get disabled() {
+      return ctx.state().disabled
+    },
+    get range() {
+      return ctx.state().range
+    },
+    get items() {
+      return items
+    },
+  }
+  const resolvedProps: PartProps<'ul', PaginationState> = merge(omit(props, 'children'), {
+    children: () => {
+      const content = props.children
+      if (typeof content === 'function') {
+        return content(view)
+      }
+      return content
+    },
+  })
+  return renderPart('ul', resolvedProps, ctx.state, {
     attrs: () => ({ role: 'list' }),
   })
 }
