@@ -1,7 +1,8 @@
+import './styles.css'
+
 import { render } from '@solidjs/web'
 
 import { App } from './App'
-import './styles.css'
 
 const root = document.getElementById('root')
 if (root) {
