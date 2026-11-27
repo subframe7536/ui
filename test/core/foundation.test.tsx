@@ -171,7 +171,7 @@ describe('core foundation migrated from ref/ui-sdk/packages/core/test', () => {
     )
 
     const agent = createAgent()
-    const snap = agent.snapshot({ within: root })
+    const snap = agent.snapshot()
     expect(snap.length).toBeGreaterThanOrEqual(1)
     const sw = snap.find((c) => c.component === 'switch')!
     expect(elementOf(sw.ref)).toBe(root.querySelector('[role="switch"]'))

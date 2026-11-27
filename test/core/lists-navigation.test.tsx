@@ -181,7 +181,9 @@ describe('core lists and navigation migrated from ref/ui-sdk/packages/core/test'
     flush()
     expect(root.textContent).toContain('November')
 
-    const day15 = root.querySelector<HTMLButtonElement>('[data-value="2026-11-15"]')!
+    const day15 = Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find(
+      (b) => b.textContent === '15',
+    )!
     day15.click()
     flush()
     expect(seen.at(-1)).toBe('2026-11-15')
