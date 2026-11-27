@@ -1,0 +1,75 @@
+# 51-Component Alignment Roadmap (`@ui-sdk/solid` Parity)
+
+This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github.com/vercel-labs/ui) (`@ui-sdk/solid`) using pure SolidJS 2 signals and zero `@ui-sdk/core` dependency.
+
+## Phase 1 — Foundation, Agent/Observe & Core Primitives (Implemented)
+
+### Foundation & Page Layer
+- [x] `primitive` — `PartProps`, `RenderProp`, `renderPart`, `composeRefs`, `composeHandlers`, `createControlledSignal`, `createController`, `useControllerEntry`, `useControllerTarget`
+- [x] `foundation/focus` — roving tabindex (`navigateRoving`), focus trap & restore (`useFocusManagement`)
+- [x] `foundation/dismissal` — Escape key, outside click, layered dismiss stack (`useDismissLayer`)
+- [x] `foundation/popup` — `@floating-ui/dom` positioning, portal container, CSS geometry variables (`usePopupPosition`)
+- [x] `foundation/action` — async action pending state, `aria-busy`, `ActionDetails`
+- [x] `observe` — `observe`, `elementOf`, `withSource`, `ObservedChange`, native Solid 2 component registry
+- [x] `agent` — `createAgent`, `agentTools`, `registerTools`, `AgentComponent`, `AgentStep`, `AgentAction`, `AgentChange`
+
+### Batch 1 Components (11 components)
+- [x] `Separator` (`./separator`)
+- [x] `Label` (`./label`)
+- [x] `Button` (`./button`)
+- [x] `Toggle` & `ToggleGroup` (`./toggle`)
+- [x] `Switch` (`./switch`)
+- [x] `Collapsible` (`./collapsible`)
+- [x] `Accordion` (`./accordion`)
+- [x] `Tabs` (`./tabs`)
+- [x] `Dialog` (`./dialog`)
+- [x] `AlertDialog` (`./alert-dialog`)
+- [x] `Popover` (`./popover`)
+
+## Phase 2 — Overlays, Menus & Selection (10 components)
+- [ ] `Tooltip` (`./tooltip`)
+- [ ] `HoverCard` (`./hover-card`)
+- [ ] `Drawer` (`./drawer`)
+- [ ] `Menu` (`./menu`)
+- [ ] `Menubar` (`./menubar`)
+- [ ] `TriggerMenu` (`./trigger-menu`)
+- [ ] `NavigationMenu` (`./navigation-menu`)
+- [ ] `Toast` (`./toast`)
+- [ ] `Overlays` (`./overlays`)
+- [ ] `Toolbar` (`./toolbar`)
+
+## Phase 3 — Form Controls & Inputs (14 components)
+- [ ] `Checkbox` (`./checkbox`)
+- [ ] `Radio` (`./radio`)
+- [ ] `Field` (`./field`)
+- [ ] `Input` (`./input`)
+- [ ] `Textarea` (`./textarea`)
+- [ ] `PasswordInput` (`./password-input`)
+- [ ] `NumberInput` (`./number-input`)
+- [ ] `OTPInput` (`./otp-input`)
+- [ ] `FileInput` (`./file-input`)
+- [ ] `Slider` (`./slider`)
+- [ ] `Rating` (`./rating`)
+- [ ] `SegmentedControl` (`./segmented-control`)
+- [ ] `TokenInput` (`./token-input`)
+- [ ] `Progress` & `Meter` (`./progress`, `./meter`)
+
+## Phase 4 — Lists, Combobox & Data Selection (7 components)
+- [ ] `Listbox` (`./listbox`)
+- [ ] `Select` (`./select`)
+- [ ] `Combobox` (`./combobox`)
+- [ ] `Autocomplete` (`./autocomplete`)
+- [ ] `Command` (`./command`)
+- [ ] `Tree` (`./tree`)
+- [ ] `Pagination` (`./pagination`)
+
+## Phase 5 — Specialized & Rich Interactive Components (9 components)
+- [ ] `Avatar` (`./avatar`)
+- [ ] `Carousel` (`./carousel`)
+- [ ] `Resizable` (`./resizable`)
+- [ ] `ScrollArea` (`./scroll-area`)
+- [ ] `Calendar` (`./calendar`)
+- [ ] `DateInput`, `TimeInput`, `DatePicker` (`./date-input`, `./time-input`, `./date-picker`)
+- [ ] `ColorPicker` (`./color-picker`)
+- [ ] `ImageCropper` (`./image-cropper`)
+- [ ] `Timeline`, `Waterfall`, `Preferences` (`./timeline`, `./waterfall`, `./preferences`)
