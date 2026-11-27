@@ -240,28 +240,24 @@ export function DocsPage(props: { route: string }) {
           }}
         </Show>
 
-        <div class="docs-pager">
-          <div>
-            <Show when={pager().prev}>
-              {(prev) => (
-                <a href={prev().hash} class="pager-link">
-                  <span class="pager-label">← Previous</span>
-                  <span class="pager-title">{prev().title}</span>
-                </a>
-              )}
-            </Show>
-          </div>
-          <div>
-            <Show when={pager().next}>
-              {(next) => (
-                <a href={next().hash} class="pager-link" style={{ 'text-align': 'right' }}>
-                  <span class="pager-label">Next →</span>
-                  <span class="pager-title">{next().title}</span>
-                </a>
-              )}
-            </Show>
-          </div>
-        </div>
+        <nav class="docs-pager" aria-label="Pagination">
+          <Show when={pager().prev}>
+            {(prev) => (
+              <a href={prev().hash} class="pager-link pager-link-prev">
+                <span class="pager-label">← Previous</span>
+                <span class="pager-title">{prev().title}</span>
+              </a>
+            )}
+          </Show>
+          <Show when={pager().next}>
+            {(next) => (
+              <a href={next().hash} class="pager-link pager-link-next">
+                <span class="pager-label">Next →</span>
+                <span class="pager-title">{next().title}</span>
+              </a>
+            )}
+          </Show>
+        </nav>
       </article>
 
       <aside class="docs-toc">

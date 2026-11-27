@@ -1,4 +1,4 @@
-import { For, createEffect, createMemo, createSignal, Show } from 'solid-js'
+import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
 
 import {
   Command,
@@ -66,7 +66,17 @@ export function SearchModal(props: {
           <div class="search-input-wrap">
             <span class="ui-state-pill">/</span>
             <CommandInput class="search-input" placeholder="Search guides and 56 components..." />
-            <span class="search-kbd">ESC</span>
+            <button
+              type="button"
+              class="search-close-btn"
+              onClick={() => props.onOpenChange(false)}
+              aria-label="Close search"
+            >
+              <span class="search-close-desktop">ESC</span>
+              <span class="search-close-mobile" aria-hidden="true">
+                ×
+              </span>
+            </button>
           </div>
           <CommandList class="search-list">
             <Show when={filteredGuides().length > 0}>
@@ -79,8 +89,8 @@ export function SearchModal(props: {
                       value={`guide-${guide.slug}`}
                       onSelect={() => select(`#/docs/${guide.slug}`)}
                     >
-                      <span>{guide.title}</span>
-                      <span class="ui-state-pill">{guide.group}</span>
+                      <span class="search-item-label">{guide.title}</span>
+                      <span class="ui-state-pill search-item-meta">{guide.group}</span>
                     </CommandItem>
                   )}
                 </For>
@@ -96,8 +106,8 @@ export function SearchModal(props: {
                       value={`comp-${comp.slug}`}
                       onSelect={() => select(`#/docs/components/${comp.slug}`)}
                     >
-                      <span>{comp.name}</span>
-                      <span class="ui-state-pill">@subf/ui/{comp.slug}</span>
+                      <span class="search-item-label">{comp.name}</span>
+                      <span class="ui-state-pill search-item-meta">@subf/ui/{comp.slug}</span>
                     </CommandItem>
                   )}
                 </For>

@@ -1,4 +1,5 @@
 import './styles.css'
+import './styles.mobile.css'
 
 import { render } from '@solidjs/web'
 
