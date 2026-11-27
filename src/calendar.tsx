@@ -1,13 +1,14 @@
 import type { JSX } from '@solidjs/web'
 import {
-  createMemo,
+  For,
+  Show,
   createContext,
+  createMemo,
   createSignal,
   createUniqueId,
-  For,
+  merge,
   omit,
   useContext,
-  Show,
 } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
@@ -424,12 +425,11 @@ export function CalendarHeading(props: PartProps<'div', CalendarHeadingState>) {
     }).format(d)
     return { ...s, text }
   }
-  const resolvedProps: PartProps<'div', CalendarHeadingState> = {
-    ...props,
+  const resolvedProps: PartProps<'div', CalendarHeadingState> = merge(props, {
     get children() {
       return props.children ?? ((s) => s.text)
     },
-  }
+  })
   return renderPart('div', resolvedProps, headingState, {
     attrs: () => ({ 'aria-live': 'polite' }),
   })
@@ -484,8 +484,7 @@ export function CalendarMonthSelect(
     }))
     return { ...s, options }
   }
-  const resolvedProps: PartProps<'select', CalendarSelectState> = {
-    ...props,
+  const resolvedProps: PartProps<'select', CalendarSelectState> = merge(props, {
     get children() {
       return (
         <Show
@@ -500,7 +499,7 @@ export function CalendarMonthSelect(
         </Show>
       )
     },
-  }
+  })
 
   return renderPart('select', resolvedProps, selectState, {
     attrs: () => ({
@@ -535,8 +534,7 @@ export function CalendarYearSelect(
     return { ...s, options }
   }
   const rest = omit(props, 'fromYear', 'toYear')
-  const resolvedProps: PartProps<'select', CalendarSelectState> = {
-    ...rest,
+  const resolvedProps: PartProps<'select', CalendarSelectState> = merge(rest, {
     get children() {
       return (
         <Show
@@ -551,7 +549,7 @@ export function CalendarYearSelect(
         </Show>
       )
     },
-  }
+  })
 
   return renderPart('select', resolvedProps, selectState, {
     attrs: () => ({
@@ -617,12 +615,11 @@ export function CalendarWeekday(
     return { index: idx, label: ctx.state().weekdays[idx] ?? '' }
   }
   const rest = omit(props, 'index')
-  const resolvedProps: PartProps<'th', CalendarWeekdayState> = {
-    ...rest,
+  const resolvedProps: PartProps<'th', CalendarWeekdayState> = merge(rest, {
     get children() {
       return props.children ?? ((s) => s.label)
     },
-  }
+  })
   return renderPart('th', resolvedProps, wdState, {
     attrs: () => ({ scope: 'col' }),
   })
@@ -682,12 +679,11 @@ export function CalendarDay(
     }
   }
   const rest = omit(props, 'date', 'cell')
-  const resolvedProps: PartProps<'button', CalendarDayState> = {
-    ...rest,
+  const resolvedProps: PartProps<'button', CalendarDayState> = merge(rest, {
     get children() {
       return props.children ?? ((s) => String(s.day))
     },
-  }
+  })
 
   return renderPart('button', resolvedProps, dayState, {
     attrs: () => {

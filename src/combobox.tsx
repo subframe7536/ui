@@ -1,6 +1,15 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import {
+  For,
+  Show,
+  createContext,
+  createSignal,
+  createUniqueId,
+  merge,
+  omit,
+  useContext,
+} from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -615,12 +624,11 @@ export function ComboboxValue(
     return { ...s, text, hasValue: !s.empty }
   }
   const rest = omit(props, 'placeholder')
-  const resolvedProps: PartProps<'span', ComboboxValueState> = {
-    ...rest,
+  const resolvedProps: PartProps<'span', ComboboxValueState> = merge(rest, {
     get children() {
       return props.children ?? ((s: ComboboxValueState) => s.text)
     },
-  }
+  })
   return renderPart('span', resolvedProps, valState)
 }
 

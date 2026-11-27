@@ -1,4 +1,4 @@
-import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createSignal, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -546,12 +546,11 @@ export function SliderValue(props: PartProps<'output', SliderValueState>) {
     }
   }
 
-  const resolvedProps: PartProps<'output', SliderValueState> = {
-    ...props,
+  const resolvedProps: PartProps<'output', SliderValueState> = merge(props, {
     get children() {
       return props.children ?? ((s: SliderValueState) => s.text)
     },
-  }
+  })
 
   return renderPart('output', resolvedProps, valueState, {
     attrs: () => ({

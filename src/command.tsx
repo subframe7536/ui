@@ -1,5 +1,14 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import {
+  For,
+  Show,
+  createContext,
+  createSignal,
+  createUniqueId,
+  merge,
+  omit,
+  useContext,
+} from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -576,12 +585,11 @@ export function CommandShortcut(
   const state = itemState ?? fallbackCommandItemState
   const rest = omit(props, 'keys')
   const text = () => (Array.isArray(props.keys) ? props.keys.join('+') : (props.keys ?? ''))
-  const resolvedProps: PartProps<'kbd', CommandShortcutState> = {
-    ...rest,
+  const resolvedProps: PartProps<'kbd', CommandShortcutState> = merge(rest, {
     get children() {
       return props.children ?? text()
     },
-  }
+  })
   return renderPart('kbd', resolvedProps, state)
 }
 
