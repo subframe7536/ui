@@ -1,11 +1,11 @@
-import { createSignal } from 'solid-js'
+import { createSignal, untrack } from 'solid-js'
 
 export function createControlledSignal<T>(options: {
   value: () => T | undefined
   defaultValue: () => T
 }): [get: () => T, set: (next: T) => void, isControlled: () => boolean] {
   const [internal, setInternal] = createSignal<{ value: T }>({
-    value: options.defaultValue(),
+    value: untrack(options.defaultValue),
   })
   const isControlled = () => options.value() !== undefined
   const get = (): T => {

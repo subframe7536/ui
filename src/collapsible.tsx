@@ -194,6 +194,7 @@ export function CollapsibleTrigger(
       const s = ctx.state()
       return {
         type: 'button',
+        'data-slot': 'collapsible-trigger',
         'aria-expanded': s.open ? 'true' : 'false',
         'aria-controls': ctx.panelId,
         disabled: s.disabled || undefined,

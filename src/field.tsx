@@ -248,6 +248,18 @@ export function FieldLabel(props: PartProps<'label', FieldState>) {
       'data-invalid': state().invalid ? '' : undefined,
       'data-required': state().required ? '' : undefined,
     }),
+    handlers: {
+      onClick: () => {
+        const targetId =
+          ((props as Record<string, unknown>).for as string | undefined) ?? ctx?.getControlId()
+        if (targetId && typeof document !== 'undefined') {
+          const el = document.getElementById(targetId)
+          if (el && document.activeElement !== el) {
+            el.focus()
+          }
+        }
+      },
+    },
   })
 }
 

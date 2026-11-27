@@ -16,7 +16,10 @@ const FOCUSABLE_SELECTOR = [
 
 export function getFocusableElements(container: HTMLElement): Array<HTMLElement> {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (el) => !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true',
+    (el) =>
+      !el.hasAttribute('disabled') &&
+      el.getAttribute('aria-hidden') !== 'true' &&
+      el.getAttribute('tabindex') !== '-1',
   )
 }
 
@@ -92,7 +95,9 @@ export function useFocusManagement(options: {
       }
       const focusables = getFocusableElements(container)
       if (focusables.length > 0) {
-        focusables[0]?.focus()
+        const preferred =
+          focusables.find((el) => el.getAttribute('aria-selected') === 'true') ?? focusables[0]
+        preferred?.focus()
       } else {
         if (!container.hasAttribute('tabindex')) {
           container.setAttribute('tabindex', '-1')

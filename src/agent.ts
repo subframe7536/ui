@@ -145,11 +145,41 @@ export function createAgent(
     return entry.getElements().some((el) => el !== null && el !== undefined && root.contains(el))
   }
 
-  const snapshot = (): Array<AgentComponent> =>
-    getRegisteredComponents()
-      .filter(inScope)
+  const seen = new Map<string, AgentComponent>()
+
+  const snapshot = (): Array<AgentComponent> => {
+    const entries = getRegisteredComponents().filter(inScope)
+    const sorted = [...entries].sort((a, b) => {
+      const elA = a.getElements().find((el): el is HTMLElement => !!el && el.isConnected)
+      const elB = b.getElements().find((el): el is HTMLElement => !!el && el.isConnected)
+      if (!elA || !elB || elA === elB) {
+        return 0
+      }
+      const pos = elA.compareDocumentPosition(elB)
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) {
+        return -1
+      }
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) {
+        return 1
+      }
+      return 0
+    })
+    const live = sorted
       .map(toAgentComponent)
       .filter((item): item is AgentComponent => item !== null)
+    const liveRefs = new Set<string>()
+    for (const item of live) {
+      liveRefs.add(item.ref)
+      seen.set(item.ref, item)
+    }
+    const offPage: Array<AgentComponent> = []
+    for (const [ref, prev] of seen) {
+      if (!liveRefs.has(ref)) {
+        offPage.push({ ...prev, offPage: true, actions: [] })
+      }
+    }
+    return [...live, ...offPage]
+  }
 
   const query = (
     params: {

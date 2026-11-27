@@ -1,6 +1,6 @@
 import { Portal, dynamic } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { Show, isStatic, merge, omit, untrack } from 'solid-js'
+import { Show, createMemo, getOwner, isStatic, merge, omit, runWithOwner, untrack } from 'solid-js'
 
 /**
  * Renders children in place on the server (SSR) and through a Solid `<Portal>` on the client.
@@ -41,14 +41,25 @@ const DISPLAY_MODIFIER_MAP: Record<string, string> = {
 /**
  * Formats a shortcut string (e.g. `"mod+k"`) into an ARIA `aria-keyshortcuts` value (`"Control+K"`).
  */
+function isApplePlatform(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false
+  }
+  return /mac|iphone|ipad|ipod/i.test(navigator.platform ?? '')
+}
+
 export function formatAriaKeyShortcuts(shortcut: string | undefined): string | undefined {
   if (!shortcut) {
     return undefined
   }
+  const apple = isApplePlatform()
   return shortcut
     .split('+')
     .map((part) => {
       const lower = part.trim().toLowerCase()
+      if (lower === 'mod') {
+        return apple ? 'Meta' : 'Control'
+      }
       if (lower in ARIA_MODIFIER_MAP) {
         return ARIA_MODIFIER_MAP[lower]
       }
@@ -300,12 +311,20 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
   if (internal.handlers) {
     for (const [key, handler] of Object.entries(internal.handlers)) {
       overrides[key] = (event: Event) => {
-        const userHandler = (passthrough as Record<string, unknown>)[key]
-        if (userHandler) {
-          callHandler(userHandler, event)
-        }
-        if (!event.defaultPrevented) {
-          handler(event as never)
+        const run = () =>
+          untrack(() => {
+            const userHandler = (passthrough as Record<string, unknown>)[key]
+            if (userHandler) {
+              callHandler(userHandler, event)
+            }
+            if (!event.defaultPrevented) {
+              handler(event as never)
+            }
+          })
+        if (getOwner()) {
+          runWithOwner(null, run)
+        } else {
+          run()
         }
       }
     }
@@ -313,10 +332,10 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
 
   const mergedProps = merge(internal.attrs ?? emptyAttrs, passthrough, overrides)
 
-  const resolveChildren = () => {
+  const resolveChildren = createMemo(() => {
     const ch = userProps.children
     return typeof ch === 'function' ? ch(reactiveState) : ch
-  }
+  })
 
   if (isStatic(userProps, 'render')) {
     const customRender = untrack(() => userProps.render)
