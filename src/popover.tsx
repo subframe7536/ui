@@ -1,6 +1,16 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  untrack,
+  createMemo,
+  onSettled,
+  createContext,
+  createSignal,
+  createUniqueId,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { markPopupResult } from './foundation/action'
 import {
@@ -20,6 +30,11 @@ import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+
+const defaultSide = (): Side => 'bottom'
+const defaultAlign = (): Align => 'center'
+
+const emptyArrowStyle = (): Record<string, string> => ({})
 
 export type PopoverOpenChangeReason =
   | 'trigger-press'
@@ -75,7 +90,7 @@ export type PopoverTriggerProps<Payload = unknown> = {
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: PopoverController<any, any>
+  controller?: PopoverController<unknown, unknown>
 }
 
 export type PopoverTriggerState = {
@@ -103,7 +118,7 @@ export type PopoverArrowState = {
   align: Align
 }
 
-export type PopoverShortcutProps = {}
+export type PopoverShortcutProps = object
 export type PopoverShortcutState = { shortcut: string | undefined }
 
 type PopoverContextValue = {
@@ -144,6 +159,9 @@ function usePopoverContext(part: string): PopoverContextValue {
   return ctx
 }
 
+/**
+ * Floating panel anchored to a trigger, positioned natively via `@floating-ui/dom`.
+ */
 export function Popover<Payload = unknown, Result = string>(props: PopoverProps<Payload, Result>) {
   const uid = createUniqueId()
   const contentId = `ui-popover-${uid}`
@@ -155,7 +173,7 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined,
+    untrack(() => props.payload) as never,
   )
   const [hasTitle, setHasTitle] = createSignal(false)
   const [hasDescription, setHasDescription] = createSignal(false)
@@ -163,9 +181,9 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | undefined>(undefined)
 
-  let arrowStyleGetter: () => Record<string, string> = () => ({})
-  let sideGetter: () => Side = () => 'bottom'
-  let alignGetter: () => Align = () => 'center'
+  let arrowStyleGetter: () => Record<string, string> = emptyArrowStyle
+  let sideGetter: () => Side = defaultSide
+  let alignGetter: () => Align = defaultAlign
   let pendingResolve: ((result: Result | undefined) => void) | undefined
 
   const modal = () => !!props.modal
@@ -287,6 +305,9 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
   return <PopoverContext value={ctx}>{props.children}</PopoverContext>
 }
 
+/**
+ * Trigger button that toggles the popover. Supports external `controller`.
+ */
 export function PopoverTrigger<Payload = unknown>(
   props: PopoverTriggerProps<Payload> &
     Omit<PartProps<'button', PopoverTriggerState>, 'value' | 'onChange' | 'type'>,
@@ -298,8 +319,9 @@ export function PopoverTrigger<Payload = unknown>(
     disabled: !!props.disabled,
   })
 
+  const shortcut = createMemo(() => props.shortcut)
   return (
-    <PopoverShortcutContext value={() => props.shortcut}>
+    <PopoverShortcutContext value={shortcut}>
       {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
@@ -333,6 +355,9 @@ export function PopoverTrigger<Payload = unknown>(
   )
 }
 
+/**
+ * Floating popover panel positioned against its trigger or `anchor`.
+ */
 export function PopoverContent<Payload = unknown>(
   props: PopoverContentProps &
     Omit<PartProps<'div', PopoverContentState<Payload>>, keyof PopoverContentProps>,
@@ -420,7 +445,10 @@ export function PopoverContent<Payload = unknown>(
 
 export function PopoverTitle(props: PartProps<'h2'>) {
   const ctx = usePopoverContext('Title')
-  ctx.setHasTitle(true)
+  onSettled(() => {
+    ctx.setHasTitle(true)
+    return () => ctx.setHasTitle(false)
+  })
   return renderPart('h2', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.titleId }),
   })
@@ -428,7 +456,10 @@ export function PopoverTitle(props: PartProps<'h2'>) {
 
 export function PopoverDescription(props: PartProps<'p'>) {
   const ctx = usePopoverContext('Description')
-  ctx.setHasDescription(true)
+  onSettled(() => {
+    ctx.setHasDescription(true)
+    return () => ctx.setHasDescription(false)
+  })
   return renderPart('p', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.descriptionId }),
   })

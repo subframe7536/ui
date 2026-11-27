@@ -1,6 +1,16 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  untrack,
+  createMemo,
+  onSettled,
+  createContext,
+  createSignal,
+  createUniqueId,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { markPopupResult, runAction } from './foundation/action'
 import type { ActionDetails } from './foundation/action'
@@ -76,12 +86,12 @@ export type DialogProps<Payload = unknown, Result = string> = DialogOptions<Payl
   children?: JSX.Element
 }
 
-export type DialogTriggerProps<Payload = unknown> = {
+export type DialogTriggerProps<Payload = unknown, Result = string> = {
   disabled?: boolean
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: DialogController<any, any>
+  controller?: DialogController<Payload, Result>
 }
 
 export type DialogTriggerState = {
@@ -117,7 +127,7 @@ export type DialogCloseState = {
   error: unknown
 }
 
-export type DialogShortcutProps = {}
+export type DialogShortcutProps = object
 export type DialogShortcutState = { shortcut: string | undefined }
 
 type DialogContextValue = {
@@ -153,6 +163,9 @@ function useDialogContext(part: string): DialogContextValue {
   return ctx
 }
 
+/**
+ * Internal shared root used by both `Dialog` and `AlertDialog`.
+ */
 export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnOutside: boolean) {
   return function DialogRoot<Payload = unknown, Result = string>(
     props: DialogProps<Payload, Result>,
@@ -167,7 +180,7 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
       defaultValue: () => !!props.defaultOpen,
     })
     const [payload, setPayload] = createSignal<Payload | undefined>(
-      props.payload as Exclude<Payload, Function> | undefined,
+      untrack(() => props.payload) as never,
     )
     const [hasTitle, setHasTitle] = createSignal(false)
     const [hasDescription, setHasDescription] = createSignal(false)
@@ -273,7 +286,13 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
           if (!contentEl) {
             return
           }
-          const needle = String(buttonLabel ?? '')
+          const needle = (
+            typeof buttonLabel === 'string'
+              ? buttonLabel
+              : typeof buttonLabel === 'number'
+                ? String(buttonLabel)
+                : ''
+          )
             .trim()
             .toLowerCase()
           const target = Array.from(contentEl.querySelectorAll('button')).find(
@@ -322,8 +341,14 @@ export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnO
   }
 }
 
+/**
+ * A modal or non-modal dialog window over the page.
+ */
 export const Dialog = createDialogRoot('dialog', true)
 
+/**
+ * Button that opens the dialog. Connects to an external dialog via `controller`.
+ */
 export function DialogTrigger<Payload = unknown>(
   props: DialogTriggerProps<Payload> &
     Omit<PartProps<'button', DialogTriggerState>, 'value' | 'onChange' | 'type'>,
@@ -335,8 +360,9 @@ export function DialogTrigger<Payload = unknown>(
     disabled: !!props.disabled,
   })
 
+  const shortcut = createMemo(() => props.shortcut)
   return (
-    <TriggerShortcutContext value={() => props.shortcut}>
+    <TriggerShortcutContext value={shortcut}>
       {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
@@ -370,6 +396,9 @@ export function DialogTrigger<Payload = unknown>(
   )
 }
 
+/**
+ * Optional backdrop dimmed behind the dialog content.
+ */
 export function DialogBackdrop(props: PartProps<'div', DialogBackdropState>) {
   const ctx = useDialogContext('Backdrop')
   const state = (): DialogBackdropState => ({ open: ctx.open() })
@@ -389,6 +418,9 @@ export function DialogBackdrop(props: PartProps<'div', DialogBackdropState>) {
   )
 }
 
+/**
+ * The dialog surface itself, with ARIA labeling and focus trapping.
+ */
 export function DialogContent<Payload = unknown>(
   props: DialogContentProps &
     Omit<PartProps<'div', DialogContentState<Payload>>, keyof DialogContentProps>,
@@ -437,22 +469,37 @@ export function DialogContent<Payload = unknown>(
   )
 }
 
+/**
+ * Accessible title of the dialog (`h2` by default).
+ */
 export function DialogTitle(props: PartProps<'h2'>) {
   const ctx = useDialogContext('Title')
-  ctx.setHasTitle(true)
+  onSettled(() => {
+    ctx.setHasTitle(true)
+    return () => ctx.setHasTitle(false)
+  })
   return renderPart('h2', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.titleId }),
   })
 }
 
+/**
+ * Accessible description of the dialog (`p` by default).
+ */
 export function DialogDescription(props: PartProps<'p'>) {
   const ctx = useDialogContext('Description')
-  ctx.setHasDescription(true)
+  onSettled(() => {
+    ctx.setHasDescription(true)
+    return () => ctx.setHasDescription(false)
+  })
   return renderPart('p', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.descriptionId }),
   })
 }
 
+/**
+ * Button that closes the dialog, optionally running an async `action` before closing.
+ */
 export function DialogClose<Result = string>(
   props: DialogCloseProps<Result> &
     Omit<PartProps<'button', DialogCloseState>, keyof DialogCloseProps<Result> | 'type'>,
@@ -498,6 +545,9 @@ export function DialogClose<Result = string>(
   })
 }
 
+/**
+ * Displays a trigger's keyboard shortcut visually while staying hidden from screen readers.
+ */
 export function DialogShortcut(props: DialogShortcutProps & PartProps<'kbd', DialogShortcutState>) {
   const shortcut = useContext(TriggerShortcutContext)
   return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {

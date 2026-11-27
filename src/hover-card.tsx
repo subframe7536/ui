@@ -1,6 +1,7 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
+  untrack,
   createContext,
   createSignal,
   createUniqueId,
@@ -25,6 +26,11 @@ import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+
+const defaultSide = (): Side => 'bottom'
+const defaultAlign = (): Align => 'center'
+
+const emptyArrowStyle = (): Record<string, string> => ({})
 
 export type HoverCardOpenChangeReason =
   | 'trigger-hover'
@@ -70,7 +76,7 @@ export type HoverCardProps<Payload = unknown> = HoverCardOptions<Payload> & {
 export type HoverCardTriggerProps<Payload = unknown> = {
   disabled?: boolean
   payload?: Payload
-  controller?: HoverCardController<any>
+  controller?: HoverCardController
 }
 
 export type HoverCardTriggerState = {
@@ -128,6 +134,9 @@ function useHoverCardContext(part: string): HoverCardContextValue {
   return ctx
 }
 
+/**
+ * Rich preview card opened when hovering or focusing a link or trigger.
+ */
 export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
   const contentId = `ui-hover-card-${createUniqueId()}`
 
@@ -136,7 +145,7 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined,
+    untrack(() => props.payload) as never,
   )
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
@@ -144,9 +153,9 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
 
   let openTimer: ReturnType<typeof setTimeout> | undefined
   let closeTimer: ReturnType<typeof setTimeout> | undefined
-  let arrowStyleGetter: () => Record<string, string> = () => ({})
-  let sideGetter: () => Side = () => 'bottom'
-  let alignGetter: () => Align = () => 'center'
+  let arrowStyleGetter: () => Record<string, string> = emptyArrowStyle
+  let sideGetter: () => Side = defaultSide
+  let alignGetter: () => Align = defaultAlign
 
   const cancelTimers = () => {
     if (openTimer !== undefined) {

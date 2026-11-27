@@ -1,6 +1,16 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  untrack,
+  createMemo,
+  onSettled,
+  createContext,
+  createSignal,
+  createUniqueId,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { markPopupResult, runAction } from './foundation/action'
 import type { ActionDetails } from './foundation/action'
@@ -108,7 +118,7 @@ export type DrawerTriggerProps<Payload = unknown> = {
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: DrawerController<any, any>
+  controller?: DrawerController<unknown, unknown>
 }
 
 export type DrawerBackdropState = { open: boolean; side: DrawerSide }
@@ -133,7 +143,7 @@ export type DrawerHandleState = {
   snapPoint: SnapPoint | undefined
 }
 
-export type DrawerOutletProps = {}
+export type DrawerOutletProps = object
 export type DrawerOutletState = { open: boolean; side: DrawerSide }
 
 type DrawerContextValue = {
@@ -172,6 +182,9 @@ function useDrawerContext(part: string): DrawerContextValue {
   return ctx
 }
 
+/**
+ * Slide-over sheet / drawer with optional snap points and full dialog accessibility.
+ */
 export function Drawer<Payload = unknown, Result = string>(props: DrawerProps<Payload, Result>) {
   const uid = createUniqueId()
   const contentId = `ui-drawer-${uid}`
@@ -187,7 +200,7 @@ export function Drawer<Payload = unknown, Result = string>(props: DrawerProps<Pa
     defaultValue: () => props.defaultSnapPoint ?? props.snapPoints?.[0],
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined,
+    untrack(() => props.payload) as never,
   )
   const [hasTitle, setHasTitle] = createSignal(false)
   const [hasDescription, setHasDescription] = createSignal(false)
@@ -364,8 +377,9 @@ export function DrawerTrigger<Payload = unknown>(
     disabled: !!props.disabled,
   })
 
+  const shortcut = createMemo(() => props.shortcut)
   return (
-    <DrawerShortcutContext value={() => props.shortcut}>
+    <DrawerShortcutContext value={shortcut}>
       {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
@@ -466,7 +480,10 @@ export function DrawerContent<Payload = unknown>(
 
 export function DrawerTitle(props: PartProps<'h2'>) {
   const ctx = useDrawerContext('Title')
-  ctx.setHasTitle(true)
+  onSettled(() => {
+    ctx.setHasTitle(true)
+    return () => ctx.setHasTitle(false)
+  })
   return renderPart('h2', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.titleId }),
   })
@@ -474,7 +491,10 @@ export function DrawerTitle(props: PartProps<'h2'>) {
 
 export function DrawerDescription(props: PartProps<'p'>) {
   const ctx = useDrawerContext('Description')
-  ctx.setHasDescription(true)
+  onSettled(() => {
+    ctx.setHasDescription(true)
+    return () => ctx.setHasDescription(false)
+  })
   return renderPart('p', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.descriptionId }),
   })

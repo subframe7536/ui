@@ -1,6 +1,8 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
+  untrack,
+  createMemo,
   createContext,
   createSignal,
   createUniqueId,
@@ -25,6 +27,11 @@ import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+
+const defaultTopSide = (): Side => 'top'
+const defaultAlign = (): Align => 'center'
+
+const emptyArrowStyle = (): Record<string, string> => ({})
 
 export type TooltipOpenChangeReason =
   | 'trigger-hover'
@@ -71,7 +78,7 @@ export type TooltipTriggerProps<Payload = unknown> = {
   disabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: TooltipController<any>
+  controller?: TooltipController
 }
 
 export type TooltipTriggerState = {
@@ -97,7 +104,7 @@ export type TooltipArrowState = {
   align: Align
 }
 
-export type TooltipShortcutProps = {}
+export type TooltipShortcutProps = object
 export type TooltipShortcutState = { shortcut: string | undefined }
 
 type TooltipContextValue = {
@@ -134,6 +141,9 @@ function useTooltipContext(part: string): TooltipContextValue {
   return ctx
 }
 
+/**
+ * A small floating label describing a trigger on hover or focus.
+ */
 export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
   const contentId = `ui-tooltip-${createUniqueId()}`
 
@@ -142,7 +152,7 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined,
+    untrack(() => props.payload) as never,
   )
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
@@ -150,9 +160,9 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
 
   let openTimer: ReturnType<typeof setTimeout> | undefined
   let closeTimer: ReturnType<typeof setTimeout> | undefined
-  let arrowStyleGetter: () => Record<string, string> = () => ({})
-  let sideGetter: () => Side = () => 'top'
-  let alignGetter: () => Align = () => 'center'
+  let arrowStyleGetter: () => Record<string, string> = emptyArrowStyle
+  let sideGetter: () => Side = defaultTopSide
+  let alignGetter: () => Align = defaultAlign
 
   const cancelTimers = () => {
     if (openTimer !== undefined) {
@@ -318,8 +328,9 @@ export function TooltipTrigger<Payload = unknown>(
     disabled: !!props.disabled || (target()?.disabled() ?? false),
   })
 
+  const shortcut = createMemo(() => props.shortcut)
   return (
-    <TooltipShortcutContext value={() => props.shortcut}>
+    <TooltipShortcutContext value={shortcut}>
       {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
