@@ -1,4 +1,3 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
   For,
@@ -20,7 +19,7 @@ import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { renderPart, SafePortal } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { defaultListFilter } from './listbox'
@@ -110,7 +109,7 @@ export type ComboboxOptions<T extends string = string> = {
   placeholder?: string
   name?: string
   filter?: ListFilter
-  items?: ListData<T>
+  items?: Array<T | ListData<T>[number]>
   itemToLabel?: (value: T) => string
   controller?: ComboboxController<T>
   debug?: boolean
@@ -524,7 +523,10 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
         getOptions: () => optionList,
         getLabelFor,
         placeholder: () => props.placeholder,
-        items: () => props.items,
+        items: () =>
+          props.items?.map((entry) =>
+            typeof entry === 'string' ? { value: entry, label: entry } : entry,
+          ),
         creatable: () => !!props.creatable,
         anchorEl: () => inputEl(),
         setInputEl,
@@ -814,10 +816,11 @@ export function ComboboxContent(
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <Portal mount={props.container ?? undefined}>
+      <SafePortal mount={props.container ?? undefined}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
+            'data-slot': 'combobox-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
           }),
@@ -826,7 +829,7 @@ export function ComboboxContent(
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }

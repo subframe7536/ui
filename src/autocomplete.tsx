@@ -89,7 +89,7 @@ export type AutocompleteOptions = {
   placeholder?: string
   name?: string
   filter?: SearchFilter
-  items?: ListData
+  items?: Array<string | ListData[number]>
   controller?: AutocompleteController
   debug?: boolean
 }
@@ -359,7 +359,10 @@ export function Autocomplete(props: AutocompleteProps) {
         placeholder: () => props.placeholder,
         name: () => props.name ?? field?.name(),
         required: () => !!props.required || !!field?.required(),
-        items: () => props.items,
+        items: () =>
+          props.items?.map((entry) =>
+            typeof entry === 'string' ? { value: entry, label: entry } : entry,
+          ),
         inputEl,
         setInputEl,
         contentEl,
@@ -531,6 +534,7 @@ export function AutocompleteContent(
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
+            'data-slot': 'autocomplete-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
           }),
