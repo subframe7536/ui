@@ -15,6 +15,7 @@ const FILTER_OPTIONS: Array<FilterOption> = [
   'Overlays & Popups',
   'Navigation & Layout',
   'Data & Display',
+  'Utilities & Runtime',
 ]
 
 export function SinkPage() {
