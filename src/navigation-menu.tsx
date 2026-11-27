@@ -65,7 +65,11 @@ export type NavigationMenuTriggerProps = { disabled?: boolean }
 export type NavigationMenuTriggerState = { open: boolean; disabled: boolean }
 export type NavigationMenuContentProps = { keepMounted?: boolean }
 export type NavigationMenuContentState = { open: boolean; motion: NavigationMenuMotion }
-export type NavigationMenuLinkProps = { active?: boolean; closeOnSelect?: boolean }
+export type NavigationMenuLinkProps = {
+  active?: boolean
+  current?: boolean
+  closeOnSelect?: boolean
+}
 export type NavigationMenuLinkState = { active: boolean }
 export type NavigationMenuLinkIconProps = { mirror?: boolean }
 export type NavigationMenuLinkIconState = { active: boolean }
@@ -328,6 +332,7 @@ export function NavigationMenuContent(
     <Show when={item.open() || !!props.keepMounted}>
       {renderPart('div', rest, state, {
         attrs: () => ({
+          'data-slot': 'navigation-menu-content',
           id: props.id ?? `${nav.baseId}-content-${item.value()}`,
           hidden: item.open() ? undefined : true,
           'data-open': item.open() ? '' : undefined,
@@ -343,15 +348,16 @@ export function NavigationMenuLink(
     Omit<PartProps<'a', NavigationMenuLinkState>, 'active' | 'closeOnSelect'>,
 ) {
   const nav = useNav('Link')
-  const state = (): NavigationMenuLinkState => ({ active: !!props.active })
-  const rest = omit(props, 'active', 'closeOnSelect')
+  const isCurrent = () => !!props.active || !!props.current
+  const state = (): NavigationMenuLinkState => ({ active: isCurrent() })
+  const rest = omit(props, 'active', 'current', 'closeOnSelect')
 
   return (
     <NavigationMenuLinkContext value={state}>
       {renderPart('a', rest, state, {
         attrs: () => ({
-          'aria-current': props.active ? 'page' : undefined,
-          'data-active': props.active ? '' : undefined,
+          'aria-current': isCurrent() ? 'page' : undefined,
+          'data-active': isCurrent() ? '' : undefined,
         }),
         handlers: {
           onClick: (event: MouseEvent) => {
