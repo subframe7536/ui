@@ -256,10 +256,6 @@ body {
 }
 
 /* Docs Page */
-.docs-shell {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 .meta-pill {
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -347,7 +343,7 @@ body {
 
 /* Footer */
 .site-footer {
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
 }
 
 .footer-links {
@@ -444,6 +440,10 @@ body {
   max-width: 240px;
 }
 
+.ui-listbox .ui-input {
+  max-width: 100%;
+}
+
 .ui-otp-group {
   flex-wrap: wrap;
   max-width: 100%;
@@ -454,7 +454,10 @@ body {
   overflow-y: auto;
 }
 
-.ui-popover,
+.ui-popover {
+  max-width: min(280px, calc(100vw - 24px));
+}
+
 .ui-menu-content,
 .ui-select-content {
   max-width: calc(100vw - 24px);
@@ -466,7 +469,7 @@ body {
 
 .ui-calendar {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
 }
 
 /* Small Viewport (< 768px) Typography & Spacing */
