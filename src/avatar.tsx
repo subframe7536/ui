@@ -1,10 +1,10 @@
 import {
-  untrack,
+  Show,
   createContext,
   createEffect,
   createSignal,
   omit,
-  Show,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -29,7 +29,7 @@ export type AvatarState = {
 }
 
 export type AvatarPrimitive = AvatarState
-export type AvatarFallbackProps = { delayMs?: number }
+export type AvatarFallbackProps = { delay?: number; delayMs?: number }
 
 type AvatarContextValue = {
   state: () => AvatarState
@@ -101,6 +101,7 @@ export function AvatarImage(props: PartProps<'img', AvatarState>) {
       {renderPart('img', props, ctx.state, {
         attrs: () => ({
           'data-status': ctx.state().status,
+          'aria-hidden': ctx.state().status === 'loaded' ? undefined : 'true',
         }),
         style: () => (ctx.state().status === 'loaded' ? undefined : { display: 'none' }),
         handlers: {
@@ -116,22 +117,20 @@ export function AvatarFallback(
   props: AvatarFallbackProps & Omit<PartProps<'span', AvatarState>, keyof AvatarFallbackProps>,
 ) {
   const ctx = useAvatar('Fallback')
-  const [canRender, setCanRender] = createSignal(untrack(() => (props.delayMs ?? 0) <= 0))
+  const delayValue = () => props.delay ?? props.delayMs ?? 0
+  const [canRender, setCanRender] = createSignal(untrack(() => delayValue() <= 0))
 
-  createEffect(
-    () => props.delayMs,
-    (delay) => {
-      if (!delay || delay <= 0) {
-        setCanRender(true)
-        return
-      }
-      setCanRender(false)
-      const timer = setTimeout(() => setCanRender(true), delay)
-      return () => clearTimeout(timer)
-    },
-  )
+  createEffect(delayValue, (delay) => {
+    if (delay <= 0) {
+      setCanRender(true)
+      return
+    }
+    setCanRender(false)
+    const timer = setTimeout(() => setCanRender(true), delay)
+    return () => clearTimeout(timer)
+  })
 
-  const rest = omit(props, 'delayMs')
+  const rest = omit(props, 'delay', 'delayMs')
   return (
     <Show when={canRender() && ctx.state().status !== 'loaded'}>
       {renderPart('span', rest, ctx.state, {

@@ -18,6 +18,7 @@ export type MeterOptions = {
   low?: number
   high?: number
   optimum?: number
+  locale?: string
   format?: NumberFormat
   getValueLabel?: (details: MeterLabelDetails) => string
   debug?: boolean
@@ -68,7 +69,8 @@ export function Meter(
     if (props.getValueLabel) {
       return props.getValueLabel(s)
     }
-    return new Intl.NumberFormat(undefined, props.format ?? { style: 'percent' }).format(
+    const locale = props.locale ?? (typeof document === 'undefined' ? 'en' : undefined)
+    return new Intl.NumberFormat(locale, props.format ?? { style: 'percent' }).format(
       s.percent / 100,
     )
   }
@@ -81,6 +83,7 @@ export function Meter(
     'low',
     'high',
     'optimum',
+    'locale',
     'format',
     'getValueLabel',
     'debug',
@@ -93,6 +96,7 @@ export function Meter(
           const s = state()
           return {
             role: 'meter',
+            'data-slot': 'meter',
             'aria-valuemin': s.min,
             'aria-valuemax': s.max,
             'aria-valuenow': s.value,
@@ -100,6 +104,7 @@ export function Meter(
             'aria-labelledby': labelId,
           }
         },
+        style: () => ({ '--meter-value': `${state().percent}%` }),
       })}
     </MeterContext>
   )
@@ -107,12 +112,15 @@ export function Meter(
 
 export function MeterTrack(props: PartProps<'div', MeterState>) {
   const ctx = useMeter('Track')
-  return renderPart('div', props, ctx.state)
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ 'data-slot': 'meter-track' }),
+  })
 }
 
 export function MeterIndicator(props: PartProps<'div', MeterState>) {
   const ctx = useMeter('Indicator')
   return renderPart('div', props, ctx.state, {
+    attrs: () => ({ 'data-slot': 'meter-indicator' }),
     style: () => ({ width: `${ctx.state().percent}%` }),
   })
 }
@@ -120,7 +128,7 @@ export function MeterIndicator(props: PartProps<'div', MeterState>) {
 export function MeterLabel(props: PartProps<'span', MeterState>) {
   const ctx = useMeter('Label')
   return renderPart('span', props, ctx.state, {
-    attrs: () => ({ id: props.id ?? ctx.labelId }),
+    attrs: () => ({ id: props.id ?? ctx.labelId, 'data-slot': 'meter-label' }),
   })
 }
 
@@ -136,7 +144,7 @@ export function MeterValue(props: PartProps<'span', MeterValueState>) {
     }),
     state,
     {
-      attrs: () => ({ 'aria-hidden': 'true' }),
+      attrs: () => ({ 'aria-hidden': 'true', 'data-slot': 'meter-value' }),
     },
   )
 }

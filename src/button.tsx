@@ -35,11 +35,11 @@ export type ButtonApi = {
   isDisabled: () => boolean
 }
 
-type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLElement, MouseEvent>>[0]
+type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLButtonElement, MouseEvent>>[0]
 
-type ButtonBoundClickHandler<T = never> = readonly [
-  (data: T, event: ButtonClickEvent, details: ButtonActionDetails) => unknown,
-  T,
+type ButtonBoundClickHandler = readonly [
+  (data: never, event: ButtonClickEvent, details: ButtonActionDetails) => unknown,
+  unknown,
 ]
 
 export type ButtonProps = Omit<PartProps<'button', ButtonState>, 'type' | 'onClick'> &
