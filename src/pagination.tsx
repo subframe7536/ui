@@ -29,19 +29,20 @@ export type PaginationRangeItem =
   | { type: 'page'; page: number; current: boolean }
   | { type: 'ellipsis'; key: 'start-ellipsis' | 'end-ellipsis' }
 
+function numRange(start: number, end: number): Array<number> {
+  const out: Array<number> = []
+  for (let i = start; i <= end; i++) {
+    out.push(i)
+  }
+  return out
+}
+
 export function paginationRange(options: PaginationRangeOptions): Array<PaginationRangeItem> {
   const count = Math.max(1, Math.floor(options.count))
   const page = Math.min(count, Math.max(1, Math.floor(options.page)))
   const siblingCount = Math.max(0, Math.floor(options.siblingCount ?? 1))
   const boundaryCount = Math.max(0, Math.floor(options.boundaryCount ?? 1))
-
-  const range = (start: number, end: number): Array<number> => {
-    const out: Array<number> = []
-    for (let i = start; i <= end; i++) {
-      out.push(i)
-    }
-    return out
-  }
+  const range = numRange
 
   const startPages = range(1, Math.min(boundaryCount, count))
   const endPages = range(Math.max(count - boundaryCount + 1, boundaryCount + 1), count)
@@ -180,15 +181,15 @@ export function Pagination(
     }
   }
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const goTo = (next: number, reason: PaginationPageChangeReason, event?: Event) => {
     if (disabled()) {
@@ -205,7 +206,7 @@ export function Pagination(
       return
     }
     setRawPage(clamped)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'page',
       previous: prev,
       value: clamped,
@@ -236,7 +237,7 @@ export function Pagination(
       previous: () => api.previous(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const rest = omit(
     props,
@@ -291,8 +292,12 @@ export function PaginationLink(
     }
   }
   const rest = omit(props, 'page', 'disabled')
-  const resolvedProps: PartProps<'button', PaginationLinkState> =
-    props.children !== undefined ? rest : { ...rest, children: () => String(props.page) }
+  const resolvedProps: PartProps<'button', PaginationLinkState> = {
+    ...rest,
+    get children() {
+      return props.children ?? String(props.page)
+    },
+  }
 
   return renderPart('button', resolvedProps, linkState, {
     attrs: () => {
@@ -409,8 +414,12 @@ export function PaginationLast(props: Omit<PartProps<'button', PaginationStepSta
 
 export function PaginationEllipsis(props: PartProps<'span', PaginationState>) {
   const ctx = usePagination('Ellipsis')
-  const resolvedProps: PartProps<'span', PaginationState> =
-    props.children !== undefined ? props : { ...props, children: '…' }
+  const resolvedProps: PartProps<'span', PaginationState> = {
+    ...props,
+    get children() {
+      return props.children ?? '…'
+    },
+  }
   return renderPart('span', resolvedProps, ctx.state, {
     attrs: () => ({ 'aria-hidden': true }),
   })

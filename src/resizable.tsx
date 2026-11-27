@@ -1,4 +1,4 @@
-import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+import { untrack, createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -330,13 +330,15 @@ export function ResizablePanel(
     Omit<PartProps<'div', ResizablePanelState>, keyof ResizablePanelProps>,
 ) {
   const ctx = useResizable('Panel')
-  const index =
-    props.index ??
-    ctx.registerPanel({
-      minSize: props.minSize ?? 5,
-      maxSize: props.maxSize ?? 95,
-      collapsedSize: props.collapsedSize ?? 0,
-    })
+  const index = untrack(
+    () =>
+      props.index ??
+      ctx.registerPanel({
+        minSize: props.minSize ?? 5,
+        maxSize: props.maxSize ?? 95,
+        collapsedSize: props.collapsedSize ?? 0,
+      }),
+  )
 
   const panelState = (): ResizablePanelState => {
     const size = ctx.state().layout[index] ?? props.defaultSize ?? 50
@@ -373,7 +375,7 @@ export function ResizableHandle(
     Omit<PartProps<'div', ResizableHandleState>, keyof ResizableHandleProps>,
 ) {
   const ctx = useResizable('Handle')
-  const index = props.index ?? ctx.registerHandle()
+  const index = untrack(() => props.index) ?? ctx.registerHandle()
   const [localDrag, setLocalDrag] = createSignal(false)
 
   const handleState = (): ResizableHandleState => ({

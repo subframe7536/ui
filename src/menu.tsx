@@ -1,6 +1,15 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  untrack,
+  createMemo,
+  createContext,
+  createSignal,
+  createUniqueId,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { runAction } from './foundation/action'
 import type { ActionDetails } from './foundation/action'
@@ -90,7 +99,7 @@ export type MenuTriggerProps<Payload = unknown> = {
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: MenuController<any>
+  controller?: MenuController
 }
 
 export type MenuTriggerState = { open: boolean; disabled: boolean }
@@ -98,7 +107,7 @@ export type MenuTriggerState = { open: boolean; disabled: boolean }
 export type MenuContextTriggerProps<Payload = unknown> = {
   disabled?: boolean
   payload?: Payload
-  controller?: MenuController<any>
+  controller?: MenuController
 }
 
 export type MenuContextTriggerState = { open: boolean; disabled: boolean }
@@ -218,6 +227,9 @@ function useMenuContext(part: string): MenuContextValue {
   return ctx
 }
 
+/**
+ * Dropdown or context menu with full keyboard navigation, checkbox/radio items, and submenus.
+ */
 export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   const parent = useContext(MenuContext)
   const contentId = `ui-menu-${createUniqueId()}`
@@ -228,7 +240,7 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined,
+    untrack(() => props.payload) as never,
   )
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
@@ -308,7 +320,9 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
         if (!open()) {
           api.open()
         }
-        const needle = String(label ?? '')
+        const needle = (
+          typeof label === 'string' ? label : typeof label === 'number' ? String(label) : ''
+        )
           .trim()
           .toLowerCase()
         const target = getItems().find((el) => el.textContent?.trim().toLowerCase() === needle)
@@ -374,8 +388,9 @@ export function MenuTrigger<Payload = unknown>(
     disabled: !!props.disabled,
   })
 
+  const shortcut = createMemo(() => props.shortcut)
   return (
-    <MenuShortcutContext value={() => props.shortcut}>
+    <MenuShortcutContext value={shortcut}>
       {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {

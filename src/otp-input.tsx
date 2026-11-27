@@ -171,15 +171,15 @@ export function OTPInput(
     }
   }
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const updateValue = (raw: string, reason: OTPInputValueChangeReason = 'input', event?: Event) => {
     const next = sanitizeOTP(raw, maxLength(), pattern())
@@ -192,7 +192,7 @@ export function OTPInput(
     setRawValue(next)
     setSelectionIndex(Math.min(next.length, maxLength() - 1))
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: next,
@@ -220,11 +220,12 @@ export function OTPInput(
     getState: () => ({ value: value(), complete: state().complete, disabled: disabled() }),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(String(v ?? '')),
+      setValue: (v) =>
+        api.setValue(typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''),
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const rest = omit(
     props,
@@ -365,8 +366,12 @@ export function OTPInputSlot(
   }
 
   const rest = omit(props, 'index')
-  const resolvedProps: PartProps<'div', OTPInputSlotState> =
-    props.children !== undefined ? rest : { ...rest, children: (s: OTPInputSlotState) => s.char }
+  const resolvedProps: PartProps<'div', OTPInputSlotState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s: OTPInputSlotState) => s.char)
+    },
+  }
 
   return renderPart('div', resolvedProps, slotState, {
     attrs: () => {

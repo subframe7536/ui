@@ -1,4 +1,5 @@
 import {
+  untrack,
   createContext,
   createEffect,
   createSignal,
@@ -196,7 +197,9 @@ export function NumberInput(
   })
 
   const [inputText, setInputText] = createSignal(
-    formatNumber(props.value ?? props.defaultValue ?? null, props.locale, props.format),
+    untrack(() =>
+      formatNumber(props.value ?? props.defaultValue ?? null, props.locale, props.format),
+    ),
   )
   const [scrubbing, setScrubbing] = createSignal(false)
   const [scrubCursorPos, setScrubCursorPos] = createSignal({ x: 0, y: 0 })
@@ -239,15 +242,15 @@ export function NumberInput(
     }
   }
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const updateValue = (
     next: number | null,
@@ -264,7 +267,7 @@ export function NumberInput(
     setRawValue(clamped)
     setInputText(formatNumber(clamped, props.locale, props.format))
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: clamped,
@@ -330,7 +333,7 @@ export function NumberInput(
       decrement: () => api.decrement(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const rest = omit(
     props,
@@ -474,12 +477,18 @@ export function NumberInputControl(
         } else if (e.key === 'ArrowDown') {
           e.preventDefault()
           ctx.handleStep(-multiplier, 'keyboard')
-        } else if (e.key === 'Home' && ctx.min() !== undefined) {
-          e.preventDefault()
-          ctx.api.setValue(ctx.min()!, { reason: 'keyboard', event: e })
-        } else if (e.key === 'End' && ctx.max() !== undefined) {
-          e.preventDefault()
-          ctx.api.setValue(ctx.max()!, { reason: 'keyboard', event: e })
+        } else if (e.key === 'Home') {
+          const minVal = ctx.min()
+          if (minVal !== undefined) {
+            e.preventDefault()
+            ctx.api.setValue(minVal, { reason: 'keyboard', event: e })
+          }
+        } else if (e.key === 'End') {
+          const maxVal = ctx.max()
+          if (maxVal !== undefined) {
+            e.preventDefault()
+            ctx.api.setValue(maxVal, { reason: 'keyboard', event: e })
+          }
         } else if (e.key === 'Enter') {
           ctx.commitValue('commit', e)
         }

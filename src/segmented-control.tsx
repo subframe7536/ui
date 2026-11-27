@@ -67,7 +67,7 @@ export type SegmentedControlItemState = {
   disabled: boolean
 }
 
-export type SegmentedControlIndicatorProps = Record<string, never>
+export type SegmentedControlIndicatorProps = object
 
 export type SegmentedControlIndicatorState = {
   ready: boolean
@@ -153,15 +153,15 @@ export function SegmentedControl<T extends string = string>(
     () => measureIndicator(),
   )
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const select = (next: string, reason: SegmentedControlValueChangeReason, event?: Event) => {
     if (disabled() || readOnly()) {
@@ -175,7 +175,7 @@ export function SegmentedControl<T extends string = string>(
     }
     setRawValue(next as T)
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: next,
@@ -200,7 +200,7 @@ export function SegmentedControl<T extends string = string>(
       setValue: (v) => api.setValue(String(v) as T),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const moveFocus = (current: string, delta: 1 | -1) => {
     const entries = [...itemEls.entries()].filter(
