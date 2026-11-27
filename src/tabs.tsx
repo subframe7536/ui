@@ -138,6 +138,7 @@ export function Tabs<T extends string = string>(
   let listEl: HTMLElement | undefined
   const tabMap = new Map<string, HTMLElement>()
   const tabIdMap = new Map<string, string>()
+  const [tabIdVersion, setTabIdVersion] = createSignal(0)
   const [hoveredValue, setHoveredValue] = createSignal<string | undefined>(undefined)
 
   const [value, setValue] = createControlledSignal<T | undefined>({
@@ -240,9 +241,17 @@ export function Tabs<T extends string = string>(
             .map(([v, el]) => ({ value: v, el })),
         getTabElement: (v) => tabMap.get(v),
         registerTabId: (v, id) => {
-          tabIdMap.set(v, id)
+          if (tabIdMap.get(v) !== id) {
+            tabIdMap.set(v, id)
+            if (typeof window !== 'undefined') {
+              setTabIdVersion((n) => n + 1)
+            }
+          }
         },
-        getTabId: (v) => tabIdMap.get(v) ?? `${baseId}-tab-${v}`,
+        getTabId: (v) => {
+          tabIdVersion()
+          return tabIdMap.get(v) ?? `${baseId}-tab-${v}`
+        },
         setListEl: (el) => {
           listEl = el
         },
@@ -285,6 +294,21 @@ export function TabsTab<T extends string = string>(
 ) {
   const tabs = useTabs('Tab')
   let tabEl: HTMLElement | undefined
+  if (typeof window === 'undefined') {
+    untrack(() => {
+      if (typeof props.id === 'string') {
+        tabs.registerTabId(props.value, props.id)
+      }
+    })
+  }
+  createEffect(
+    () => [props.value, props.id] as const,
+    ([val, id]) => {
+      if (typeof id === 'string') {
+        tabs.registerTabId(val, id)
+      }
+    },
+  )
 
   const state = (): TabsTabState => ({
     selected: tabs.value() === props.value,
@@ -292,11 +316,6 @@ export function TabsTab<T extends string = string>(
     orientation: tabs.orientation(),
   })
 
-  untrack(() => {
-    if (typeof props.id === 'string') {
-      tabs.registerTabId(props.value, props.id)
-    }
-  })
   const rest = omit(props, 'value', 'disabled')
 
   return (

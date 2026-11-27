@@ -1,4 +1,13 @@
-import { createContext, createUniqueId, For, merge, omit, Show, useContext } from 'solid-js'
+import {
+  createSignal,
+  createContext,
+  createUniqueId,
+  For,
+  merge,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import type { DateMatcher, DateMatchers } from './calendar'
 import { useFieldControl } from './field'
@@ -26,6 +35,7 @@ export type DateInputValueChangeReason = 'input' | 'step' | 'clear' | 'programma
 export type DateInputChangeOptions = ChangeOptions<DateInputValueChangeReason>
 
 export type DateInputSegmentData = {
+  key?: string
   type: DateInputSegmentType
   value: number | null
   text: string
@@ -74,7 +84,7 @@ export type DateInputState = {
 }
 
 export type DateInputPrimitive = DateInputState
-export type DateInputSegmentProps = { segment: DateInputSegmentType }
+export type DateInputSegmentProps = { segment: DateInputSegmentType | DateInputSegmentData }
 export type DateInputSegmentState = DateInputSegmentData & {
   disabled: boolean
   readOnly: boolean
@@ -126,6 +136,12 @@ export function DateInput(
     value: () => props.value,
     defaultValue: () => props.defaultValue ?? null,
   })
+  const [draftParts, setDraftParts] = createSignal<{
+    year?: number
+    month?: number
+    day?: number
+  }>({})
+  const [typingBuf, setTypingBuf] = createSignal<Record<string, string>>({})
   let rootEl: HTMLElement | null = null
 
   const disabled = () => !!props.disabled || !!field?.disabled()
@@ -134,26 +150,33 @@ export function DateInput(
 
   const buildSegments = (): Array<DateInputSegmentData> => {
     const p = parseDateParts(value())
+    const d = draftParts()
+    const yearVal = p.year ?? d.year ?? null
+    const monthVal = p.month ?? d.month ?? null
+    const dayVal = p.day ?? d.day ?? null
     const yearSeg: DateInputSegmentData = {
+      key: 'year',
       type: 'year',
-      value: p.year,
-      text: p.year !== null ? pad(p.year, 4) : 'yyyy',
+      value: yearVal,
+      text: yearVal !== null ? pad(yearVal, 4) : 'yyyy',
       min: 1,
       max: 9999,
       placeholder: 'yyyy',
     }
     const monthSeg: DateInputSegmentData = {
+      key: 'month',
       type: 'month',
-      value: p.month,
-      text: p.month !== null ? pad(p.month) : 'mm',
+      value: monthVal,
+      text: monthVal !== null ? pad(monthVal) : 'mm',
       min: 1,
       max: 12,
       placeholder: 'mm',
     }
     const daySeg: DateInputSegmentData = {
+      key: 'day',
       type: 'day',
-      value: p.day,
-      text: p.day !== null ? pad(p.day) : 'dd',
+      value: dayVal,
+      text: dayVal !== null ? pad(dayVal) : 'dd',
       min: 1,
       max: 31,
       placeholder: 'dd',
@@ -161,17 +184,17 @@ export function DateInput(
     if (props.locale?.startsWith('en-US')) {
       return [
         monthSeg,
-        { type: 'literal', value: null, text: '/', placeholder: '/' },
+        { key: 'literal-0', type: 'literal', value: null, text: '/', placeholder: '/' },
         daySeg,
-        { type: 'literal', value: null, text: '/', placeholder: '/' },
+        { key: 'literal-1', type: 'literal', value: null, text: '/', placeholder: '/' },
         yearSeg,
       ]
     }
     return [
       yearSeg,
-      { type: 'literal', value: null, text: '-', placeholder: '-' },
+      { key: 'literal-0', type: 'literal', value: null, text: '-', placeholder: '-' },
       monthSeg,
-      { type: 'literal', value: null, text: '-', placeholder: '-' },
+      { key: 'literal-1', type: 'literal', value: null, text: '-', placeholder: '-' },
       daySeg,
     ]
   }
@@ -241,6 +264,53 @@ export function DateInput(
     }
   }
 
+  const focusNextSegment = (currentEl: HTMLElement) => {
+    if (!rootEl) {
+      return
+    }
+    const inputs = Array.from(rootEl.querySelectorAll<HTMLInputElement>('input[role="spinbutton"]'))
+    const idx = inputs.indexOf(currentEl as HTMLInputElement)
+    if (idx >= 0 && idx + 1 < inputs.length) {
+      inputs[idx + 1]?.focus()
+    }
+  }
+
+  const handleBeforeInput = (type: DateInputSegmentType, e: InputEvent) => {
+    if (
+      disabled() ||
+      readOnly() ||
+      e.inputType !== 'insertText' ||
+      !e.data ||
+      !/^\d+$/.test(e.data)
+    ) {
+      return
+    }
+    e.preventDefault()
+    const maxLen = type === 'year' ? 4 : 2
+    const prevBuf = typingBuf()[type] ?? ''
+    const nextBuf = (prevBuf + e.data).slice(-maxLen)
+    const num = Number(nextBuf)
+    const parsed = parseDateParts(value())
+    const cur = {
+      year: parsed.year ?? draftParts().year,
+      month: parsed.month ?? draftParts().month,
+      day: parsed.day ?? draftParts().day,
+      [type]: num,
+    }
+    const advance =
+      nextBuf.length >= maxLen || (type === 'month' && num > 1) || (type === 'day' && num > 3)
+    setTypingBuf((b) => ({ ...b, [type]: advance ? '' : nextBuf }))
+    if (cur.year !== undefined && cur.month !== undefined && cur.day !== undefined && advance) {
+      setDraftParts({})
+      updateParts({ year: cur.year, month: cur.month, day: cur.day }, 'input', e)
+    } else {
+      setDraftParts(cur)
+    }
+    if (advance && e.currentTarget instanceof HTMLElement) {
+      focusNextSegment(e.currentTarget)
+    }
+  }
+
   const api: DateInputApi = {
     setValue: (next, opts) => commit(next, opts?.reason ?? 'programmatic', opts?.event),
     clear: () => commit(null, 'clear'),
@@ -291,38 +361,63 @@ export function DateInput(
           <Show
             when={hasCustom}
             fallback={
-              <For each={state().segments}>
-                {(seg) => (
-                  <Show
-                    when={seg.type !== 'literal'}
-                    fallback={
-                      <span aria-hidden="true" data-segment="literal">
-                        {seg.text}
-                      </span>
+              <For
+                each={
+                  props.locale?.startsWith('en-US')
+                    ? (['month', 'day', 'year'] as const)
+                    : (['year', 'month', 'day'] as const)
+                }
+              >
+                {(segType, idx) => {
+                  const seg = () =>
+                    state().segments.find((x) => x.type === segType) ?? {
+                      type: segType,
+                      value: null,
+                      text: '',
+                      min: 0,
+                      max: 0,
+                      placeholder: '',
                     }
-                  >
-                    <input
-                      type="text"
-                      role="spinbutton"
-                      value={seg.text}
-                      readonly={readOnly()}
-                      disabled={disabled()}
-                      aria-valuenow={seg.value ?? undefined}
-                      aria-valuemin={seg.min}
-                      aria-valuemax={seg.max}
-                      aria-label={seg.type}
-                      data-segment={seg.type}
-                    />
-                  </Show>
-                )}
+                  return (
+                    <>
+                      <Show when={idx() > 0}>
+                        <span aria-hidden="true" data-segment="literal" data-type="literal">
+                          /
+                        </span>
+                      </Show>
+                      <input
+                        id={idx() === 0 ? field?.controlId : undefined}
+                        type="text"
+                        role="spinbutton"
+                        value={seg().text}
+                        readonly={readOnly()}
+                        disabled={disabled()}
+                        aria-valuenow={seg().value ?? undefined}
+                        aria-valuemin={seg().min}
+                        aria-valuemax={seg().max}
+                        aria-label={segType}
+                        data-segment={segType}
+                        data-type={segType}
+                        onBeforeInput={(e) => handleBeforeInput(segType, e)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'ArrowUp') {
+                            e.preventDefault()
+                            stepSegment(segType, 1, e)
+                          } else if (e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            stepSegment(segType, -1, e)
+                          }
+                        }}
+                      />
+                    </>
+                  )
+                }}
               </For>
             }
           >
             {typeof props.children === 'function' ? props.children(state()) : props.children}
           </Show>
-          <Show when={props.name}>
-            <input type="hidden" name={props.name} value={value() ?? ''} />
-          </Show>
+          <input type="hidden" name={props.name} value={value() ?? ''} />
         </>
       )
     },
@@ -335,7 +430,7 @@ export function DateInput(
           rootEl = el
         },
         attrs: () => ({
-          id,
+          id: field ? undefined : id,
           role: 'group',
           'aria-labelledby': field?.labelId,
           'aria-describedby': field?.describedBy(),
@@ -351,58 +446,84 @@ export function DateInput(
 
 export function DateInputSegment(
   props: DateInputSegmentProps &
-    Omit<PartProps<'span', DateInputSegmentState>, keyof DateInputSegmentProps>,
+    Omit<PartProps<'input', DateInputSegmentState>, keyof DateInputSegmentProps | 'type'>,
 ) {
   const ctx = useDateInput('Segment')
+  const segType = (): DateInputSegmentType =>
+    typeof props.segment === 'string' ? props.segment : props.segment.type
+  const segData = (): DateInputSegmentData => {
+    if (typeof props.segment !== 'string') {
+      return props.segment
+    }
+    return (
+      ctx.state().segments.find((item) => item.type === props.segment) ?? {
+        type: props.segment,
+        value: null,
+        text: '',
+        placeholder: '',
+      }
+    )
+  }
   const segState = (): DateInputSegmentState => {
     const s = ctx.state()
-    const seg = s.segments.find((item) => item.type === props.segment) ?? {
-      type: props.segment,
-      value: null,
-      text: '',
-      placeholder: '',
-    }
     return {
-      ...seg,
+      ...segData(),
       disabled: s.disabled,
       readOnly: s.readOnly,
     }
   }
   const rest = omit(props, 'segment')
-  const resolvedProps: PartProps<'span', DateInputSegmentState> = merge(rest, {
-    get children() {
-      return props.children ?? ((s) => s.text)
-    },
-  })
-
-  return renderPart('span', resolvedProps, segState, {
-    attrs: () => {
-      const s = segState()
-      const isLiteral = s.type === 'literal'
-      return {
-        role: isLiteral ? undefined : 'spinbutton',
-        tabindex: isLiteral || s.disabled ? undefined : 0,
-        'aria-valuenow': s.value ?? undefined,
-        'aria-valuemin': s.min,
-        'aria-valuemax': s.max,
-        'aria-label': isLiteral ? undefined : s.type,
-        'data-segment': s.type,
-        'data-placeholder': s.value === null && !isLiteral ? '' : undefined,
-      }
-    },
-    handlers: {
-      onKeyDown: (e: KeyboardEvent) => {
-        if (props.segment === 'literal' || segState().disabled || segState().readOnly) {
-          return
-        }
-        if (e.key === 'ArrowUp') {
-          e.preventDefault()
-          ctx.stepSegment(props.segment, 1, e)
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault()
-          ctx.stepSegment(props.segment, -1, e)
-        }
-      },
-    },
-  })
+  return (
+    <Show
+      when={segType() !== 'literal'}
+      fallback={renderPart(
+        'span',
+        merge(rest as unknown as PartProps<'span', DateInputSegmentState>, {
+          get children() {
+            return props.children ?? segData().text
+          },
+        }),
+        segState,
+        {
+          attrs: () => ({
+            'aria-hidden': 'true',
+            'data-segment': 'literal',
+            'data-type': 'literal',
+          }),
+        },
+      )}
+    >
+      {renderPart('input', rest, segState, {
+        attrs: () => {
+          const s = segState()
+          return {
+            type: 'text',
+            role: 'spinbutton',
+            value: s.text,
+            readonly: s.readOnly || undefined,
+            disabled: s.disabled || undefined,
+            'aria-valuenow': s.value ?? undefined,
+            'aria-valuemin': s.min,
+            'aria-valuemax': s.max,
+            'aria-label': s.type,
+            'data-segment': s.type,
+            'data-type': s.type,
+            'data-placeholder': s.value === null ? '' : undefined,
+          }
+        },
+        handlers: {
+          onKeyDown: (e: KeyboardEvent) => {
+            const t = segType()
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              ctx.stepSegment(t, 1, e)
+            } else if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              ctx.stepSegment(t, -1, e)
+            }
+          },
+        },
+      })}
+    </Show>
+  )
 }

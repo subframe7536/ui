@@ -292,6 +292,16 @@ export function TimeInput(
                       aria-valuemax={seg.max}
                       aria-label={seg.type}
                       data-segment={seg.type}
+                      data-type={seg.type}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault()
+                          stepSegment(seg.type, 1, e)
+                        } else if (e.key === 'ArrowDown') {
+                          e.preventDefault()
+                          stepSegment(seg.type, -1, e)
+                        }
+                      }}
                     />
                   </Show>
                 )}

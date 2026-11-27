@@ -255,6 +255,7 @@ export function Checkbox(
       })}
       <Show when={!props.parent}>
         <input
+          data-slot="checkbox-input"
           type="checkbox"
           aria-hidden="true"
           tabindex={-1}
