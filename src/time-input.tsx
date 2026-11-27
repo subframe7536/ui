@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import type { HourCycle } from './date-input'
 import { useFieldControl } from './field'
@@ -283,12 +283,11 @@ export function TimeInputSegment(
     }
   }
   const rest = omit(props, 'segment')
-  const resolvedProps: PartProps<'span', TimeInputSegmentState> = {
-    ...rest,
+  const resolvedProps: PartProps<'span', TimeInputSegmentState> = merge(rest, {
     get children() {
       return props.children ?? ((s) => s.text)
     },
-  }
+  })
 
   return renderPart('span', resolvedProps, segState, {
     attrs: () => {

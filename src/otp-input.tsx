@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createSignal, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -252,8 +252,7 @@ export function OTPInput(
     'aria-invalid',
   )
 
-  const combinedProps: PartProps<'div', OTPInputState> = {
-    ...rest,
+  const combinedProps: PartProps<'div', OTPInputState> = merge(rest, {
     children: (s: OTPInputState) => (
       <>
         {typeof props.children === 'function' ? props.children(s) : props.children}
@@ -311,7 +310,7 @@ export function OTPInput(
         />
       </>
     ),
-  }
+  })
 
   return (
     <OTPInputContext value={{ state, api, focusInput: () => inputEl?.focus() }}>
@@ -366,12 +365,11 @@ export function OTPInputSlot(
   }
 
   const rest = omit(props, 'index')
-  const resolvedProps: PartProps<'div', OTPInputSlotState> = {
-    ...rest,
+  const resolvedProps: PartProps<'div', OTPInputSlotState> = merge(rest, {
     get children() {
       return props.children ?? ((s: OTPInputSlotState) => s.char)
     },
-  }
+  })
 
   return renderPart('div', resolvedProps, slotState, {
     attrs: () => {

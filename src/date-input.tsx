@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import type { DateMatcher, DateMatchers } from './calendar'
 import { useFieldControl } from './field'
@@ -310,12 +310,11 @@ export function DateInputSegment(
     }
   }
   const rest = omit(props, 'segment')
-  const resolvedProps: PartProps<'span', DateInputSegmentState> = {
-    ...rest,
+  const resolvedProps: PartProps<'span', DateInputSegmentState> = merge(rest, {
     get children() {
       return props.children ?? ((s) => s.text)
     },
-  }
+  })
 
   return renderPart('span', resolvedProps, segState, {
     attrs: () => {

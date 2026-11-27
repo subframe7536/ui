@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
@@ -145,12 +145,11 @@ export function ProgressValue(props: PartProps<'span', ProgressValueState>) {
   const state = (): ProgressValueState => ({ ...ctx.state(), text: ctx.formattedValue() })
   return renderPart(
     'span',
-    {
-      ...props,
+    merge(props, {
       get children() {
         return props.children ?? ctx.formattedValue()
       },
-    },
+    }),
     state,
     {
       attrs: () => ({ 'aria-hidden': 'true' }),

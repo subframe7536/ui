@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, useContext } from 'solid-js'
+import { For, createContext, createSignal, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -207,8 +207,7 @@ export function Rating(
     'children',
   )
 
-  const combinedProps: PartProps<'div', RatingState> = {
-    ...rest,
+  const combinedProps: PartProps<'div', RatingState> = merge(rest, {
     get children() {
       return (
         <For each={indices()}>
@@ -218,7 +217,7 @@ export function Rating(
         </For>
       )
     },
-  }
+  })
 
   return (
     <RatingContext
