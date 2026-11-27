@@ -67,14 +67,44 @@
       "solid": "./dist/dialog.jsx",
       "default": "./dist/dialog.mjs"
     },
+    "./drawer": {
+      "types": "./dist/drawer.d.mts",
+      "solid": "./dist/drawer.jsx",
+      "default": "./dist/drawer.mjs"
+    },
+    "./hover-card": {
+      "types": "./dist/hover-card.d.mts",
+      "solid": "./dist/hover-card.jsx",
+      "default": "./dist/hover-card.mjs"
+    },
     "./label": {
       "types": "./dist/label.d.mts",
       "solid": "./dist/label.jsx",
       "default": "./dist/label.mjs"
     },
+    "./menu": {
+      "types": "./dist/menu.d.mts",
+      "solid": "./dist/menu.jsx",
+      "default": "./dist/menu.mjs"
+    },
+    "./menubar": {
+      "types": "./dist/menubar.d.mts",
+      "solid": "./dist/menubar.jsx",
+      "default": "./dist/menubar.mjs"
+    },
+    "./navigation-menu": {
+      "types": "./dist/navigation-menu.d.mts",
+      "solid": "./dist/navigation-menu.jsx",
+      "default": "./dist/navigation-menu.mjs"
+    },
     "./observe": {
       "types": "./dist/observe.d.mts",
       "default": "./dist/observe.mjs"
+    },
+    "./overlays": {
+      "types": "./dist/overlays.d.mts",
+      "solid": "./dist/overlays.jsx",
+      "default": "./dist/overlays.mjs"
     },
     "./popover": {
       "types": "./dist/popover.d.mts",
@@ -100,10 +130,30 @@
       "solid": "./dist/tabs.jsx",
       "default": "./dist/tabs.mjs"
     },
+    "./toast": {
+      "types": "./dist/toast.d.mts",
+      "solid": "./dist/toast.jsx",
+      "default": "./dist/toast.mjs"
+    },
     "./toggle": {
       "types": "./dist/toggle.d.mts",
       "solid": "./dist/toggle.jsx",
       "default": "./dist/toggle.mjs"
+    },
+    "./toolbar": {
+      "types": "./dist/toolbar.d.mts",
+      "solid": "./dist/toolbar.jsx",
+      "default": "./dist/toolbar.mjs"
+    },
+    "./tooltip": {
+      "types": "./dist/tooltip.d.mts",
+      "solid": "./dist/tooltip.jsx",
+      "default": "./dist/tooltip.mjs"
+    },
+    "./trigger-menu": {
+      "types": "./dist/trigger-menu.d.mts",
+      "solid": "./dist/trigger-menu.jsx",
+      "default": "./dist/trigger-menu.mjs"
     },
     "./package.json": "./package.json"
   },
