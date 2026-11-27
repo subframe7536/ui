@@ -9,6 +9,7 @@ import {
   merge,
   omit,
   useContext,
+  untrack,
 } from 'solid-js'
 
 import { useFieldControl } from './field'
@@ -110,6 +111,7 @@ export type ComboboxOptions<T extends string = string> = {
   name?: string
   filter?: ListFilter
   items?: ListData<T>
+  itemToLabel?: (value: T) => string
   controller?: ComboboxController<T>
   debug?: boolean
 }
@@ -235,9 +237,44 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     value: () => props.open,
     defaultValue: () => !!props.defaultOpen,
   })
+  const labelMap = new Map<string, string>()
+  const seedLabels = () => {
+    const raw = props.items
+    if (!raw) {
+      return
+    }
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        labelMap.set(entry, entry)
+      } else if ('items' in entry) {
+        for (const sub of entry.items) {
+          if (typeof sub === 'string') {
+            labelMap.set(sub, sub)
+          } else if ('value' in sub) {
+            labelMap.set(sub.value, sub.label ?? sub.value)
+          }
+        }
+      } else if ('value' in entry) {
+        labelMap.set(entry.value, entry.label ?? entry.value)
+      }
+    }
+  }
+  untrack(seedLabels)
+  const resolveLabel = (val: string): string =>
+    props.itemToLabel?.(val as T) ?? labelMap.get(val) ?? val
+
   const [query, setRawQuery] = createControlledSignal<string>({
     value: () => props.query,
-    defaultValue: () => props.defaultQuery ?? '',
+    defaultValue: () => {
+      if (props.defaultQuery !== undefined) {
+        return props.defaultQuery
+      }
+      const cur = props.value ?? props.defaultValue
+      if (!isMultiple() && typeof cur === 'string') {
+        return resolveLabel(cur)
+      }
+      return ''
+    },
   })
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | null>(null)
@@ -245,7 +282,6 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
   const optionList: Array<RegisteredComboboxOption> = []
-  const labelMap = new Map<string, string>()
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -500,6 +536,14 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
       }}
     >
       {props.children}
+      <Show when={props.name}>
+        <textarea name={props.name} hidden readonly>
+          {(() => {
+            const cur = value()
+            return Array.isArray(cur) ? cur.join(',') : (cur ?? '')
+          })()}
+        </textarea>
+      </Show>
     </ComboboxContext>
   )
 }
@@ -515,7 +559,8 @@ export function ComboboxInput(
   props: Omit<PartProps<'input', ComboboxInputState>, 'type' | 'value'>,
 ) {
   const ctx = useCombobox('Input')
-  return renderPart('input', props, ctx.state, {
+  const rest = omit(props, 'role')
+  return renderPart('input', rest, ctx.state, {
     ref: (el: HTMLInputElement) => ctx.setInputEl(el),
     attrs: () => {
       const s = ctx.state()
@@ -679,11 +724,17 @@ export function ComboboxChip(
     disabled: ctx.state().disabled,
   })
   const rest = omit(props, 'value', 'label')
+  const resolvedChip: PartProps<'span', ComboboxChipState> = merge(rest, {
+    get children() {
+      return props.children ?? ((s: ComboboxChipState) => s.label)
+    },
+  })
   return (
     <ComboboxChipContext value={chipState}>
-      {renderPart('span', rest, chipState, {
+      {renderPart('span', resolvedChip, chipState, {
         attrs: () => ({
           role: 'listitem',
+          'data-slot': 'combobox-chip',
           'data-value': props.value,
           'data-disabled': chipState().disabled ? '' : undefined,
         }),
