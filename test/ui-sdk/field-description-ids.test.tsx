@@ -13,7 +13,8 @@ afterEach(() => {
 })
 
 it('each description gets an id of its own, and the control names them all', async () => {
-  const el = document.body.appendChild(document.createElement('div'))
+  const el = document.createElement('div')
+  document.body.append(el)
   dispose = render(
     () => (
       <Field>

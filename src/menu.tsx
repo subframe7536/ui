@@ -1,13 +1,12 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
-  untrack,
-  createMemo,
+  Show,
   createContext,
+  createMemo,
   createSignal,
   createUniqueId,
   omit,
-  Show,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -27,9 +26,10 @@ import type { FocusTarget } from './foundation/focus'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { SafePortal, renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+import { useOptionalMenubar } from './menubar'
 
 export type MenuOpenChangeReason =
   | 'trigger-press'
@@ -382,6 +382,10 @@ export function MenuTrigger<Payload = unknown>(
     Omit<PartProps<'button', MenuTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
   const target = useControllerTarget(() => props.controller, useContext(MenuContext))
+  const menubar = useOptionalMenubar()
+  const isMenubarInitialStop = menubar
+    ? menubar.claimTabStop(untrack(() => !!props.disabled))
+    : false
   const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = (): MenuTriggerState => ({
     open: target()?.open() ?? false,
@@ -398,6 +402,8 @@ export function MenuTrigger<Payload = unknown>(
           const ctx = target()
           return {
             type: 'button',
+            role: menubar ? 'menuitem' : undefined,
+            tabindex: menubar ? (isMenubarInitialStop ? 0 : -1) : undefined,
             'aria-haspopup': 'menu',
             'aria-expanded': s.open ? 'true' : 'false',
             'aria-controls': ctx?.contentId,
@@ -521,7 +527,9 @@ export function MenuContent<Payload = unknown>(
   return (
     <Show when={ctx.open() || !!props.keepMounted}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
+        <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+          {renderSurface()}
+        </SafePortal>
       </Show>
     </Show>
   )

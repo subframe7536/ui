@@ -16,6 +16,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '../../src/alert-dialog'
+import {
+  Autocomplete,
+  AutocompleteContent,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+} from '../../src/autocomplete'
 import { Checkbox, CheckboxGroup, CheckboxIndicator } from '../../src/checkbox'
 import {
   Dialog,
@@ -25,6 +32,22 @@ import {
   DialogTrigger,
   createDialogController,
 } from '../../src/dialog'
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerTitle,
+  DrawerTrigger,
+} from '../../src/drawer'
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuContent,
+  MenuItem,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from '../../src/menu'
 import { Meter, MeterIndicator, MeterTrack, MeterValue } from '../../src/meter'
 import {
   NumberInput,
@@ -40,12 +63,29 @@ import {
   PaginationPrevious,
 } from '../../src/pagination'
 import { PasswordInput, PasswordInputControl, PasswordInputToggle } from '../../src/password-input'
+import {
+  Popover,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+  createPopoverController,
+} from '../../src/popover'
 import { Progress, ProgressIndicator, ProgressTrack, ProgressValue } from '../../src/progress'
 import { Radio, RadioGroup } from '../../src/radio'
 import { Rating, RatingItem } from '../../src/rating'
 import { SegmentedControl, SegmentedControlItem } from '../../src/segmented-control'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectList,
+  SelectTrigger,
+  SelectValue,
+} from '../../src/select'
+import { Slider, SliderControl, SliderIndicator, SliderThumb, SliderTrack } from '../../src/slider'
 import { Switch, SwitchThumb } from '../../src/switch'
 import { Tabs, TabsList, TabsPanel, TabsTab } from '../../src/tabs'
+import { Toast, ToastRegion, ToastTitle, createToaster } from '../../src/toast'
 
 let disposers: Array<() => void> = []
 
@@ -248,6 +288,182 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
     dialog!.querySelector('button')!.click()
     flush()
     expect(document.querySelector('[role="alertdialog"]')).toBeNull()
+  })
+
+  it('popover opens via controller, closes via PopoverClose, and supports cancelable onOpenChange', () => {
+    const ctrl = createPopoverController()
+    let blockClose = true
+    mount(() => (
+      <Popover
+        controller={ctrl}
+        onOpenChange={(next, details) => {
+          if (!next && blockClose) {
+            details.cancel()
+          }
+        }}
+      >
+        <PopoverTrigger>Info</PopoverTrigger>
+        <PopoverContent>
+          <span>Popover body</span>
+          <PopoverClose>Done</PopoverClose>
+        </PopoverContent>
+      </Popover>
+    ))
+    void ctrl.open()
+    flush()
+    expect(document.body.textContent).toContain('Popover body')
+    const closeBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Done',
+    )!
+    closeBtn.click()
+    flush()
+    expect(document.body.textContent).toContain('Popover body')
+
+    blockClose = false
+    closeBtn.click()
+    flush()
+    expect(document.body.textContent).not.toContain('Popover body')
+  })
+
+  it('drawer opens via trigger and closes via DrawerClose', () => {
+    const root = mount(() => (
+      <Drawer>
+        <DrawerTrigger>Open drawer</DrawerTrigger>
+        <DrawerContent>
+          <DrawerTitle>Details</DrawerTitle>
+          <DrawerClose>Dismiss</DrawerClose>
+        </DrawerContent>
+      </Drawer>
+    ))
+    root.querySelector('button')!.click()
+    flush()
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain('Details')
+    dialog!.querySelector('button')!.click()
+    flush()
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+  })
+
+  it('slider updates value with keyboard arrows and clamps to bounds', () => {
+    const seen: Array<number | Array<number>> = []
+    const root = mount(() => (
+      <Slider defaultValue={50} min={0} max={100} step={10} onValueChange={(v) => seen.push(v)}>
+        <SliderControl>
+          <SliderTrack>
+            <SliderIndicator />
+            <SliderThumb aria-label="Volume" />
+          </SliderTrack>
+        </SliderControl>
+      </Slider>
+    ))
+    const thumb = root.querySelector<HTMLElement>('[role="slider"]')!
+    expect(thumb.getAttribute('aria-valuenow')).toBe('50')
+
+    thumb.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    flush()
+    expect(thumb.getAttribute('aria-valuenow')).toBe('60')
+    expect(seen.at(-1)).toBe(60)
+  })
+
+  it('select opens listbox and updates selected value on option press', () => {
+    const root = mount(() => (
+      <Select defaultValue="apple">
+        <SelectTrigger aria-label="Fruit">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectList>
+            <SelectItem value="apple">Apple</SelectItem>
+            <SelectItem value="banana">Banana</SelectItem>
+          </SelectList>
+        </SelectContent>
+      </Select>
+    ))
+    const trigger = root.querySelector<HTMLButtonElement>('button')!
+    trigger.click()
+    flush()
+    const options = document.querySelectorAll<HTMLElement>('[role="option"]')
+    expect(options).toHaveLength(2)
+    options[1]!.click()
+    flush()
+    expect(trigger.textContent).toContain('Banana')
+  })
+
+  it('menu handles item select, checkbox toggle, and radio group selection', () => {
+    const selected: Array<string> = []
+    const root = mount(() => (
+      <Menu>
+        <MenuTrigger>Actions</MenuTrigger>
+        <MenuContent>
+          <MenuItem onSelect={() => selected.push('copy')}>Copy</MenuItem>
+          <MenuCheckboxItem defaultChecked={false}>Wrap</MenuCheckboxItem>
+          <MenuRadioGroup defaultValue="sm">
+            <MenuRadioItem value="sm">Small</MenuRadioItem>
+            <MenuRadioItem value="lg">Large</MenuRadioItem>
+          </MenuRadioGroup>
+        </MenuContent>
+      </Menu>
+    ))
+    root.querySelector('button')!.click()
+    flush()
+    const checkbox = document.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
+    checkbox.click()
+    flush()
+    expect(checkbox.getAttribute('aria-checked')).toBe('true')
+
+    const large = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')).find(
+      (el) => el.textContent === 'Large',
+    )!
+    large.click()
+    flush()
+    expect(document.querySelector('[role="menu"]')).toBeNull()
+  })
+
+  it('autocomplete filters options by query and selects matching option', () => {
+    const root = mount(() => (
+      <Autocomplete defaultOpen>
+        <AutocompleteInput aria-label="Search" />
+        <AutocompleteContent>
+          <AutocompleteList>
+            <AutocompleteItem value="apple" label="Apple">
+              Apple
+            </AutocompleteItem>
+            <AutocompleteItem value="mango" label="Mango">
+              Mango
+            </AutocompleteItem>
+          </AutocompleteList>
+        </AutocompleteContent>
+      </Autocomplete>
+    ))
+    const input = root.querySelector('input')!
+    input.value = 'man'
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }))
+    flush()
+    const options = document.querySelectorAll<HTMLElement>('[role="option"]')
+    expect(options).toHaveLength(1)
+    expect(options[0]!.textContent).toBe('Mango')
+  })
+
+  it('toaster adds, renders, and dismisses toasts in DOM', () => {
+    const toaster = createToaster()
+    mount(() => (
+      <ToastRegion toaster={toaster}>
+        {() => (
+          <Toast>
+            <ToastTitle />
+          </Toast>
+        )}
+      </ToastRegion>
+    ))
+    const id = toaster('Changes saved', { duration: Infinity })
+    flush()
+    expect(document.body.textContent).toContain('Changes saved')
+    expect(document.querySelector('[role="region"]')).not.toBeNull()
+
+    toaster.dismiss(id)
+    flush()
+    expect(document.body.textContent).not.toContain('Changes saved')
+    expect(document.querySelector('[role="region"]')).toBeNull()
   })
 
   it('number input increments, decrements, and clamps to min/max', () => {
