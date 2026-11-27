@@ -1,4 +1,4 @@
-import { createContext, createSignal, omit, Show, useContext } from 'solid-js'
+import { Show, createContext, createSignal, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -257,6 +257,7 @@ export function Input(props: InputProps) {
         required: s.required || undefined,
         'aria-invalid': s.invalid ? 'true' : undefined,
         'aria-describedby': field?.describedBy(),
+        'data-slot': 'input',
         'data-empty': s.empty ? '' : undefined,
         'data-focused': s.focused ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,
@@ -267,6 +268,9 @@ export function Input(props: InputProps) {
       onInput: (event: Event) => {
         const target = event.currentTarget as HTMLInputElement
         applyValue(target.value, 'input-change', event)
+        if (props.value !== undefined && target.value !== props.value) {
+          target.value = props.value
+        }
       },
       onFocus: () => setFocused(true),
       onBlur: () => {

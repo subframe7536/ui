@@ -128,6 +128,7 @@ export function Textarea(props: TextareaProps) {
         required: s.required || undefined,
         'aria-invalid': s.invalid ? 'true' : undefined,
         'aria-describedby': field?.describedBy(),
+        'data-slot': 'textarea',
         'data-empty': s.empty ? '' : undefined,
         'data-focused': s.focused ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,
@@ -138,6 +139,9 @@ export function Textarea(props: TextareaProps) {
       onInput: (event: Event) => {
         const target = event.currentTarget as HTMLTextAreaElement
         applyValue(target.value, 'input-change', event)
+        if (props.value !== undefined && target.value !== props.value) {
+          target.value = props.value
+        }
       },
       onKeyDown: (event: KeyboardEvent) => {
         if (props.submitOnEnter && event.key === 'Enter' && !event.shiftKey) {

@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { For, createContext, createSignal, merge, omit, onCleanup, useContext } from 'solid-js'
+import { For, Show, createContext, createSignal, merge, omit, onCleanup, useContext } from 'solid-js'
 
 import { runAction } from './foundation/action'
 import type { ActionDetails } from './foundation/action'
@@ -273,7 +273,11 @@ export function ToastRegion(props: ToastRegionProps) {
     },
   })
 
-  onCleanup(() => setPaused(false))
+  onCleanup(() => {
+    if (typeof window !== 'undefined') {
+      setPaused(false)
+    }
+  })
 
   const rest = omit(props, 'toaster', 'label', 'side', 'align', 'children')
   const combinedProps: PartProps<'section', ToastRegionState> = merge(rest, {
@@ -293,7 +297,7 @@ export function ToastRegion(props: ToastRegionProps) {
               </ToastItemContext>
             )}
           </For>
-          {typeof renderChild !== 'function' ? renderChild : null}
+          <Show when={typeof renderChild !== 'function'}>{renderChild as JSX.Element}</Show>
         </div>
       )
     },

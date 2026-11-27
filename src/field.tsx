@@ -1,10 +1,10 @@
 import {
-  onSettled,
+  Show,
   createContext,
   createSignal,
   createUniqueId,
   omit,
-  Show,
+  onSettled,
   useContext,
 } from 'solid-js'
 
@@ -68,6 +68,7 @@ export type FieldControlContextValue = {
   state: () => FieldState
   describedBy: () => string | undefined
   setHasDescription: (v: boolean) => void
+  registerDescription: (id: string) => () => void
   setHasError: (v: boolean) => void
   setDirty: (v: boolean) => void
   setTouched: (v: boolean) => void
@@ -94,9 +95,17 @@ export function Field(
 
   const parentDisabled = useContext(FieldSetContext)
   const [hasDescription, setHasDescription] = createSignal(false)
+  const [descriptionIds, setDescriptionIds] = createSignal<Array<string>>([])
   const [hasError, setHasError] = createSignal(false)
   const [dirty, setDirty] = createSignal(false)
   const [touched, setTouched] = createSignal(false)
+
+  const registerDescription = (id: string) => {
+    setDescriptionIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
+    return () => {
+      setDescriptionIds((prev) => prev.filter((item) => item !== id))
+    }
+  }
 
   const disabled = () => !!props.disabled || parentDisabled()
   const invalid = () => !!props.invalid || !!props.error
@@ -112,7 +121,10 @@ export function Field(
 
   const describedBy = () => {
     const ids: Array<string> = []
-    if (hasDescription()) {
+    const descList = descriptionIds()
+    if (descList.length > 0) {
+      ids.push(...descList)
+    } else if (hasDescription()) {
       ids.push(descriptionId)
     }
     if (hasError() && invalid()) {
@@ -139,6 +151,7 @@ export function Field(
         state,
         describedBy,
         setHasDescription,
+        registerDescription,
         setHasError,
         setDirty,
         setTouched,
@@ -214,9 +227,11 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
 
 export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
   const ctx = useContext(FieldContext)
+  const fallbackId = `ui-field-desc-${createUniqueId()}`
+  const resolvedId = () => props.id ?? fallbackId
   onSettled(() => {
-    ctx?.setHasDescription(true)
-    return () => ctx?.setHasDescription(false)
+    const id = resolvedId()
+    return ctx?.registerDescription(id)
   })
   const state = () =>
     ctx?.state() ?? {
@@ -229,7 +244,7 @@ export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
     }
   return renderPart('p', props, state, {
     attrs: () => ({
-      id: props.id ?? ctx?.descriptionId,
+      id: resolvedId(),
     }),
   })
 }

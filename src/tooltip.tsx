@@ -429,6 +429,8 @@ export function TooltipContent<Payload = unknown>(
     payload: ctx.payload() as Payload | undefined,
   })
 
+  const shouldRender = () => typeof window === 'undefined' || ctx.open() || !!props.keepMounted
+
   const renderSurface = () =>
     renderPart('div', rest, state, {
       ref: ctx.setContentEl,
@@ -453,10 +455,12 @@ export function TooltipContent<Payload = unknown>(
     })
 
   return (
-    <Show when={!props.inline} fallback={renderSurface()}>
-      <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
-        {renderSurface()}
-      </SafePortal>
+    <Show when={shouldRender()}>
+      <Show when={!props.inline} fallback={renderSurface()}>
+        <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+          {renderSurface()}
+        </SafePortal>
+      </Show>
     </Show>
   )
 }
