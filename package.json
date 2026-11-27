@@ -353,7 +353,6 @@
     "solid-js": "^2.0.3"
   },
   "devDependencies": {
-    "@solidjs/compiler": "^2.0.2",
     "@solidjs/vite-plugin": "^3.0.1",
     "@solidjs/web": "^2.0.3",
     "@subf/config": "^0.7.0",
