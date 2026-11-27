@@ -31,7 +31,7 @@ export type TriggerBoundary = 'word' | 'whitespace' | 'any'
 export type TriggerAfter = string | RegExp
 export type TriggerArgument = { query: string; range: TextRange }
 export type TriggerMatch = { trigger: string; query: string; range: TextRange }
-export type Token = { id: string; label: string; value?: string }
+export type Token = { id: string; label: string; value?: string; type?: string }
 export type TokenInsert = string | Token
 
 export type EditorChange = { value: string; caret: number }
@@ -63,7 +63,8 @@ export type TriggerMenuData = Array<TriggerMenuDataItem | TriggerMenuDataGroup>
 export type TriggerItemsLoader = (match: TriggerMatch) => TriggerMenuData | Promise<TriggerMenuData>
 
 export type TriggerRule = {
-  trigger: string
+  trigger?: string
+  char?: string
   boundary?: TriggerBoundary
 }
 
@@ -192,7 +193,7 @@ export function TriggerMenu(props: TriggerMenuProps) {
     if (!props.triggers || props.triggers.length === 0) {
       return ['@', '/']
     }
-    return props.triggers.map((t) => (typeof t === 'string' ? t : t.trigger))
+    return props.triggers.map((t) => (typeof t === 'string' ? t : (t.trigger ?? t.char ?? '')))
   }
 
   const applyOpen = (
@@ -311,17 +312,16 @@ export function TriggerMenu(props: TriggerMenuProps) {
   )
 }
 
-export function TriggerMenuInput(props: PartProps<'input', TriggerMenuInputState>) {
+export function TriggerMenuInput(props: PartProps<'textarea', TriggerMenuInputState>) {
   const ctx = useTriggerMenu('Input')
   const state = (): TriggerMenuInputState => ({ open: ctx.open(), query: ctx.query() })
 
-  return renderPart('input', props, state, {
-    ref: (el: HTMLInputElement) => ctx.setInputEl(el),
+  return renderPart('textarea', props, state, {
+    ref: (el: HTMLTextAreaElement) => ctx.setInputEl(el),
     attrs: () => ({
-      role: 'combobox',
-      'aria-expanded': ctx.open() ? 'true' : 'false',
-      'aria-controls': ctx.contentId,
       'aria-autocomplete': 'list',
+      'aria-haspopup': 'listbox',
+      'aria-controls': ctx.open() ? ctx.contentId : undefined,
     }),
     handlers: {
       onInput: (event: Event) => {
