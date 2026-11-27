@@ -23,8 +23,23 @@ export default defineConfig({
             'src/**/*.{test,spec}.?(c|m)[jt]s?(x)',
             'test/**/*.{test,spec}.?(c|m)[jt]s?(x)',
           ],
-          exclude: ['test/entry-boundaries.test.ts'],
+          exclude: ['test/entry-boundaries.test.ts', 'test/**/*-ssr.test.?(c|m)[jt]s?(x)'],
           setupFiles: ['./test/setup.ts'],
+        },
+      },
+      {
+        define: {
+          'process.env.NODE_ENV': JSON.stringify('test'),
+        },
+        resolve: {
+          dedupe: ['solid-js', '@solidjs/web'],
+        },
+        plugins: [solid({ ssr: true })],
+        test: {
+          name: 'ssr',
+          environment: 'node',
+          globals: true,
+          include: ['test/**/*-ssr.test.?(c|m)[jt]s?(x)'],
         },
       },
       {
