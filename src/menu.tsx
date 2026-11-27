@@ -209,6 +209,7 @@ type MenuContextValue = {
   container: () => HTMLElement | null | undefined
   contentId: string
   claimTriggerId: () => string | undefined
+  markComposedContent: () => void
   openMenu: (reason: MenuOpenChangeReason, event?: Event, payload?: unknown) => void
   closeMenu: (reason: MenuOpenChangeReason, event?: Event) => void
   toggleMenu: (payload?: unknown, event?: Event) => void
@@ -252,6 +253,7 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   const contentId = `ui-menu-${createUniqueId()}`
   const items = new Set<HTMLElement>()
   let triggerIdClaimed = false
+  let hasComposedContent = false
 
   const [open, setOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -362,6 +364,9 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
       triggerIdClaimed = true
       return `${contentId}-trigger`
     },
+    markComposedContent: () => {
+      hasComposedContent = true
+    },
     openMenu: (reason, event, nextPayload) => {
       if (nextPayload !== undefined) {
         setPayload(() => nextPayload as Payload)
@@ -394,7 +399,7 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   return (
     <MenuContext value={ctx}>
       {props.children}
-      <Show when={props.items}>
+      <Show when={!hasComposedContent ? props.items : undefined}>
         {(dataItems) => (
           <MenuContent>
             <For each={dataItems()}>
@@ -521,6 +526,7 @@ export function MenuContent<Payload = unknown>(
     Omit<PartProps<'div', MenuContentState<Payload>>, keyof MenuContentProps>,
 ) {
   const ctx = useMenuContext('Content')
+  ctx.markComposedContent()
   const rest = omit(
     props,
     'container',
@@ -562,6 +568,7 @@ export function MenuContent<Payload = unknown>(
         const open = ctx.open()
         return {
           role: 'menu',
+          'data-slot': 'menu-content',
           id: props.id ?? ctx.contentId,
           tabindex: -1,
           hidden: open ? undefined : true,

@@ -464,7 +464,7 @@ export function CommandList(props: PartProps<'div', CommandListState>) {
   const ctx = useCommand('List')
   ctx.markComposedList()
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ id: ctx.listId, role: 'listbox' }),
+    attrs: () => ({ id: ctx.listId, role: 'listbox', 'data-slot': 'command-list' }),
   })
 }
 
