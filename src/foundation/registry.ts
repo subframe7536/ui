@@ -2,14 +2,25 @@ import { onCleanup } from 'solid-js'
 
 import type { ChangeSource } from './details'
 
+/**
+ * A change emitted by a live component to `observe()` listeners.
+ */
 export type ObservedChange = {
+  /** Stable reference ID for the component while mounted. */
   ref: string
+  /** Component kind, e.g. `"switch"`, `"tabs"`, `"dialog"`. */
   component: string
+  /** Accessible label or name of the component, if available. */
   label?: string
+  /** State key that changed, e.g. `"open"`, `"checked"`, `"value"`, `"pressed"`. */
   key: string
+  /** Previous value before the change. */
   previous: unknown
+  /** New value after the change. */
   value: unknown
+  /** Why the change happened. */
   reason: string
+  /** How the change was caused. */
   source: ChangeSource
 }
 
@@ -48,7 +59,7 @@ export function isHiddenFromAgent(elements: Array<HTMLElement>): boolean {
 
 export function confirmMessageOf(elements: Array<HTMLElement>): string | undefined {
   for (const el of elements) {
-    const carrier = el.closest('[data-agent-confirm]') as HTMLElement | null
+    const carrier = el.closest<HTMLElement>('[data-agent-confirm]')
     if (carrier) {
       return carrier.getAttribute('data-agent-confirm') || 'Confirm action'
     }
@@ -81,6 +92,10 @@ export function accessibleLabelOf(elements: Array<HTMLElement>): string | undefi
   return undefined
 }
 
+/**
+ * Registers a Solid 2 component instance in the global observe/agent registry
+ * and automatically unregisters it via `onCleanup`.
+ */
 export function registerComponent(spec: Omit<RegisteredComponent, 'ref'>): {
   ref: string
   emit: (change: Omit<ObservedChange, 'ref' | 'component' | 'label'>) => void
@@ -97,7 +112,9 @@ export function registerComponent(spec: Omit<RegisteredComponent, 'ref'>): {
     if (listeners.size === 0) {
       return
     }
-    const els = entry.getElements().filter((el): el is HTMLElement => el != null)
+    const els = entry
+      .getElements()
+      .filter((el): el is HTMLElement => el !== null && el !== undefined)
     if (isHiddenFromAgent(els)) {
       return
     }
@@ -131,7 +148,7 @@ export function elementsOfRef(ref: string): Array<HTMLElement> {
   if (!entry) {
     return []
   }
-  return entry.getElements().filter((el): el is HTMLElement => el != null)
+  return entry.getElements().filter((el): el is HTMLElement => el !== null && el !== undefined)
 }
 
 export function addChangeListener(listener: ChangeListener): () => void {

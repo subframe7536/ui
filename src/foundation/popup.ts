@@ -16,16 +16,24 @@ export type Align = 'start' | 'center' | 'end'
 export type PopupContainer = HTMLElement | null | undefined
 
 export type PortalProps = {
+  /** Element to render the popup inside. Defaults to `document.body`. */
   container?: PopupContainer
 }
 
 export type PositionProps = {
+  /** Preferred side relative to the anchor. Defaults to `"bottom"`. */
   side?: Side
+  /** Preferred alignment along the side. Defaults to `"center"`. */
   align?: Align
+  /** Distance in pixels between anchor and popup. Defaults to `4`. */
   sideOffset?: number
+  /** Offset in pixels along the alignment axis. Defaults to `0`. */
   alignOffset?: number
+  /** Padding from viewport edges when flipping/shifting. Defaults to `8`. */
   collisionPadding?: number
+  /** Padding from popup edges for the arrow. Defaults to `4`. */
   arrowPadding?: number
+  /** Custom anchor element instead of the trigger. */
   anchor?: HTMLElement | null
 }
 
@@ -38,6 +46,9 @@ function parsePlacement(placement: Placement): { side: Side; align: Align } {
   return { side, align: align ?? 'center' }
 }
 
+/**
+ * Native Solid 2 positioning hook backed by `@floating-ui/dom`.
+ */
 export function usePopupPosition(options: {
   open: () => boolean
   reference: () => HTMLElement | undefined
@@ -108,7 +119,7 @@ export function usePopupPosition(options: {
           middleware.push(arrowMiddleware({ element: arrowEl, padding: arrowPadding }))
         }
 
-        computePosition(refEl, floatEl, {
+        void computePosition(refEl, floatEl, {
           strategy: 'fixed',
           placement: toPlacement(prefSide, prefAlign),
           middleware,
@@ -124,10 +135,10 @@ export function usePopupPosition(options: {
           if (middlewareData.arrow) {
             const { x: ax, y: ay } = middlewareData.arrow
             const nextArrow: Record<string, string> = { position: 'absolute' }
-            if (ax != null) {
+            if (ax !== null && ax !== undefined) {
               nextArrow.left = `${Math.round(ax)}px`
             }
-            if (ay != null) {
+            if (ay !== null && ay !== undefined) {
               nextArrow.top = `${Math.round(ay)}px`
             }
             setArrowStyle(nextArrow)

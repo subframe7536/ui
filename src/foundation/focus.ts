@@ -32,6 +32,9 @@ function resolveFocusTarget(target: FocusTarget | undefined): HTMLElement | null
   return target
 }
 
+/**
+ * Manages initial focus, Tab focus trapping (when `trap` is true), and final focus restoration.
+ */
 export function useFocusManagement(options: {
   active: () => boolean
   container: () => HTMLElement | undefined
@@ -39,6 +42,34 @@ export function useFocusManagement(options: {
   initialFocus?: () => FocusTarget | undefined
   finalFocus?: () => FocusTarget | undefined
 }): void {
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== 'Tab' || !options.trap?.()) {
+      return
+    }
+    const container = options.container()
+    if (!container) {
+      return
+    }
+    const focusables = getFocusableElements(container)
+    if (focusables.length === 0) {
+      event.preventDefault()
+      container.focus()
+      return
+    }
+    const first = focusables[0]
+    const last = focusables.at(-1)
+    const activeEl = document.activeElement
+    if (event.shiftKey) {
+      if (activeEl === first || !container.contains(activeEl)) {
+        event.preventDefault()
+        last?.focus()
+      }
+    } else if (activeEl === last || !container.contains(activeEl)) {
+      event.preventDefault()
+      first?.focus()
+    }
+  }
+
   createEffect(options.active, (isActive) => {
     if (!isActive || typeof document === 'undefined') {
       return
@@ -70,36 +101,6 @@ export function useFocusManagement(options: {
       }
     })
 
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || !options.trap?.()) {
-        return
-      }
-      const container = options.container()
-      if (!container) {
-        return
-      }
-      const focusables = getFocusableElements(container)
-      if (focusables.length === 0) {
-        event.preventDefault()
-        container.focus()
-        return
-      }
-      const first = focusables[0]
-      const last = focusables.at(-1)
-      const activeEl = document.activeElement
-      if (event.shiftKey) {
-        if (activeEl === first || !container.contains(activeEl)) {
-          event.preventDefault()
-          last?.focus()
-        }
-      } else {
-        if (activeEl === last || !container.contains(activeEl)) {
-          event.preventDefault()
-          first?.focus()
-        }
-      }
-    }
-
     document.addEventListener('keydown', onKeyDown)
     onCleanup(() => {
       document.removeEventListener('keydown', onKeyDown)
@@ -119,6 +120,9 @@ export function useFocusManagement(options: {
 export type Orientation = 'horizontal' | 'vertical'
 export type Direction = 'ltr' | 'rtl'
 
+/**
+ * Computes the next focusable element index for roving tabindex keyboard navigation.
+ */
 export function navigateRoving(
   event: KeyboardEvent,
   items: Array<HTMLElement>,
@@ -146,7 +150,7 @@ export function navigateRoving(
   const nextKey =
     orientation === 'horizontal' ? (direction === 'rtl' ? 'ArrowLeft' : 'ArrowRight') : 'ArrowDown'
 
-  let nextIndex = -1
+  let nextIndex: number
   if (event.key === nextKey) {
     nextIndex = index + 1 < enabled.length ? index + 1 : loop ? 0 : index
   } else if (event.key === prevKey) {

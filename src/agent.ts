@@ -8,6 +8,9 @@ import {
 } from './foundation/registry'
 import type { ObservedChange, RegisteredComponent } from './foundation/registry'
 
+/**
+ * One component as an agent sees it.
+ */
 export type AgentComponent = {
   ref: string
   component: string
@@ -27,6 +30,9 @@ export type AgentComponent = {
   actions: Array<string>
 }
 
+/**
+ * A change an agent step made.
+ */
 export type AgentChange = {
   component: string
   label?: string
@@ -34,12 +40,18 @@ export type AgentChange = {
   value: unknown
 }
 
+/**
+ * One step for `act`.
+ */
 export type AgentStep = {
   ref: string
   action: string
   args?: Array<unknown>
 }
 
+/**
+ * A resolved step passed to `allow` before execution.
+ */
 export type AgentAction = {
   ref: string
   component: string
@@ -52,7 +64,7 @@ export type AgentAction = {
 type Allow = (action: AgentAction) => boolean | Promise<boolean>
 
 function toAgentComponent(entry: RegisteredComponent): AgentComponent | null {
-  const els = entry.getElements().filter((el): el is HTMLElement => el != null)
+  const els = entry.getElements().filter((el): el is HTMLElement => el !== null && el !== undefined)
   if (isHiddenFromAgent(els)) {
     return null
   }
@@ -86,7 +98,9 @@ function resolveComponent(refOrLabel: string): RegisteredComponent | undefined {
 
   const normalized = refOrLabel.trim().toLowerCase()
   const byLabel = all.find((item) => {
-    const els = item.getElements().filter((el): el is HTMLElement => el != null)
+    const els = item
+      .getElements()
+      .filter((el): el is HTMLElement => el !== null && el !== undefined)
     if (isHiddenFromAgent(els)) {
       return false
     }
@@ -113,6 +127,10 @@ const allowMap = new WeakMap<
   }>
 >()
 
+/**
+ * Creates an agent handle that inspects and drives mounted Solid 2 UI components
+ * through their native APIs with `source: "agent"`.
+ */
 export function createAgent(
   options: { within?: Element | (() => Element | null | undefined) } = {},
 ) {
@@ -124,7 +142,7 @@ export function createAgent(
     if (!root) {
       return false
     }
-    return entry.getElements().some((el) => el != null && root.contains(el))
+    return entry.getElements().some((el) => el !== null && el !== undefined && root.contains(el))
   }
 
   const snapshot = (): Array<AgentComponent> =>
@@ -190,12 +208,15 @@ export function createAgent(
             error: `Component "${step.ref}" not found.`,
           }
         }
-        const els = target.getElements().filter((el): el is HTMLElement => el != null)
+        const els = target
+          .getElements()
+          .filter((el): el is HTMLElement => el !== null && el !== undefined)
         const label = target.getLabel?.() ?? accessibleLabelOf(els)
         const confirm = confirmMessageOf(els)
         const args = step.args ?? []
 
         if (allow) {
+          // oxlint-disable-next-line eslint/no-await-in-loop
           const permitted = await allow({
             ref: target.ref,
             component: target.component,
@@ -239,6 +260,7 @@ export function createAgent(
           }
         }
 
+        // oxlint-disable-next-line eslint/no-await-in-loop
         await withSource('agent', () => handler(...args))
       }
 
@@ -262,6 +284,9 @@ export function createAgent(
   return agent
 }
 
+/**
+ * JSON Schema definitions of `createAgent`'s tools for LLM APIs and WebMCP.
+ */
 export const agentTools = [
   {
     name: 'act',
@@ -310,6 +335,9 @@ export const agentTools = [
   },
 ] as const
 
+/**
+ * Registers `agentTools` with browser WebMCP (`document.modelContext`) guarded by `allow`.
+ */
 export function registerTools(
   agent: ReturnType<typeof createAgent>,
   { allow }: { allow: Allow },
@@ -340,14 +368,16 @@ export function registerTools(
             untrustedContentHint: true,
             consequentialHint: tool.name === 'act',
           },
-          execute: (input: any) => {
+          execute: (input: Record<string, unknown>) => {
             if (tool.name === 'snapshot') {
               return agent.snapshot()
             }
             if (tool.name === 'query') {
               return agent.query(input)
             }
-            return runWithAllow ? runWithAllow(input, allow) : agent.act(input)
+            return runWithAllow
+              ? runWithAllow(input as { steps: Array<AgentStep> }, allow)
+              : agent.act(input as { steps: Array<AgentStep> })
           },
         },
         { signal: controller.signal },

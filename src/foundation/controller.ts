@@ -23,6 +23,10 @@ export function detachController(controller: unknown, api: unknown): void {
   ;(controller as { [detachSymbol]?: (api: unknown) => void } | undefined)?.[detachSymbol]?.(api)
 }
 
+/**
+ * Creates an imperative controller handle that can be passed to a component's
+ * `controller` prop and called from anywhere.
+ */
 export function createController<Api extends object>(): Api {
   let current: Api | undefined
   const methods = new Map<PropertyKey, (...args: Array<unknown>) => unknown>()
@@ -83,6 +87,10 @@ export function createController<Api extends object>(): Api {
   })
 }
 
+/**
+ * Connects a component's API object to an optional `controller` prop for the
+ * lifetime of the component.
+ */
 export function useController<Api extends object>(
   controller: () => Api | undefined,
   api: Api,
@@ -96,17 +104,23 @@ export function useController<Api extends object>(
   })
 }
 
+// External trigger-to-component registry keyed by controller object.
 const controlledTargets = new WeakMap<object, Signal<unknown>>()
 
 function targetSignal(controller: object): Signal<unknown> {
   let sig = controlledTargets.get(controller)
   if (!sig) {
-    sig = createSignal<unknown>(undefined)
+    const [get, set] = createSignal<unknown>(undefined)
+    sig = [get, set]
     controlledTargets.set(controller, sig)
   }
   return sig
 }
 
+/**
+ * Resolves a target context from either an explicit `controller` prop or the
+ * nearest ancestor context.
+ */
 export function useControllerTarget<T>(
   controller: () => object | undefined,
   nearest: T | null,
@@ -120,6 +134,10 @@ export function useControllerTarget<T>(
   }
 }
 
+/**
+ * Registers a component context with its `controller` so external triggers
+ * (e.g., outside `<Dialog>` or `<Popover>`) can bind to it reactively.
+ */
 export function useControllerEntry(controller: () => object | undefined, value: unknown): void {
   createEffect(controller, (ctrl) => {
     if (!ctrl) {

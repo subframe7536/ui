@@ -2,18 +2,35 @@ import { dynamic } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import { createMemo, omit } from 'solid-js'
 
-export type RenderProp<State = {}> = (props: Record<string, any>, state: State) => JSX.Element
+/**
+ * Custom element renderer: receives the props to spread and the part's state.
+ */
+export type RenderProp<State = object> = (
+  props: Record<string, unknown>,
+  state: State,
+) => JSX.Element
 
-export type PartProps<Tag extends keyof JSX.IntrinsicElements, State = {}> = Omit<
+/**
+ * Props every part takes: its element's props, `render`, and class names,
+ * styles and children that may be functions of the part's state.
+ */
+export type PartProps<Tag extends keyof JSX.IntrinsicElements, State = object> = Omit<
   JSX.IntrinsicElements[Tag],
   'class' | 'style' | 'children'
 > & {
+  /** Class names, or a function of the part's state that returns them. */
   class?: JSX.ClassValue | ((state: State) => JSX.ClassValue)
+  /** Styles, or a function of the part's state that returns them. */
   style?: JSX.CSSProperties | string | ((state: State) => JSX.CSSProperties | string | undefined)
+  /** Renders your own element: a function of the props to spread and the part's state. */
   render?: RenderProp<State>
+  /** Content, or a function of the part's state that returns it. */
   children?: JSX.Element | ((state: State) => JSX.Element)
 }
 
+/**
+ * Calls a Solid event handler prop (plain function or bound `[handler, data]` tuple).
+ */
 export function callHandler(handler: unknown, event: Event, ...extra: Array<unknown>): unknown {
   if (Array.isArray(handler)) {
     return (handler[0] as (...args: Array<unknown>) => unknown)(handler[1], event, ...extra)
@@ -24,9 +41,10 @@ export function callHandler(handler: unknown, event: Event, ...extra: Array<unkn
   return undefined
 }
 
-export function composeRefs<T extends Element>(
-  ...refs: Array<((el: T) => void) | T | undefined | null | unknown>
-): (el: T) => void {
+/**
+ * Composes multiple Solid ref callbacks / ref arrays into a single ref callback.
+ */
+export function composeRefs<T extends Element>(...refs: Array<unknown>): (el: T) => void {
   return (el: T) => {
     for (const ref of refs) {
       if (typeof ref === 'function') {
@@ -36,6 +54,10 @@ export function composeRefs<T extends Element>(
   }
 }
 
+/**
+ * Composes a user event handler (runs first) with an internal handler.
+ * If the user handler calls `event.preventDefault()`, the internal handler is skipped.
+ */
 export function composeHandlers<E extends Event>(
   userHandler: unknown,
   internalHandler?: (event: E) => void,
@@ -82,7 +104,7 @@ function mergeStyleValues(
   return { ...base, ...part }
 }
 
-const tagCache = new Map<string, (props: Record<string, any>) => JSX.Element>()
+const tagCache = new Map<string, (props: Record<string, unknown>) => JSX.Element>()
 
 function elementForTag(tag: string) {
   let comp = tagCache.get(tag)
@@ -96,10 +118,18 @@ function elementForTag(tag: string) {
 export type PartInternalProps = {
   attrs?: () => Record<string, unknown>
   style?: () => Record<string, string | number | undefined> | undefined
-  handlers?: Record<string, (event: any) => void>
-  ref?: (el: any) => void
+  handlers?: Record<string, (event: never) => void>
+  ref?: (el: never) => void
 }
 
+/**
+ * Renders a component part natively in Solid 2 with full support for:
+ * - `class` as value or `(state) => ClassValue`
+ * - `style` as string/object or `(state) => string | CSSProperties`
+ * - `children` as JSX.Element or `(state) => JSX.Element`
+ * - `render` as `(props, state) => JSX.Element`
+ * - Composed event handlers (user handler runs first) and refs.
+ */
 export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extends object>(
   tag: Tag,
   userProps: PartProps<Tag, State>,
@@ -107,7 +137,7 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
   internal: PartInternalProps = {},
 ): JSX.Element {
   const passthrough = omit(
-    userProps as Record<string, any>,
+    userProps as Record<string, unknown>,
     'render',
     'class',
     'style',
@@ -127,7 +157,7 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
     const resolvedUserStyle = typeof rawStyle === 'function' ? rawStyle(currentState) : rawStyle
     const resolvedStyle = mergeStyleValues(resolvedUserStyle, partStyle)
 
-    const out: Record<string, any> = {
+    const out: Record<string, unknown> = {
       ...attrs,
       ...passthrough,
     }
@@ -139,6 +169,7 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
       out.style = resolvedStyle
     }
 
+    // Compose event handlers so user handlers run before internal handlers.
     if (internal.handlers) {
       for (const [key, handler] of Object.entries(internal.handlers)) {
         out[key] = composeHandlers((passthrough as Record<string, unknown>)[key], handler)
@@ -157,7 +188,9 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
     return typeof ch === 'function' ? ch(state()) : ch
   }
 
-  if (userProps.render) {
+  const customRender = userProps.render
+  if (customRender) {
+    // oxlint-disable-next-line subf/solid-reactivity
     return (() => {
       const propsWithChildren = {
         ...mergedProps(),
@@ -165,7 +198,7 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
           return resolvedChildren()
         },
       }
-      return userProps.render!(propsWithChildren, state())
+      return customRender(propsWithChildren, state())
     }) as unknown as JSX.Element
   }
 

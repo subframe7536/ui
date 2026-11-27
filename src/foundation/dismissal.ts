@@ -16,6 +16,10 @@ function isTopLayer(id: symbol): boolean {
   return layerStack.at(-1)?.id === id
 }
 
+/**
+ * Registers a dismissible overlay layer (Dialog, AlertDialog, Popover, Menu, etc.).
+ * Only the topmost layer reacts to Escape or outside pointer presses.
+ */
 export function useDismissLayer(options: {
   active: () => boolean
   getElements: () => Array<HTMLElement | undefined | null>
@@ -53,7 +57,9 @@ export function useDismissLayer(options: {
       if (!target) {
         return
       }
-      const inside = entry.getElements().some((el) => el != null && el.contains(target))
+      const inside = entry
+        .getElements()
+        .some((el) => el !== null && el !== undefined && el.contains(target))
       if (!inside) {
         entry.onDismiss('outside-press', event)
       }

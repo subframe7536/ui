@@ -4,6 +4,9 @@ import type { ChangeSource } from './details'
 export const DEFAULT_PENDING_ANNOUNCEMENT = 'Loading'
 export const PENDING_ANNOUNCE_DELAY = 1000
 
+/**
+ * What an action handler receives after its event.
+ */
 export type ActionDetails = {
   source: ChangeSource
 }

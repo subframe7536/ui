@@ -1,3 +1,6 @@
+/**
+ * How the user or system caused a change.
+ */
 export type ChangeSource =
   | 'mouse'
   | 'touch'
@@ -7,17 +10,28 @@ export type ChangeSource =
   | 'programmatic'
   | 'agent'
 
+/**
+ * Details passed to every `on<Key>Change` callback.
+ */
 export type ChangeDetails<
   Reason extends string = string,
   E extends Event | undefined = Event | undefined,
 > = {
+  /** Why the change happened. */
   reason: Reason
+  /** How the change was triggered. */
   source: ChangeSource
+  /** The DOM event behind the change, if any. */
   event?: E
+  /** Prevent the component from applying the change in uncontrolled mode. */
   cancel: () => void
+  /** Whether `cancel()` was called. */
   readonly canceled: boolean
 }
 
+/**
+ * Options passed to imperative controller/API change methods.
+ */
 export type ChangeOptions<Reason extends string = string> = {
   reason?: Reason
   source?: ChangeSource
@@ -26,6 +40,10 @@ export type ChangeOptions<Reason extends string = string> = {
 
 let activeSource: ChangeSource | undefined
 
+/**
+ * Runs `fn` with `source` recorded as the active `ChangeSource` for any
+ * component changes triggered synchronously inside `fn`.
+ */
 export function withSource<T>(source: ChangeSource, fn: () => T): T {
   const prev = activeSource
   activeSource = source
