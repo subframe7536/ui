@@ -3,12 +3,14 @@ import {
   For,
   Show,
   createContext,
+  createEffect,
   createSignal,
   createUniqueId,
   merge,
   omit,
   useContext,
   untrack,
+  onSettled,
 } from 'solid-js'
 
 import { useFieldControl } from './field'
@@ -96,6 +98,7 @@ export type ComboboxOptions<T extends string = string> = {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<ComboboxOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   query?: string
   defaultQuery?: string
   onQueryChange?: (query: string, details: ChangeDetails<ComboboxQueryChangeReason>) => void
@@ -205,7 +208,9 @@ type ComboboxContextValue = {
   arrowEl: () => HTMLElement | null
   setArrowEl: (el: HTMLElement | null) => void
   field: ReturnType<typeof useFieldControl>
+  registerExplicitContent: () => () => void
 }
+const AutoComboboxContentContext = createContext(false)
 
 const ComboboxContext = createContext<ComboboxContextValue | null>(null)
 const ComboboxItemContext = createContext<(() => ComboboxItemState) | null>(null)
@@ -278,6 +283,8 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | null>(null)
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
+  const [explicitContentCount, setExplicitContentCount] = createSignal(0)
+  let ssrExplicitContent = false
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
   const optionList: Array<RegisteredComboboxOption> = []
@@ -462,6 +469,14 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   const reg = registerComponent({
     component: 'combobox',
@@ -535,16 +550,60 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
         arrowEl,
         setArrowEl,
         field,
+        registerExplicitContent: () => {
+          if (typeof window === 'undefined') {
+            ssrExplicitContent = true
+            return () => {}
+          }
+          setExplicitContentCount((c) => c + 1)
+          return () => setExplicitContentCount((c) => Math.max(0, c - 1))
+        },
       }}
     >
       {props.children}
+      <Show when={props.items && explicitContentCount() === 0 && !ssrExplicitContent}>
+        <AutoComboboxContentContext value={true}>
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxItems />
+            </ComboboxList>
+          </ComboboxContent>
+        </AutoComboboxContentContext>
+      </Show>
       <Show when={props.name}>
-        <textarea name={props.name} hidden readonly>
-          {(() => {
-            const cur = value()
-            return Array.isArray(cur) ? cur.join(',') : (cur ?? '')
-          })()}
-        </textarea>
+        {(formName) => (
+          <Show
+            when={isMultiple()}
+            fallback={
+              <textarea
+                name={formName()}
+                required={props.required || undefined}
+                readonly
+                tabindex={-1}
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  width: '1px',
+                  height: '1px',
+                  margin: '-1px',
+                  padding: '0',
+                  overflow: 'hidden',
+                  border: '0',
+                  clip: 'rect(0 0 0 0)',
+                }}
+              >
+                {(() => {
+                  const cur = value()
+                  return typeof cur === 'string' ? cur : ''
+                })()}
+              </textarea>
+            }
+          >
+            <For each={Array.isArray(value()) ? (value() as Array<T>) : []}>
+              {(v) => <input type="hidden" name={formName()} value={v} />}
+            </For>
+          </Show>
+        )}
       </Show>
     </ComboboxContext>
   )
@@ -786,6 +845,14 @@ export function ComboboxContent(
     Omit<PartProps<'div', ComboboxContentState>, keyof ComboboxContentProps>,
 ) {
   const ctx = useCombobox('Content')
+  const isAuto = useContext(AutoComboboxContentContext)
+  if (!isAuto) {
+    if (typeof window === 'undefined') {
+      ctx.registerExplicitContent()
+    } else {
+      onSettled(() => ctx.registerExplicitContent())
+    }
+  }
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.anchorEl() ?? undefined,
@@ -1111,6 +1178,7 @@ export function ComboboxSelectAll(
   return renderPart('button', props, selectAllState, {
     attrs: () => ({
       type: 'button',
+      role: 'option',
       'data-all-selected': selectAllState().allSelected ? '' : undefined,
     }),
     handlers: {
