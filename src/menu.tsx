@@ -5,9 +5,11 @@ import {
   createMemo,
   createSignal,
   createUniqueId,
+  merge,
   omit,
   untrack,
   useContext,
+  For,
 } from 'solid-js'
 
 import { runAction } from './foundation/action'
@@ -26,7 +28,12 @@ import type { FocusTarget } from './foundation/focus'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { SafePortal, renderPart } from './foundation/render'
+import {
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+  SafePortal,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { useOptionalMenubar } from './menubar'
@@ -71,6 +78,7 @@ export function createMenuController<Payload = unknown>() {
 export type MenuController<Payload = unknown> = ReturnType<typeof createMenuController<Payload>>
 
 export type MenuOptions<Payload = unknown> = PortalProps & {
+  items?: Array<MenuDataItem>
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<MenuOpenChangeReason>) => void
@@ -130,6 +138,8 @@ export type MenuItemProps = {
   disabled?: boolean
   closeOnSelect?: boolean
   onSelect?: (event: MouseEvent | KeyboardEvent, details: MenuActionDetails) => unknown
+  value?: string
+  shortcut?: string
 }
 
 export type MenuItemState = {
@@ -179,12 +189,17 @@ export type MenuItemIconState = { disabled: boolean }
 export type MenuItemIndicatorProps = { keepMounted?: boolean }
 export type MenuItemIndicatorState = { checked: boolean; disabled: boolean }
 
-export type MenuDataItem = {
-  id?: string
-  label: string
-  disabled?: boolean
-  onSelect?: () => unknown
-}
+export type MenuDataItem =
+  | {
+      type?: 'item'
+      id?: string
+      value?: string
+      label: string
+      disabled?: boolean
+      shortcut?: string
+      onSelect?: () => unknown
+    }
+  | { type: 'separator' }
 export type MenuData = Array<MenuDataItem>
 
 type MenuContextValue = {
@@ -193,6 +208,7 @@ type MenuContextValue = {
   payload: () => unknown
   container: () => HTMLElement | null | undefined
   contentId: string
+  claimTriggerId: () => string | undefined
   openMenu: (reason: MenuOpenChangeReason, event?: Event, payload?: unknown) => void
   closeMenu: (reason: MenuOpenChangeReason, event?: Event) => void
   toggleMenu: (payload?: unknown, event?: Event) => void
@@ -235,6 +251,7 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   const parent = useContext(MenuContext)
   const contentId = `ui-menu-${createUniqueId()}`
   const items = new Set<HTMLElement>()
+  let triggerIdClaimed = false
 
   const [open, setOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -338,6 +355,13 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
+    claimTriggerId: () => {
+      if (triggerIdClaimed) {
+        return undefined
+      }
+      triggerIdClaimed = true
+      return `${contentId}-trigger`
+    },
     openMenu: (reason, event, nextPayload) => {
       if (nextPayload !== undefined) {
         setPayload(() => nextPayload as Payload)
@@ -367,7 +391,30 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
 
   useControllerEntry(() => props.controller, ctx)
 
-  return <MenuContext value={ctx}>{props.children}</MenuContext>
+  return (
+    <MenuContext value={ctx}>
+      {props.children}
+      <Show when={props.items}>
+        {(dataItems) => (
+          <MenuContent>
+            <For each={dataItems()}>
+              {(item) => (
+                <Show when={item.type !== 'separator'} fallback={<MenuSeparator />}>
+                  <MenuItem
+                    value={item.type !== 'separator' ? item.value : undefined}
+                    disabled={item.type !== 'separator' ? item.disabled : undefined}
+                    shortcut={item.type !== 'separator' ? item.shortcut : undefined}
+                  >
+                    {item.type !== 'separator' ? item.label : null}
+                  </MenuItem>
+                </Show>
+              )}
+            </For>
+          </MenuContent>
+        )}
+      </Show>
+    </MenuContext>
+  )
 }
 
 export function MenuSub(props: MenuSubProps) {
@@ -382,7 +429,9 @@ export function MenuTrigger<Payload = unknown>(
   props: MenuTriggerProps<Payload> &
     Omit<PartProps<'button', MenuTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(() => props.controller, useContext(MenuContext))
+  const directCtx = useContext(MenuContext)
+  const target = useControllerTarget(() => props.controller, directCtx)
+  const claimedTriggerId = directCtx?.claimTriggerId()
   const menubar = useOptionalMenubar()
   const isMenubarInitialStop = menubar
     ? menubar.claimTabStop(untrack(() => !!props.disabled))
@@ -402,6 +451,7 @@ export function MenuTrigger<Payload = unknown>(
           const s = state()
           const ctx = target()
           return {
+            id: props.id ?? claimedTriggerId,
             type: 'button',
             role: menubar ? 'menuitem' : undefined,
             tabindex: menubar ? (isMenubarInitialStop ? 0 : -1) : undefined,
@@ -579,9 +629,27 @@ export function MenuItem(
     })
   }
 
-  const rest = omit(props, 'disabled', 'closeOnSelect', 'onSelect')
+  const rest = omit(props, 'value', 'shortcut', 'disabled', 'closeOnSelect', 'onSelect')
+  const resolvedItem: PartProps<'div', MenuItemState> = merge(rest, {
+    get children() {
+      const content =
+        typeof props.children === 'function' ? props.children(state()) : props.children
+      return (
+        <>
+          {content}
+          <Show when={props.shortcut}>
+            {(sc) => (
+              <span aria-hidden="true" data-slot="menu-shortcut">
+                {formatDisplayShortcut(sc())}
+              </span>
+            )}
+          </Show>
+        </>
+      )
+    },
+  })
 
-  return renderPart('div', rest, state, {
+  return renderPart('div', resolvedItem, state, {
     ref: (el: HTMLElement) => {
       elRef = el
       if (el) {
@@ -591,6 +659,7 @@ export function MenuItem(
     attrs: () => ({
       role: 'menuitem',
       tabindex: props.disabled ? undefined : -1,
+      'aria-keyshortcuts': props.shortcut ? formatAriaKeyShortcuts(props.shortcut) : undefined,
       'aria-disabled': props.disabled ? 'true' : undefined,
       'aria-busy': pending() ? 'true' : undefined,
       'data-disabled': props.disabled ? '' : undefined,
@@ -644,6 +713,7 @@ export function MenuSubTrigger(
     attrs: () => ({
       role: 'menuitem',
       tabindex: props.disabled ? undefined : -1,
+
       'aria-haspopup': 'menu',
       'aria-expanded': ctx.open() ? 'true' : 'false',
       'aria-controls': ctx.contentId,

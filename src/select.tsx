@@ -96,7 +96,7 @@ export type SelectOptions<T extends string = string> = {
   placeholder?: string
   name?: string
   filter?: ListFilter
-  items?: ListData<T>
+  items?: Array<T | ListData<T>[number]>
   controller?: SelectController<T>
   debug?: boolean
 }
@@ -121,7 +121,13 @@ export type SelectProps<T extends string = string> = SelectOptions<T> & {
 export type SelectTriggerProps = { disabled?: boolean }
 export type SelectTriggerState = SelectState
 export type SelectValueProps = { placeholder?: string }
-export type SelectValueState = SelectState & { text: string; hasValue: boolean }
+export type SelectValueState = SelectState & {
+  text: string
+  hasValue: boolean
+  label: string
+  labels: Array<string>
+  placeholder: boolean
+}
 export type SelectClearProps = { disabled?: boolean }
 export type SelectClearState = SelectState
 export type SelectContentProps = PositionProps & PortalProps & { keepMounted?: boolean }
@@ -433,7 +439,10 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
         getOptions: () => optionList,
         getLabelFor,
         placeholder: () => props.placeholder,
-        items: () => props.items,
+        items: () =>
+          props.items?.map((entry) =>
+            typeof entry === 'string' ? { value: entry, label: entry } : entry,
+          ),
         triggerEl,
         setTriggerEl,
         contentEl,
@@ -455,11 +464,36 @@ export function SelectLabel(props: PartProps<'label', SelectState>) {
   })
 }
 
-export function SelectTrigger(
-  props: SelectTriggerProps &
-    Omit<PartProps<'button', SelectTriggerState>, keyof SelectTriggerProps | 'type'>,
+export function SelectTrigger<T extends string = string>(
+  props: SelectTriggerProps & { controller?: SelectController<T> } & Omit<
+      PartProps<'button', SelectTriggerState>,
+      keyof SelectTriggerProps | 'type' | 'controller'
+    >,
 ) {
-  const ctx = useSelect('Trigger')
+  const ctx = useContext(SelectContext)
+  if (!ctx) {
+    const restOnly = omit(props, 'disabled', 'controller')
+    const fallbackState = (): SelectTriggerState => ({
+      open: false,
+      value: null,
+      highlightedValue: null,
+      query: '',
+      multiple: false,
+      disabled: !!props.disabled,
+      readOnly: false,
+      invalid: false,
+      empty: true,
+    })
+    return renderPart('button', restOnly, fallbackState, {
+      attrs: () => ({
+        type: 'button',
+        role: 'combobox',
+        'aria-expanded': 'false',
+        'aria-haspopup': 'listbox',
+        disabled: props.disabled || undefined,
+      }),
+    })
+  }
   const rest = omit(props, 'disabled')
   return renderPart('button', rest, ctx.state, {
     ref: (el: HTMLElement) => ctx.setTriggerEl(el),
@@ -514,16 +548,37 @@ export function SelectTrigger(
 export function SelectValue(
   props: SelectValueProps & Omit<PartProps<'span', SelectValueState>, keyof SelectValueProps>,
 ) {
-  const ctx = useSelect('Value')
+  const ctx = useContext(SelectContext)
   const valState = (): SelectValueState => {
+    if (!ctx) {
+      const ph = props.placeholder ?? ''
+      return {
+        open: false,
+        value: null,
+        highlightedValue: null,
+        query: '',
+        multiple: false,
+        disabled: false,
+        readOnly: false,
+        invalid: false,
+        empty: true,
+        text: ph,
+        label: '',
+        labels: [],
+        placeholder: true,
+        hasValue: false,
+      }
+    }
     const s = ctx.state()
     const val = s.value
-    const text = Array.isArray(val)
-      ? val.map((v) => ctx.getLabelFor(v)).join(', ')
+    const labels = Array.isArray(val)
+      ? val.map((v) => ctx.getLabelFor(v))
       : val !== null
-        ? ctx.getLabelFor(val)
-        : (props.placeholder ?? ctx.placeholder() ?? '')
-    return { ...s, text, hasValue: !s.empty }
+        ? [ctx.getLabelFor(val)]
+        : []
+    const label = labels.join(', ')
+    const text = labels.length > 0 ? label : (props.placeholder ?? ctx.placeholder() ?? '')
+    return { ...s, text, label, labels, placeholder: s.empty, hasValue: !s.empty }
   }
   const rest = omit(props, 'placeholder')
   const resolvedProps: PartProps<'span', SelectValueState> = merge(rest, {
