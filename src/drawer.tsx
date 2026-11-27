@@ -1,33 +1,27 @@
-import { Portal, type JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { markPopupResult, runAction, type ActionDetails } from "./foundation/action"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+
+import { markPopupResult, runAction } from './foundation/action'
+import type { ActionDetails } from './foundation/action'
 import {
   createController,
   useController,
   useControllerEntry,
   useControllerTarget,
-} from "./foundation/controller"
-import {
-  createChangeDetails,
-  inferSource,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import { useFocusManagement, type FocusTarget } from "./foundation/focus"
-import type { PortalProps } from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from './foundation/controller'
+import { createChangeDetails, inferSource } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { useFocusManagement } from './foundation/focus'
+import type { FocusTarget } from './foundation/focus'
+import type { PortalProps } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
-export type DrawerSide = "top" | "right" | "bottom" | "left"
+export type DrawerSide = 'top' | 'right' | 'bottom' | 'left'
 export type SnapPoint = number | `${number}px`
 
 export type SheetPhysics = {
@@ -43,27 +37,30 @@ export const sheetPhysics: SheetPhysics = {
 }
 
 export type DrawerOpenChangeReason =
-  | "trigger-press"
-  | "close-press"
-  | "escape-key"
-  | "outside-press"
-  | "swipe"
-  | "action"
-  | "shortcut"
-  | "imperative"
+  | 'trigger-press'
+  | 'close-press'
+  | 'escape-key'
+  | 'outside-press'
+  | 'swipe'
+  | 'action'
+  | 'shortcut'
+  | 'imperative'
 
 export type DrawerSnapPointChangeReason =
-  | "handle-press"
-  | "handle-key"
-  | "swipe"
-  | "content-resize"
-  | "imperative"
+  | 'handle-press'
+  | 'handle-key'
+  | 'swipe'
+  | 'content-resize'
+  | 'imperative'
 
-export type DrawerDismissReason = "escape-key" | "outside-press" | "swipe"
-export type DrawerPayloadChangeReason = "trigger-press" | "shortcut" | "imperative"
+export type DrawerDismissReason = 'escape-key' | 'outside-press' | 'swipe'
+export type DrawerPayloadChangeReason = 'trigger-press' | 'shortcut' | 'imperative'
 
 export type DrawerApi<Payload = unknown, Result = string> = {
-  open: (payload?: Payload, options?: ChangeOptions<DrawerOpenChangeReason>) => Promise<Result | undefined>
+  open: (
+    payload?: Payload,
+    options?: ChangeOptions<DrawerOpenChangeReason>,
+  ) => Promise<Result | undefined>
   close: (options?: { returnValue?: Result } & ChangeOptions<DrawerOpenChangeReason>) => void
   setOpen: (open: boolean, options?: ChangeOptions<DrawerOpenChangeReason>) => void
   isOpen: () => boolean
@@ -88,12 +85,12 @@ export type DrawerOptions<Payload = unknown, Result = string> = PortalProps & {
   modal?: boolean
   closeOnEscape?: boolean
   closeOnOutsidePress?: boolean
-  snapPoints?: SnapPoint[]
+  snapPoints?: Array<SnapPoint>
   snapPoint?: SnapPoint
   defaultSnapPoint?: SnapPoint
   onSnapPointChange?: (
     snapPoint: SnapPoint,
-    details: ChangeDetails<DrawerSnapPointChangeReason>
+    details: ChangeDetails<DrawerSnapPointChangeReason>,
   ) => void
   initialFocus?: FocusTarget
   finalFocus?: FocusTarget
@@ -102,10 +99,7 @@ export type DrawerOptions<Payload = unknown, Result = string> = PortalProps & {
   debug?: boolean
 }
 
-export type DrawerProps<Payload = unknown, Result = string> = DrawerOptions<
-  Payload,
-  Result
-> & {
+export type DrawerProps<Payload = unknown, Result = string> = DrawerOptions<Payload, Result> & {
   children?: JSX.Element
 }
 
@@ -147,7 +141,7 @@ type DrawerContextValue = {
   side: () => DrawerSide
   modal: () => boolean
   payload: () => unknown
-  snapPoints: () => SnapPoint[] | undefined
+  snapPoints: () => Array<SnapPoint> | undefined
   snapPoint: () => SnapPoint | undefined
   cycleSnapPoint: (event?: Event) => void
   container: () => HTMLElement | null | undefined
@@ -172,13 +166,13 @@ const DrawerShortcutContext = createContext<() => string | undefined>(() => unde
 
 function useDrawerContext(part: string): DrawerContextValue {
   const ctx = useContext(DrawerContext)
-  if (!ctx) throw new Error(`<Drawer${part}> must be used inside <Drawer>.`)
+  if (!ctx) {
+    throw new Error(`<Drawer${part}> must be used inside <Drawer>.`)
+  }
   return ctx
 }
 
-export function Drawer<Payload = unknown, Result = string>(
-  props: DrawerProps<Payload, Result>
-) {
+export function Drawer<Payload = unknown, Result = string>(props: DrawerProps<Payload, Result>) {
   const uid = createUniqueId()
   const contentId = `ui-drawer-${uid}`
   const titleId = `ui-drawer-title-${uid}`
@@ -193,7 +187,7 @@ export function Drawer<Payload = unknown, Result = string>(
     defaultValue: () => props.defaultSnapPoint ?? props.snapPoints?.[0],
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined
+    props.payload as Exclude<Payload, Function> | undefined,
   )
   const [hasTitle, setHasTitle] = createSignal(false)
   const [hasDescription, setHasDescription] = createSignal(false)
@@ -202,21 +196,25 @@ export function Drawer<Payload = unknown, Result = string>(
   let contentEl: HTMLElement | undefined
   let pendingResolve: ((result: Result | undefined) => void) | undefined
 
-  const side = (): DrawerSide => props.side ?? "bottom"
+  const side = (): DrawerSide => props.side ?? 'bottom'
   const modal = () => props.modal ?? true
 
   const applyOpen = (
     next: boolean,
     reason: DrawerOpenChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"],
-    returnValue?: Result
+    source?: ChangeOptions['source'],
+    returnValue?: Result,
   ) => {
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setOpen(next)
     if (!next && pendingResolve) {
       const resolve = pendingResolve
@@ -224,7 +222,7 @@ export function Drawer<Payload = unknown, Result = string>(
       resolve(returnValue)
     }
     reg.emit({
-      key: "open",
+      key: 'open',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -236,16 +234,20 @@ export function Drawer<Payload = unknown, Result = string>(
     next: SnapPoint,
     reason: DrawerSnapPointChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = snapPoint()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onSnapPointChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setSnapPoint(next)
     reg.emit({
-      key: "snapPoint",
+      key: 'snapPoint',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -255,38 +257,36 @@ export function Drawer<Payload = unknown, Result = string>(
 
   const cycleSnapPoint = (event?: Event) => {
     const points = props.snapPoints
-    if (!points || points.length === 0) return
+    if (!points || points.length === 0) {
+      return
+    }
     const cur = snapPoint()
     const idx = cur !== undefined ? points.indexOf(cur) : -1
     const next = points[(idx + 1) % points.length]
     if (next !== undefined) {
-      applySnapPoint(next, "handle-press", event)
+      applySnapPoint(next, 'handle-press', event)
     }
   }
 
   const api: DrawerApi<Payload, Result> = {
     open: (nextPayload, opts) => {
-      if (nextPayload !== undefined) setPayload(() => nextPayload)
-      applyOpen(true, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      if (nextPayload !== undefined) {
+        setPayload(() => nextPayload)
+      }
+      applyOpen(true, opts?.reason ?? 'imperative', opts?.event, opts?.source)
       return markPopupResult(
         new Promise<Result | undefined>((resolve) => {
           pendingResolve = resolve
-        })
+        }),
       )
     },
     close: (opts) =>
-      applyOpen(
-        false,
-        opts?.reason ?? "imperative",
-        opts?.event,
-        opts?.source,
-        opts?.returnValue
-      ),
+      applyOpen(false, opts?.reason ?? 'imperative', opts?.event, opts?.source, opts?.returnValue),
     setOpen: (next, opts) =>
-      applyOpen(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applyOpen(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     isOpen: open,
     setSnapPoint: (sp, opts) =>
-      applySnapPoint(sp, opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applySnapPoint(sp, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     getSnapPoint: snapPoint,
     getPayload: () => (props.payload !== undefined ? props.payload : payload()),
   }
@@ -302,7 +302,7 @@ export function Drawer<Payload = unknown, Result = string>(
   })
 
   const reg = registerComponent({
-    component: "drawer",
+    component: 'drawer',
     getElements: () => [contentEl, triggerEl],
     getState: () => ({ open: open(), side: side(), snapPoint: snapPoint() }),
     actions: {
@@ -330,8 +330,10 @@ export function Drawer<Payload = unknown, Result = string>(
     setHasTitle,
     setHasDescription,
     openFromTrigger: (nextPayload, event) => {
-      if (nextPayload !== undefined) setPayload(() => nextPayload as Payload)
-      applyOpen(true, "trigger-press", event)
+      if (nextPayload !== undefined) {
+        setPayload(() => nextPayload as Payload)
+      }
+      applyOpen(true, 'trigger-press', event)
     },
     close: (reason, event, returnValue) =>
       applyOpen(false, reason, event, undefined, returnValue as Result | undefined),
@@ -353,20 +355,10 @@ export function Drawer<Payload = unknown, Result = string>(
 
 export function DrawerTrigger<Payload = unknown>(
   props: DrawerTriggerProps<Payload> &
-    Omit<PartProps<"button", { open: boolean; disabled: boolean }>, "value" | "onChange" | "type">
+    Omit<PartProps<'button', { open: boolean; disabled: boolean }>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(
-    () => props.controller,
-    useContext(DrawerContext)
-  )
-  const rest = omit(
-    props,
-    "disabled",
-    "focusableWhenDisabled",
-    "payload",
-    "shortcut",
-    "controller"
-  )
+  const target = useControllerTarget(() => props.controller, useContext(DrawerContext))
+  const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = () => ({
     open: target()?.open() ?? false,
     disabled: !!props.disabled,
@@ -374,26 +366,28 @@ export function DrawerTrigger<Payload = unknown>(
 
   return (
     <DrawerShortcutContext value={() => props.shortcut}>
-      {renderPart("button", rest, state, {
+      {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
           const s = state()
           const ctx = target()
           return {
-            type: "button",
-            "aria-haspopup": "dialog",
-            "aria-expanded": s.open ? "true" : "false",
-            "aria-controls": ctx?.contentId,
+            type: 'button',
+            'aria-haspopup': 'dialog',
+            'aria-expanded': s.open ? 'true' : 'false',
+            'aria-controls': ctx?.contentId,
             disabled: s.disabled && !props.focusableWhenDisabled ? true : undefined,
-            "aria-disabled": s.disabled && props.focusableWhenDisabled ? "true" : undefined,
-            "data-open": s.open ? "" : undefined,
-            "data-closed": !s.open ? "" : undefined,
-            "data-state": s.open ? "open" : "closed",
+            'aria-disabled': s.disabled && props.focusableWhenDisabled ? 'true' : undefined,
+            'data-open': s.open ? '' : undefined,
+            'data-closed': !s.open ? '' : undefined,
+            'data-state': s.open ? 'open' : 'closed',
           }
         },
         handlers: {
           onClick: (event: MouseEvent) => {
-            if (props.disabled) return
+            if (props.disabled) {
+              return
+            }
             target()?.openFromTrigger(props.payload, event)
           },
         },
@@ -402,18 +396,18 @@ export function DrawerTrigger<Payload = unknown>(
   )
 }
 
-export function DrawerBackdrop(props: PartProps<"div", DrawerBackdropState>) {
-  const ctx = useDrawerContext("Backdrop")
+export function DrawerBackdrop(props: PartProps<'div', DrawerBackdropState>) {
+  const ctx = useDrawerContext('Backdrop')
   const state = (): DrawerBackdropState => ({ open: ctx.open(), side: ctx.side() })
   return (
     <Show when={ctx.open()}>
       <Portal mount={ctx.container() ?? undefined}>
-        {renderPart("div", props, state, {
+        {renderPart('div', props, state, {
           attrs: () => ({
-            "aria-hidden": "true",
-            "data-open": ctx.open() ? "" : undefined,
-            "data-state": ctx.open() ? "open" : "closed",
-            "data-side": ctx.side(),
+            'aria-hidden': 'true',
+            'data-open': ctx.open() ? '' : undefined,
+            'data-state': ctx.open() ? 'open' : 'closed',
+            'data-side': ctx.side(),
           }),
         })}
       </Portal>
@@ -423,10 +417,10 @@ export function DrawerBackdrop(props: PartProps<"div", DrawerBackdropState>) {
 
 export function DrawerContent<Payload = unknown>(
   props: DrawerContentProps &
-    Omit<PartProps<"div", DrawerContentState<Payload>>, keyof DrawerContentProps>
+    Omit<PartProps<'div', DrawerContentState<Payload>>, keyof DrawerContentProps>,
 ) {
-  const ctx = useDrawerContext("Content")
-  const rest = omit(props, "container", "keepMounted", "initialFocus", "finalFocus")
+  const ctx = useDrawerContext('Content')
+  const rest = omit(props, 'container', 'keepMounted', 'initialFocus', 'finalFocus')
   const state = (): DrawerContentState<Payload> => ({
     open: ctx.open(),
     side: ctx.side(),
@@ -445,23 +439,23 @@ export function DrawerContent<Payload = unknown>(
 
   return (
     <Show when={ctx.open() || !!props.keepMounted}>
-      <Portal mount={(props.container ?? ctx.container()) ?? undefined}>
-        {renderPart("div", rest, state, {
+      <Portal mount={props.container ?? ctx.container() ?? undefined}>
+        {renderPart('div', rest, state, {
           ref: ctx.setContentEl,
           attrs: () => {
             const open = ctx.open()
             return {
-              role: "dialog",
+              role: 'dialog',
               id: props.id ?? ctx.contentId,
               tabindex: -1,
-              "aria-modal": ctx.modal() ? "true" : undefined,
-              "aria-labelledby": ctx.hasTitle() ? ctx.titleId : undefined,
-              "aria-describedby": ctx.hasDescription() ? ctx.descriptionId : undefined,
+              'aria-modal': ctx.modal() ? 'true' : undefined,
+              'aria-labelledby': ctx.hasTitle() ? ctx.titleId : undefined,
+              'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
               hidden: open ? undefined : true,
-              "data-open": open ? "" : undefined,
-              "data-closed": !open ? "" : undefined,
-              "data-state": open ? "open" : "closed",
-              "data-side": ctx.side(),
+              'data-open': open ? '' : undefined,
+              'data-closed': !open ? '' : undefined,
+              'data-state': open ? 'open' : 'closed',
+              'data-side': ctx.side(),
             }
           },
         })}
@@ -470,33 +464,33 @@ export function DrawerContent<Payload = unknown>(
   )
 }
 
-export function DrawerTitle(props: PartProps<"h2", {}>) {
-  const ctx = useDrawerContext("Title")
+export function DrawerTitle(props: PartProps<'h2'>) {
+  const ctx = useDrawerContext('Title')
   ctx.setHasTitle(true)
-  return renderPart("h2", props, () => ({}), {
+  return renderPart('h2', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.titleId }),
   })
 }
 
-export function DrawerDescription(props: PartProps<"p", {}>) {
-  const ctx = useDrawerContext("Description")
+export function DrawerDescription(props: PartProps<'p'>) {
+  const ctx = useDrawerContext('Description')
   ctx.setHasDescription(true)
-  return renderPart("p", props, () => ({}), {
+  return renderPart('p', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.descriptionId }),
   })
 }
 
-export function DrawerHandle(props: PartProps<"button", DrawerHandleState>) {
-  const ctx = useDrawerContext("Handle")
+export function DrawerHandle(props: PartProps<'button', DrawerHandleState>) {
+  const ctx = useDrawerContext('Handle')
   const state = (): DrawerHandleState => ({
     open: ctx.open(),
     side: ctx.side(),
     snapPoint: ctx.snapPoint(),
   })
-  return renderPart("button", props, state, {
+  return renderPart('button', props, state, {
     attrs: () => ({
-      type: "button",
-      "data-side": ctx.side(),
+      type: 'button',
+      'data-side': ctx.side(),
     }),
     handlers: {
       onClick: (event: MouseEvent) => ctx.cycleSnapPoint(event),
@@ -504,13 +498,13 @@ export function DrawerHandle(props: PartProps<"button", DrawerHandleState>) {
   })
 }
 
-export function DrawerOutlet(props: DrawerOutletProps & PartProps<"div", DrawerOutletState>) {
-  const ctx = useDrawerContext("Outlet")
+export function DrawerOutlet(props: DrawerOutletProps & PartProps<'div', DrawerOutletState>) {
+  const ctx = useDrawerContext('Outlet')
   const state = (): DrawerOutletState => ({ open: ctx.open(), side: ctx.side() })
-  return renderPart("div", props, state, {
+  return renderPart('div', props, state, {
     attrs: () => ({
-      "data-open": ctx.open() ? "" : undefined,
-      "data-side": ctx.side(),
+      'data-open': ctx.open() ? '' : undefined,
+      'data-side': ctx.side(),
     }),
   })
 }
@@ -520,32 +514,37 @@ export function DrawerClose<Result = string>(
     disabled?: boolean
     returnValue?: Result
     action?: (details: ActionDetails) => unknown
-  } & Omit<PartProps<"button", { disabled: boolean; pending: boolean; error: unknown }>, "disabled" | "type">
+  } & Omit<
+    PartProps<'button', { disabled: boolean; pending: boolean; error: unknown }>,
+    'disabled' | 'type'
+  >,
 ) {
-  const ctx = useDrawerContext("Close")
+  const ctx = useDrawerContext('Close')
   const [pending, setPending] = createSignal(false)
   const [error, setError] = createSignal<unknown>(undefined)
   const state = () => ({ disabled: !!props.disabled, pending: pending(), error: error() })
-  const rest = omit(props, "disabled", "returnValue", "action")
+  const rest = omit(props, 'disabled', 'returnValue', 'action')
 
-  return renderPart("button", rest, state, {
+  return renderPart('button', rest, state, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: props.disabled || undefined,
-      "aria-busy": pending() ? "true" : undefined,
-      "data-pending": pending() ? "" : undefined,
+      'aria-busy': pending() ? 'true' : undefined,
+      'data-pending': pending() ? '' : undefined,
     }),
     handlers: {
       onClick: (event: MouseEvent) => {
-        if (props.disabled || pending()) return
+        if (props.disabled || pending()) {
+          return
+        }
         if (!props.action) {
-          ctx.close("close-press", event, props.returnValue)
+          ctx.close('close-press', event, props.returnValue)
           return
         }
         setError(undefined)
         runAction(props.action, inferSource(event), {
           pending: setPending,
-          done: () => ctx.close("action", event, props.returnValue),
+          done: () => ctx.close('action', event, props.returnValue),
           failed: setError,
         })
       },
@@ -553,9 +552,9 @@ export function DrawerClose<Result = string>(
   })
 }
 
-export function DrawerShortcut(props: PartProps<"kbd", { shortcut: string | undefined }>) {
+export function DrawerShortcut(props: PartProps<'kbd', { shortcut: string | undefined }>) {
   const shortcut = useContext(DrawerShortcutContext)
-  return renderPart("kbd", props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ "aria-hidden": "true" }),
+  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
+    attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }

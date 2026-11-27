@@ -1,9 +1,6 @@
-import {
-  addChangeListener,
-  elementsOfRef,
-  type ObservedChange,
-} from "./foundation/registry"
-import { withSource } from "./foundation/details"
+import { withSource } from './foundation/details'
+import { addChangeListener, elementsOfRef } from './foundation/registry'
+import type { ObservedChange } from './foundation/registry'
 
 /**
  * Subscribes to every component state change on the page (user or agent).
@@ -17,14 +14,14 @@ export function observe(
     within?: Element | (() => Element | null | undefined)
     /** Hears every live step of an interaction instead of only committed changes. */
     live?: boolean
-  } = {}
+  } = {},
 ): () => void {
   const { within } = options
   if (!within) {
     return addChangeListener((change) => listener(change))
   }
   return addChangeListener((change, elements) => {
-    const root = typeof within === "function" ? within() : within
+    const root = typeof within === 'function' ? within() : within
     if (root && elements.some((el) => root.contains(el))) {
       listener(change)
     }
@@ -39,9 +36,8 @@ export function observe(
 export function elementOf(ref: string): HTMLElement | undefined {
   const elements = elementsOfRef(ref)
   return (
-    elements.find(
-      (el) => !elements.some((other) => other !== el && other.contains(el))
-    ) ?? elements[0]
+    elements.find((el) => !elements.some((other) => other !== el && other.contains(el))) ??
+    elements[0]
   )
 }
 

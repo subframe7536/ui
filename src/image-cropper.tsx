@@ -1,19 +1,12 @@
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type ImageCrop = {
   x: number
@@ -23,18 +16,18 @@ export type ImageCrop = {
 }
 
 export type ImageRotation = 0 | 90 | 180 | 270 | number
-export type ImageCropperShape = "rect" | "circle"
-export type ImageCropperMode = "crop" | "pan"
-export type ImageCropperFlipDirection = "horizontal" | "vertical"
-export type ImageCropperHandlePosition = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw"
+export type ImageCropperShape = 'rect' | 'circle'
+export type ImageCropperMode = 'crop' | 'pan'
+export type ImageCropperFlipDirection = 'horizontal' | 'vertical'
+export type ImageCropperHandlePosition = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw'
 export type ImageCropperCropChangeReason =
-  | "drag"
-  | "resize"
-  | "zoom"
-  | "rotate"
-  | "flip"
-  | "reset"
-  | "programmatic"
+  | 'drag'
+  | 'resize'
+  | 'zoom'
+  | 'rotate'
+  | 'flip'
+  | 'reset'
+  | 'programmatic'
 export type ImageCropperChangeOptions = ChangeOptions<ImageCropperCropChangeReason>
 export type ImageCropperCropChangeDetails = ChangeDetails<ImageCropperCropChangeReason>
 export type ImageCropperCropCommitDetails = ImageCropperCropChangeDetails
@@ -110,13 +103,14 @@ const ImageCropperContext = createContext<ImageCropperContextValue | null>(null)
 
 function useImageCropper(part: string): ImageCropperContextValue {
   const ctx = useContext(ImageCropperContext)
-  if (!ctx) throw new Error(`<ImageCropper${part}> must be used inside <ImageCropper>.`)
+  if (!ctx) {
+    throw new Error(`<ImageCropper${part}> must be used inside <ImageCropper>.`)
+  }
   return ctx
 }
 
 export function ImageCropper(
-  props: ImageCropperOptions &
-    Omit<PartProps<"div", ImageCropperState>, keyof ImageCropperOptions>
+  props: ImageCropperOptions & Omit<PartProps<'div', ImageCropperState>, keyof ImageCropperOptions>,
 ) {
   const id = `ui-image-cropper-${createUniqueId()}`
   const [crop, setRawCrop] = createControlledSignal<ImageCrop>({
@@ -139,17 +133,21 @@ export function ImageCropper(
     rotation: rotation(),
     flipX: flipX(),
     flipY: flipY(),
-    shape: props.shape ?? "rect",
-    mode: props.mode ?? "crop",
+    shape: props.shape ?? 'rect',
+    mode: props.mode ?? 'crop',
     disabled: disabled(),
   })
 
   const updateCrop = (next: ImageCrop, reason: ImageCropperCropChangeReason, event?: Event) => {
-    if (disabled()) return
+    if (disabled()) {
+      return
+    }
     const bounded = clampCrop(next)
     const details = createChangeDetails(reason, event)
     props.onCropChange?.(bounded, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawCrop(bounded)
   }
 
@@ -158,19 +156,22 @@ export function ImageCropper(
   }
 
   const api: ImageCropperApi = {
-    setCrop: (next, opts) => updateCrop(next, opts?.reason ?? "programmatic", opts?.event),
+    setCrop: (next, opts) => updateCrop(next, opts?.reason ?? 'programmatic', opts?.event),
     setZoom: (z) => setZoomRaw(Math.min(maxZoom(), Math.max(minZoom(), z))),
     rotate: (deg = 90) => setRotation((r) => (r + deg + 360) % 360),
     flip: (dir) => {
-      if (dir === "horizontal") setFlipX((v) => !v)
-      else setFlipY((v) => !v)
+      if (dir === 'horizontal') {
+        setFlipX((v) => !v)
+      } else {
+        setFlipY((v) => !v)
+      }
     },
     reset: () => {
       setZoomRaw(1)
       setRotation(0)
       setFlipX(false)
       setFlipY(false)
-      updateCrop(props.defaultCrop ?? DEFAULT_CROP, "reset")
+      updateCrop(props.defaultCrop ?? DEFAULT_CROP, 'reset')
     },
     getCrop: () => crop(),
     getZoom: () => zoom(),
@@ -180,7 +181,7 @@ export function ImageCropper(
   useController(() => props.controller, api)
 
   registerComponent({
-    component: "image-cropper",
+    component: 'image-cropper',
     getElements: () => [rootEl],
     getState: () => ({ crop: crop(), zoom: zoom(), rotation: rotation(), disabled: disabled() }),
     getDisabled: disabled,
@@ -192,46 +193,46 @@ export function ImageCropper(
 
   const rest = omit(
     props,
-    "crop",
-    "defaultCrop",
-    "onCropChange",
-    "onCropCommit",
-    "aspectRatio",
-    "minZoom",
-    "maxZoom",
-    "shape",
-    "mode",
-    "disabled",
-    "controller",
-    "debug"
+    'crop',
+    'defaultCrop',
+    'onCropChange',
+    'onCropCommit',
+    'aspectRatio',
+    'minZoom',
+    'maxZoom',
+    'shape',
+    'mode',
+    'disabled',
+    'controller',
+    'debug',
   )
 
   return (
     <ImageCropperContext value={{ state, api, updateCrop, commitCrop, minZoom, maxZoom }}>
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => ({
           id,
-          "data-shape": state().shape,
-          "data-disabled": disabled() ? "" : undefined,
+          'data-shape': state().shape,
+          'data-disabled': disabled() ? '' : undefined,
         }),
       })}
     </ImageCropperContext>
   )
 }
 
-export function ImageCropperViewport(props: PartProps<"div", ImageCropperState>) {
-  const ctx = useImageCropper("Viewport")
-  return renderPart("div", props, ctx.state, {
-    style: () => ({ position: "relative", overflow: "hidden" }),
+export function ImageCropperViewport(props: PartProps<'div', ImageCropperState>) {
+  const ctx = useImageCropper('Viewport')
+  return renderPart('div', props, ctx.state, {
+    style: () => ({ position: 'relative', overflow: 'hidden' }),
   })
 }
 
-export function ImageCropperImage(props: PartProps<"img", ImageCropperState>) {
-  const ctx = useImageCropper("Image")
-  return renderPart("img", props, ctx.state, {
+export function ImageCropperImage(props: PartProps<'img', ImageCropperState>) {
+  const ctx = useImageCropper('Image')
+  return renderPart('img', props, ctx.state, {
     style: () => {
       const s = ctx.state()
       const sx = s.flipX ? -s.zoom : s.zoom
@@ -243,67 +244,67 @@ export function ImageCropperImage(props: PartProps<"img", ImageCropperState>) {
   })
 }
 
-export function ImageCropperSelection(props: PartProps<"div", ImageCropperState>) {
-  const ctx = useImageCropper("Selection")
-  return renderPart("div", props, ctx.state, {
+export function ImageCropperSelection(props: PartProps<'div', ImageCropperState>) {
+  const ctx = useImageCropper('Selection')
+  return renderPart('div', props, ctx.state, {
     attrs: () => ({
-      role: "region",
-      "aria-label": "Crop selection",
-      "data-shape": ctx.state().shape,
+      role: 'region',
+      'aria-label': 'Crop selection',
+      'data-shape': ctx.state().shape,
     }),
     style: () => {
       const c = ctx.state().crop
       return {
-        position: "absolute",
+        position: 'absolute',
         left: `${c.x}%`,
         top: `${c.y}%`,
         width: `${c.width}%`,
         height: `${c.height}%`,
-        "border-radius": ctx.state().shape === "circle" ? "9999px" : undefined,
+        'border-radius': ctx.state().shape === 'circle' ? '9999px' : undefined,
       }
     },
   })
 }
 
-export function ImageCropperGrid(props: PartProps<"div", ImageCropperState>) {
-  const ctx = useImageCropper("Grid")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ "aria-hidden": true }),
+export function ImageCropperGrid(props: PartProps<'div', ImageCropperState>) {
+  const ctx = useImageCropper('Grid')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ 'aria-hidden': true }),
   })
 }
 
 export function ImageCropperHandle(
   props: ImageCropperHandleProps &
-    Omit<PartProps<"div", ImageCropperHandleState>, keyof ImageCropperHandleProps>
+    Omit<PartProps<'div', ImageCropperHandleState>, keyof ImageCropperHandleProps>,
 ) {
-  const ctx = useImageCropper("Handle")
+  const ctx = useImageCropper('Handle')
   const handleState = (): ImageCropperHandleState => ({
     ...ctx.state(),
     position: props.position,
   })
-  const rest = omit(props, "position")
-  return renderPart("div", rest, handleState, {
+  const rest = omit(props, 'position')
+  return renderPart('div', rest, handleState, {
     attrs: () => ({
-      role: "slider",
+      role: 'slider',
       tabindex: ctx.state().disabled ? -1 : 0,
-      "data-position": props.position,
+      'data-position': props.position,
     }),
   })
 }
 
 export function ImageCropperZoom(
-  props: Omit<PartProps<"input", ImageCropperState>, "type" | "value">
+  props: Omit<PartProps<'input', ImageCropperState>, 'type' | 'value'>,
 ) {
-  const ctx = useImageCropper("Zoom")
-  return renderPart("input", props, ctx.state, {
+  const ctx = useImageCropper('Zoom')
+  return renderPart('input', props, ctx.state, {
     attrs: () => ({
-      type: "range",
+      type: 'range',
       min: ctx.minZoom(),
       max: ctx.maxZoom(),
       step: 0.1,
       value: ctx.state().zoom,
       disabled: ctx.state().disabled,
-      "aria-label": "Zoom",
+      'aria-label': 'Zoom',
     }),
     handlers: {
       onInput: (e: InputEvent & { currentTarget: HTMLInputElement }) => {
@@ -314,15 +315,15 @@ export function ImageCropperZoom(
 }
 
 export function ImageCropperRotate(
-  props: { degrees?: number } & Omit<PartProps<"button", ImageCropperState>, "type">
+  props: { degrees?: number } & Omit<PartProps<'button', ImageCropperState>, 'type'>,
 ) {
-  const ctx = useImageCropper("Rotate")
-  const rest = omit(props, "degrees")
-  return renderPart("button", rest, ctx.state, {
+  const ctx = useImageCropper('Rotate')
+  const rest = omit(props, 'degrees')
+  return renderPart('button', rest, ctx.state, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: ctx.state().disabled,
-      "aria-label": "Rotate",
+      'aria-label': 'Rotate',
     }),
     handlers: {
       onClick: () => ctx.api.rotate(props.degrees ?? 90),
@@ -332,16 +333,16 @@ export function ImageCropperRotate(
 
 export function ImageCropperFlip(
   props: ImageCropperFlipProps &
-    Omit<PartProps<"button", ImageCropperState>, keyof ImageCropperFlipProps | "type">
+    Omit<PartProps<'button', ImageCropperState>, keyof ImageCropperFlipProps | 'type'>,
 ) {
-  const ctx = useImageCropper("Flip")
-  const rest = omit(props, "direction")
-  return renderPart("button", rest, ctx.state, {
+  const ctx = useImageCropper('Flip')
+  const rest = omit(props, 'direction')
+  return renderPart('button', rest, ctx.state, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: ctx.state().disabled,
-      "aria-label": `Flip ${props.direction}`,
-      "data-direction": props.direction,
+      'aria-label': `Flip ${props.direction}`,
+      'data-direction': props.direction,
     }),
     handlers: {
       onClick: () => ctx.api.flip(props.direction),

@@ -1,42 +1,30 @@
-import { Portal, type JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  For,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import {
-  usePopupPosition,
-  type PortalProps,
-  type PositionProps,
-  type Side,
-} from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import {
-  defaultListFilter,
-  type ListAnnouncement,
-  type ListData,
-  type ListFilter,
-  type ListGroup,
-  type ListHighlightDetails,
-  type ListItem,
-  type ListSeparator,
-  type MatchSegment,
-  type SearchFilter,
-} from "./listbox"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { usePopupPosition } from './foundation/popup'
+import type { PortalProps, PositionProps, Side } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import { defaultListFilter } from './listbox'
+import type {
+  ListAnnouncement,
+  ListData,
+  ListFilter,
+  ListGroup,
+  ListHighlightDetails,
+  ListItem,
+  ListSeparator,
+  MatchSegment,
+  SearchFilter,
+} from './listbox'
 
 export type {
   ListAnnouncement,
@@ -51,15 +39,15 @@ export type {
 }
 
 export type AutocompleteOpenChangeReason =
-  | "input-focus"
-  | "input-change"
-  | "trigger-press"
-  | "item-press"
-  | "escape-key"
-  | "outside-press"
-  | "programmatic"
-export type AutocompleteDismissReason = "escape-key" | "outside-press"
-export type AutocompleteValueChangeReason = "input" | "item-press" | "clear" | "programmatic"
+  | 'input-focus'
+  | 'input-change'
+  | 'trigger-press'
+  | 'item-press'
+  | 'escape-key'
+  | 'outside-press'
+  | 'programmatic'
+export type AutocompleteDismissReason = 'escape-key' | 'outside-press'
+export type AutocompleteValueChangeReason = 'input' | 'item-press' | 'clear' | 'programmatic'
 export type AutocompleteChangeOptions = ChangeOptions<AutocompleteValueChangeReason>
 
 export type AutocompleteValueChangeDetails = ChangeDetails<AutocompleteValueChangeReason> & {
@@ -102,7 +90,7 @@ export type AutocompleteOptions = {
   placeholder?: string
   name?: string
   filter?: SearchFilter
-  items?: ListData<string>
+  items?: ListData
   controller?: AutocompleteController
   debug?: boolean
 }
@@ -129,7 +117,7 @@ export type AutocompleteArrowState = { side: Side }
 export type AutocompleteItemProps = {
   value: string
   label?: string
-  keywords?: string[]
+  keywords?: Array<string>
   disabled?: boolean
 }
 export type AutocompleteItemState = {
@@ -148,7 +136,7 @@ export type AutocompleteStatusState = AutocompleteState & { count: number }
 type RegisteredAutocompleteOption = {
   value: string
   label: string
-  keywords?: string[]
+  keywords?: Array<string>
   disabled: boolean
 }
 
@@ -163,16 +151,16 @@ type AutocompleteContextValue = {
     next: string,
     reason: AutocompleteValueChangeReason,
     event?: Event,
-    itemValue?: string
+    itemValue?: string,
   ) => void
   submit: (event?: Event) => void
-  isItemVisible: (label: string, keywords?: string[]) => boolean
+  isItemVisible: (label: string, keywords?: Array<string>) => boolean
   setHighlighted: (val: string | null) => void
   moveHighlight: (delta: 1 | -1) => void
   registerOption: (opt: RegisteredAutocompleteOption) => () => void
-  getOptions: () => RegisteredAutocompleteOption[]
+  getOptions: () => Array<RegisteredAutocompleteOption>
   placeholder: () => string | undefined
-  items: () => ListData<string> | undefined
+  items: () => ListData | undefined
   inputEl: () => HTMLInputElement | null
   setInputEl: (el: HTMLInputElement | null) => void
   contentEl: () => HTMLElement | null
@@ -188,7 +176,9 @@ const AutocompleteGroupLabelIdContext = createContext<string | undefined>(undefi
 
 function useAutocomplete(part: string): AutocompleteContextValue {
   const ctx = useContext(AutocompleteContext)
-  if (!ctx) throw new Error(`<Autocomplete${part}> must be used inside <Autocomplete>.`)
+  if (!ctx) {
+    throw new Error(`<Autocomplete${part}> must be used inside <Autocomplete>.`)
+  }
   return ctx
 }
 
@@ -201,7 +191,7 @@ export function Autocomplete(props: AutocompleteProps) {
 
   const [value, setRawValue] = createControlledSignal<string>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? "",
+    defaultValue: () => props.defaultValue ?? '',
   })
   const [open, setRawOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -212,7 +202,7 @@ export function Autocomplete(props: AutocompleteProps) {
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
-  const optionList: RegisteredAutocompleteOption[] = []
+  const optionList: Array<RegisteredAutocompleteOption> = []
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -235,26 +225,32 @@ export function Autocomplete(props: AutocompleteProps) {
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
   const setOpen = (next: boolean, reason: AutocompleteOpenChangeReason, event?: Event) => {
-    if (next && disabled()) return
+    if (next && disabled()) {
+      return
+    }
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawOpen(next)
-    emitChange?.({ key: "open", previous: prev, value: next, reason, source: details.source })
+    emitChange?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
   }
 
   const setValue = (
     next: string,
     reason: AutocompleteValueChangeReason,
     event?: Event,
-    itemValue?: string
+    itemValue?: string,
   ) => {
     const prev = value()
     const details: AutocompleteValueChangeDetails = {
@@ -262,38 +258,48 @@ export function Autocomplete(props: AutocompleteProps) {
       itemValue,
     }
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({ key: "value", previous: prev, value: next, reason, source: details.source })
+    emitChange?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
   }
 
-  const isItemVisible = (label: string, keywords?: string[]) => {
+  const isItemVisible = (label: string, keywords?: Array<string>) => {
     const q = value()
-    if (!q) return true
+    if (!q) {
+      return true
+    }
     return filterFn()(label, q, keywords)
   }
 
   const moveHighlight = (delta: 1 | -1) => {
     const visible = optionList.filter((o) => !o.disabled && isItemVisible(o.label, o.keywords))
-    if (visible.length === 0) return
+    if (visible.length === 0) {
+      return
+    }
     const idx = visible.findIndex((o) => o.value === highlighted())
     let nextIdx = idx === -1 ? (delta === 1 ? 0 : visible.length - 1) : idx + delta
-    if (nextIdx < 0) nextIdx = visible.length - 1
-    if (nextIdx >= visible.length) nextIdx = 0
+    if (nextIdx < 0) {
+      nextIdx = visible.length - 1
+    }
+    if (nextIdx >= visible.length) {
+      nextIdx = 0
+    }
     setHighlighted(visible[nextIdx]?.value ?? null)
   }
 
   const submit = (event?: Event) => {
     props.onSubmit?.({ value: value(), event })
-    setOpen(false, "programmatic", event)
+    setOpen(false, 'programmatic', event)
   }
 
   const api: AutocompleteApi = {
-    open: () => setOpen(true, "programmatic"),
-    close: () => setOpen(false, "programmatic"),
-    setValue: (next, opts) => setValue(next, opts?.reason ?? "programmatic", opts?.event),
-    clear: () => setValue("", "clear"),
+    open: () => setOpen(true, 'programmatic'),
+    close: () => setOpen(false, 'programmatic'),
+    setValue: (next, opts) => setValue(next, opts?.reason ?? 'programmatic', opts?.event),
+    clear: () => setValue('', 'clear'),
     focus: () => inputEl()?.focus(),
     getValue: () => value(),
     isOpen: () => open(),
@@ -302,13 +308,13 @@ export function Autocomplete(props: AutocompleteProps) {
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "autocomplete",
+    component: 'autocomplete',
     getElements: () => [inputEl(), contentEl()],
     getState: () => ({ value: value(), open: open(), disabled: disabled() }),
     getItems: () => optionList.map((o) => ({ value: o.value, label: o.label })),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(String(v ?? "")),
+      setValue: (v) => api.setValue(String(v ?? '')),
       clear: () => api.clear(),
     },
   })
@@ -318,7 +324,7 @@ export function Autocomplete(props: AutocompleteProps) {
     active: open,
     getElements: () => [inputEl(), contentEl()],
     onDismiss: (reason, event) => {
-      setOpen(false, reason === "escape-key" ? "escape-key" : "outside-press", event)
+      setOpen(false, reason === 'escape-key' ? 'escape-key' : 'outside-press', event)
     },
   })
 
@@ -326,7 +332,9 @@ export function Autocomplete(props: AutocompleteProps) {
     optionList.push(opt)
     return () => {
       const idx = optionList.indexOf(opt)
-      if (idx >= 0) optionList.splice(idx, 1)
+      if (idx >= 0) {
+        optionList.splice(idx, 1)
+      }
     }
   }
 
@@ -362,64 +370,74 @@ export function Autocomplete(props: AutocompleteProps) {
   )
 }
 
-export function AutocompleteLabel(props: PartProps<"label", AutocompleteState>) {
-  const ctx = useAutocomplete("Label")
-  return renderPart("label", props, ctx.state, {
+export function AutocompleteLabel(props: PartProps<'label', AutocompleteState>) {
+  const ctx = useAutocomplete('Label')
+  return renderPart('label', props, ctx.state, {
     attrs: () => ({ id: props.id ?? ctx.labelId, for: ctx.id }),
   })
 }
 
 export function AutocompleteInput(
-  props: Omit<PartProps<"input", AutocompleteInputState>, "type" | "value">
+  props: Omit<PartProps<'input', AutocompleteInputState>, 'type' | 'value'>,
 ) {
-  const ctx = useAutocomplete("Input")
-  return renderPart("input", props, ctx.state, {
+  const ctx = useAutocomplete('Input')
+  return renderPart('input', props, ctx.state, {
     ref: (el: HTMLInputElement) => ctx.setInputEl(el),
     attrs: () => {
       const s = ctx.state()
       return {
         id: ctx.id,
-        type: "text",
-        role: "combobox",
-        autocomplete: "off",
+        type: 'text',
+        role: 'combobox',
+        autocomplete: 'off',
         value: s.value,
         placeholder: props.placeholder ?? ctx.placeholder(),
         disabled: s.disabled,
         readonly: s.readOnly,
-        "aria-expanded": s.open ? "true" : "false",
-        "aria-autocomplete": "list",
-        "aria-controls": ctx.listId,
-        "aria-labelledby": ctx.labelId,
-        "aria-describedby": ctx.field?.describedBy(),
-        "aria-invalid": s.invalid ? "true" : undefined,
-        "data-open": s.open ? "" : undefined,
+        'aria-expanded': s.open ? 'true' : 'false',
+        'aria-autocomplete': 'list',
+        'aria-controls': ctx.listId,
+        'aria-labelledby': ctx.labelId,
+        'aria-describedby': ctx.field?.describedBy(),
+        'aria-invalid': s.invalid ? 'true' : undefined,
+        'data-open': s.open ? '' : undefined,
       }
     },
     handlers: {
       onFocus: (e: FocusEvent) => {
-        if (!ctx.state().disabled) ctx.setOpen(true, "input-focus", e)
+        if (!ctx.state().disabled) {
+          ctx.setOpen(true, 'input-focus', e)
+        }
       },
       onInput: (e: InputEvent & { currentTarget: HTMLInputElement }) => {
-        ctx.setValue(e.currentTarget.value, "input", e)
-        if (!ctx.state().open) ctx.setOpen(true, "input-change", e)
+        ctx.setValue(e.currentTarget.value, 'input', e)
+        if (!ctx.state().open) {
+          ctx.setOpen(true, 'input-change', e)
+        }
       },
       onKeyDown: (e: KeyboardEvent) => {
         const s = ctx.state()
-        if (s.disabled) return
-        if (e.key === "ArrowDown") {
+        if (s.disabled) {
+          return
+        }
+        if (e.key === 'ArrowDown') {
           e.preventDefault()
-          if (!s.open) ctx.setOpen(true, "input-change", e)
+          if (!s.open) {
+            ctx.setOpen(true, 'input-change', e)
+          }
           ctx.moveHighlight(1)
-        } else if (e.key === "ArrowUp") {
+        } else if (e.key === 'ArrowUp') {
           e.preventDefault()
-          if (!s.open) ctx.setOpen(true, "input-change", e)
+          if (!s.open) {
+            ctx.setOpen(true, 'input-change', e)
+          }
           ctx.moveHighlight(-1)
-        } else if (e.key === "Enter") {
+        } else if (e.key === 'Enter') {
           if (s.open && s.highlightedValue) {
             e.preventDefault()
             const opt = ctx.getOptions().find((o) => o.value === s.highlightedValue)
-            ctx.setValue(opt?.label ?? s.highlightedValue, "item-press", e, s.highlightedValue)
-            ctx.setOpen(false, "item-press", e)
+            ctx.setValue(opt?.label ?? s.highlightedValue, 'item-press', e, s.highlightedValue)
+            ctx.setOpen(false, 'item-press', e)
           } else {
             ctx.submit(e)
           }
@@ -430,35 +448,35 @@ export function AutocompleteInput(
 }
 
 export function AutocompleteTrigger(
-  props: Omit<PartProps<"button", AutocompleteTriggerState>, "type">
+  props: Omit<PartProps<'button', AutocompleteTriggerState>, 'type'>,
 ) {
-  const ctx = useAutocomplete("Trigger")
-  return renderPart("button", props, ctx.state, {
+  const ctx = useAutocomplete('Trigger')
+  return renderPart('button', props, ctx.state, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       tabindex: -1,
       disabled: ctx.state().disabled,
-      "aria-expanded": ctx.state().open ? "true" : "false",
+      'aria-expanded': ctx.state().open ? 'true' : 'false',
     }),
     handlers: {
-      onClick: (e: MouseEvent) => ctx.setOpen(!ctx.state().open, "trigger-press", e),
+      onClick: (e: MouseEvent) => ctx.setOpen(!ctx.state().open, 'trigger-press', e),
     },
   })
 }
 
 export function AutocompleteClear(
   props: AutocompleteClearProps &
-    Omit<PartProps<"button", AutocompleteClearState>, keyof AutocompleteClearProps | "type">
+    Omit<PartProps<'button', AutocompleteClearState>, keyof AutocompleteClearProps | 'type'>,
 ) {
-  const ctx = useAutocomplete("Clear")
-  const rest = omit(props, "disabled")
+  const ctx = useAutocomplete('Clear')
+  const rest = omit(props, 'disabled')
   return (
     <Show when={!ctx.state().empty}>
-      {renderPart("button", rest, ctx.state, {
+      {renderPart('button', rest, ctx.state, {
         attrs: () => ({
-          type: "button",
+          type: 'button',
           disabled: !!props.disabled || ctx.state().disabled,
-          "aria-label": "Clear",
+          'aria-label': 'Clear',
         }),
         handlers: {
           onClick: () => ctx.api.clear(),
@@ -470,16 +488,16 @@ export function AutocompleteClear(
 
 export function AutocompleteContent(
   props: AutocompleteContentProps &
-    Omit<PartProps<"div", AutocompleteContentState>, keyof AutocompleteContentProps>
+    Omit<PartProps<'div', AutocompleteContentState>, keyof AutocompleteContentProps>,
 ) {
-  const ctx = useAutocomplete("Content")
+  const ctx = useAutocomplete('Content')
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.inputEl() ?? undefined,
     floating: () => ctx.contentEl() ?? undefined,
     arrow: () => ctx.arrowEl() ?? undefined,
-    side: () => props.side ?? "bottom",
-    align: () => props.align ?? "start",
+    side: () => props.side ?? 'bottom',
+    align: () => props.align ?? 'start',
     sideOffset: () => props.sideOffset ?? 4,
     alignOffset: () => props.alignOffset ?? 0,
     collisionPadding: () => props.collisionPadding ?? 8,
@@ -492,27 +510,27 @@ export function AutocompleteContent(
 
   const rest = omit(
     props,
-    "side",
-    "align",
-    "sideOffset",
-    "alignOffset",
-    "collisionPadding",
-    "container",
-    "keepMounted"
+    'side',
+    'align',
+    'sideOffset',
+    'alignOffset',
+    'collisionPadding',
+    'container',
+    'keepMounted',
   )
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
       <Portal mount={props.container ?? undefined}>
-        {renderPart("div", rest, contentState, {
+        {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
-            "data-open": ctx.state().open ? "" : undefined,
-            "data-side": pos.side(),
+            'data-open': ctx.state().open ? '' : undefined,
+            'data-side': pos.side(),
           }),
           style: () => ({
             ...pos.style(),
-            display: ctx.state().open ? undefined : "none",
+            display: ctx.state().open ? undefined : 'none',
           }),
         })}
       </Portal>
@@ -520,52 +538,59 @@ export function AutocompleteContent(
   )
 }
 
-export function AutocompleteArrow(props: PartProps<"div", AutocompleteArrowState>) {
-  const ctx = useAutocomplete("Arrow")
-  return renderPart("div", props, () => ({ side: "bottom" as Side }), {
+export function AutocompleteArrow(props: PartProps<'div', AutocompleteArrowState>) {
+  const ctx = useAutocomplete('Arrow')
+  return renderPart('div', props, () => ({ side: 'bottom' as Side }), {
     ref: (el: HTMLElement) => ctx.setArrowEl(el),
-    attrs: () => ({ "aria-hidden": true }),
+    attrs: () => ({ 'aria-hidden': true }),
   })
 }
 
-export function AutocompleteList(props: PartProps<"div", AutocompleteState>) {
-  const ctx = useAutocomplete("List")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ id: ctx.listId, role: "listbox" }),
+export function AutocompleteList(props: PartProps<'div', AutocompleteState>) {
+  const ctx = useAutocomplete('List')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ id: ctx.listId, role: 'listbox' }),
   })
 }
 
 export function AutocompleteItems(props: {
-  items?: ListData<string>
-  renderItem?: (item: ListItem<string>) => JSX.Element
+  items?: ListData
+  renderItem?: (item: ListItem) => JSX.Element
 }) {
-  const ctx = useAutocomplete("Items")
+  const ctx = useAutocomplete('Items')
   const list = () => props.items ?? ctx.items() ?? []
   return (
     <For each={list()}>
       {(entry) => {
-        if (entry.type === "separator") return <AutocompleteSeparator />
-        if (entry.type === "group") {
+        if (entry.type === 'separator') {
+          return <AutocompleteSeparator />
+        }
+        if (entry.type === 'group') {
           return (
             <AutocompleteGroup>
               <AutocompleteGroupLabel>{entry.label}</AutocompleteGroupLabel>
               <For each={entry.items}>
-                {(sub) =>
-                  sub.type === "separator" ? (
+                {(sub) => (
+                  <Show
+                    when={sub.type === 'separator'}
+                    fallback={
+                      props.renderItem ? (
+                        props.renderItem(sub)
+                      ) : (
+                        <AutocompleteItem
+                          value={sub.value}
+                          label={sub.label}
+                          keywords={sub.keywords}
+                          disabled={sub.disabled}
+                        >
+                          <AutocompleteItemText>{sub.label ?? sub.value}</AutocompleteItemText>
+                        </AutocompleteItem>
+                      )
+                    }
+                  >
                     <AutocompleteSeparator />
-                  ) : props.renderItem ? (
-                    props.renderItem(sub)
-                  ) : (
-                    <AutocompleteItem
-                      value={sub.value}
-                      label={sub.label}
-                      keywords={sub.keywords}
-                      disabled={sub.disabled}
-                    >
-                      <AutocompleteItemText>{sub.label ?? sub.value}</AutocompleteItemText>
-                    </AutocompleteItem>
-                  )
-                }
+                  </Show>
+                )}
               </For>
             </AutocompleteGroup>
           )
@@ -587,36 +612,36 @@ export function AutocompleteItems(props: {
   )
 }
 
-export function AutocompleteGroup(props: PartProps<"div", AutocompleteState>) {
-  const ctx = useAutocomplete("Group")
+export function AutocompleteGroup(props: PartProps<'div', AutocompleteState>) {
+  const ctx = useAutocomplete('Group')
   const labelId = `ui-autocomplete-group-${createUniqueId()}`
   return (
     <AutocompleteGroupLabelIdContext value={labelId}>
-      {renderPart("div", props, ctx.state, {
-        attrs: () => ({ role: "group", "aria-labelledby": labelId }),
+      {renderPart('div', props, ctx.state, {
+        attrs: () => ({ role: 'group', 'aria-labelledby': labelId }),
       })}
     </AutocompleteGroupLabelIdContext>
   )
 }
 
-export function AutocompleteGroupLabel(props: PartProps<"div", AutocompleteState>) {
-  const ctx = useAutocomplete("GroupLabel")
+export function AutocompleteGroupLabel(props: PartProps<'div', AutocompleteState>) {
+  const ctx = useAutocomplete('GroupLabel')
   const labelId = useContext(AutocompleteGroupLabelIdContext)
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ id: props.id ?? labelId, role: "presentation" }),
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ id: props.id ?? labelId, role: 'presentation' }),
   })
 }
 
-export function AutocompleteSeparator(props: PartProps<"div", AutocompleteState>) {
-  const ctx = useAutocomplete("Separator")
-  return renderPart("div", props, ctx.state, { attrs: () => ({ role: "separator" }) })
+export function AutocompleteSeparator(props: PartProps<'div', AutocompleteState>) {
+  const ctx = useAutocomplete('Separator')
+  return renderPart('div', props, ctx.state, { attrs: () => ({ role: 'separator' }) })
 }
 
 export function AutocompleteItem(
   props: AutocompleteItemProps &
-    Omit<PartProps<"div", AutocompleteItemState>, keyof AutocompleteItemProps>
+    Omit<PartProps<'div', AutocompleteItemState>, keyof AutocompleteItemProps>,
 ) {
-  const ctx = useAutocomplete("Item")
+  const ctx = useAutocomplete('Item')
   let cleanup: (() => void) | undefined
   const label = () => props.label ?? props.value
 
@@ -628,12 +653,12 @@ export function AutocompleteItem(
     visible: ctx.isItemVisible(label(), props.keywords),
   })
 
-  const rest = omit(props, "value", "label", "keywords", "disabled")
+  const rest = omit(props, 'value', 'label', 'keywords', 'disabled')
 
   return (
     <Show when={itemState().visible}>
       <AutocompleteItemContext value={itemState}>
-        {renderPart("div", rest, itemState, {
+        {renderPart('div', rest, itemState, {
           ref: (el: HTMLElement | null) => {
             cleanup?.()
             if (el) {
@@ -648,21 +673,25 @@ export function AutocompleteItem(
           attrs: () => {
             const s = itemState()
             return {
-              role: "option",
-              "aria-disabled": s.disabled ? "true" : undefined,
-              "data-value": s.value,
-              "data-highlighted": s.highlighted ? "" : undefined,
-              "data-disabled": s.disabled ? "" : undefined,
+              role: 'option',
+              'aria-disabled': s.disabled ? 'true' : undefined,
+              'data-value': s.value,
+              'data-highlighted': s.highlighted ? '' : undefined,
+              'data-disabled': s.disabled ? '' : undefined,
             }
           },
           handlers: {
             onPointerMove: () => {
-              if (!itemState().disabled) ctx.setHighlighted(props.value)
+              if (!itemState().disabled) {
+                ctx.setHighlighted(props.value)
+              }
             },
             onClick: (e: MouseEvent) => {
-              if (itemState().disabled) return
-              ctx.setValue(itemState().label, "item-press", e, props.value)
-              ctx.setOpen(false, "item-press", e)
+              if (itemState().disabled) {
+                return
+              }
+              ctx.setValue(itemState().label, 'item-press', e, props.value)
+              ctx.setOpen(false, 'item-press', e)
             },
           },
         })}
@@ -671,38 +700,41 @@ export function AutocompleteItem(
   )
 }
 
-export function AutocompleteItemText(props: PartProps<"span", AutocompleteItemTextState>) {
+export function AutocompleteItemText(props: PartProps<'span', AutocompleteItemTextState>) {
   const itemState = useContext(AutocompleteItemContext)
-  if (!itemState) throw new Error("<AutocompleteItemText> must be used inside <AutocompleteItem>.")
-  return renderPart("span", props, itemState)
+  if (!itemState) {
+    throw new Error('<AutocompleteItemText> must be used inside <AutocompleteItem>.')
+  }
+  return renderPart('span', props, itemState)
 }
 
 export function AutocompleteItemIcon(
-  props: AutocompleteItemIconProps & PartProps<"span", AutocompleteItemIconState>
+  props: AutocompleteItemIconProps & PartProps<'span', AutocompleteItemIconState>,
 ) {
   const itemState = useContext(AutocompleteItemContext)
-  if (!itemState) throw new Error("<AutocompleteItemIcon> must be used inside <AutocompleteItem>.")
-  return renderPart("span", props, itemState, { attrs: () => ({ "aria-hidden": true }) })
+  if (!itemState) {
+    throw new Error('<AutocompleteItemIcon> must be used inside <AutocompleteItem>.')
+  }
+  return renderPart('span', props, itemState, { attrs: () => ({ 'aria-hidden': true }) })
 }
 
-export function AutocompleteEmpty(props: PartProps<"div", AutocompleteEmptyState>) {
-  const ctx = useAutocomplete("Empty")
-  const hasVisible = () =>
-    ctx.getOptions().some((o) => ctx.isItemVisible(o.label, o.keywords))
+export function AutocompleteEmpty(props: PartProps<'div', AutocompleteEmptyState>) {
+  const ctx = useAutocomplete('Empty')
+  const hasVisible = () => ctx.getOptions().some((o) => ctx.isItemVisible(o.label, o.keywords))
   return (
     <Show when={!hasVisible()}>
-      {renderPart("div", props, ctx.state, { attrs: () => ({ role: "status" }) })}
+      {renderPart('div', props, ctx.state, { attrs: () => ({ role: 'status' }) })}
     </Show>
   )
 }
 
-export function AutocompleteStatus(props: PartProps<"div", AutocompleteStatusState>) {
-  const ctx = useAutocomplete("Status")
+export function AutocompleteStatus(props: PartProps<'div', AutocompleteStatusState>) {
+  const ctx = useAutocomplete('Status')
   const statusState = (): AutocompleteStatusState => ({
     ...ctx.state(),
     count: ctx.getOptions().filter((o) => ctx.isItemVisible(o.label, o.keywords)).length,
   })
-  return renderPart("div", props, statusState, {
-    attrs: () => ({ role: "status", "aria-live": "polite" }),
+  return renderPart('div', props, statusState, {
+    attrs: () => ({ role: 'status', 'aria-live': 'polite' }),
   })
 }

@@ -1,11 +1,12 @@
-import { createEffect, createSignal, onCleanup, untrack, type Signal } from "solid-js"
+import { createEffect, createSignal, onCleanup, untrack } from 'solid-js'
+import type { Signal } from 'solid-js'
 
-const attachSymbol = Symbol.for("ui-sdk.controller.attach")
-const detachSymbol = Symbol.for("ui-sdk.controller.detach")
-const attachedSymbol = Symbol.for("ui-sdk.controller.attached")
+const attachSymbol = Symbol.for('ui-sdk.controller.attach')
+const detachSymbol = Symbol.for('ui-sdk.controller.detach')
+const attachedSymbol = Symbol.for('ui-sdk.controller.attached')
 
 const methodName = (key: PropertyKey) =>
-  typeof key === "string" &&
+  typeof key === 'string' &&
   /^[a-z]/.test(key) &&
   !/^(internal|then|toJSON)$/.test(key) &&
   !(key in {})
@@ -15,32 +16,28 @@ export function isControllerAttached(controller: unknown): boolean {
 }
 
 export function attachController(controller: unknown, api: unknown): void {
-  ;(controller as { [attachSymbol]?: (api: unknown) => void } | undefined)?.[
-    attachSymbol
-  ]?.(api)
+  ;(controller as { [attachSymbol]?: (api: unknown) => void } | undefined)?.[attachSymbol]?.(api)
 }
 
 export function detachController(controller: unknown, api: unknown): void {
-  ;(controller as { [detachSymbol]?: (api: unknown) => void } | undefined)?.[
-    detachSymbol
-  ]?.(api)
+  ;(controller as { [detachSymbol]?: (api: unknown) => void } | undefined)?.[detachSymbol]?.(api)
 }
 
 export function createController<Api extends object>(): Api {
   let current: Api | undefined
-  const methods = new Map<PropertyKey, (...args: unknown[]) => unknown>()
+  const methods = new Map<PropertyKey, (...args: Array<unknown>) => unknown>()
 
   const read = (key: PropertyKey) =>
-    key === "internal"
-      ? undefined
-      : (current as Record<PropertyKey, unknown> | undefined)?.[key]
+    key === 'internal' ? undefined : (current as Record<PropertyKey, unknown> | undefined)?.[key]
 
   const forward = (key: PropertyKey) => {
     let fn = methods.get(key)
-    if (fn) return fn
-    fn = (...args: unknown[]) => {
+    if (fn) {
+      return fn
+    }
+    fn = (...args: Array<unknown>) => {
       const value = read(key)
-      if (typeof value === "function") {
+      if (typeof value === 'function') {
         return value.apply(current, args)
       }
       return undefined
@@ -54,11 +51,11 @@ export function createController<Api extends object>(): Api {
       return methodName(key) ? forward(key) : undefined
     }
     const value = read(key)
-    return typeof value === "function" ? forward(key) : value
+    return typeof value === 'function' ? forward(key) : value
   }
 
   const isMember = (key: PropertyKey) =>
-    key !== "internal" && !!current && Object.hasOwn(current, key)
+    key !== 'internal' && !!current && Object.hasOwn(current, key)
 
   return new Proxy(Object.create(null) as Api, {
     get(_, key) {
@@ -82,18 +79,18 @@ export function createController<Api extends object>(): Api {
     has: (_, key) => isMember(key),
     ownKeys: () => (current ? Reflect.ownKeys(current).filter(isMember) : []),
     getOwnPropertyDescriptor: (_, key) =>
-      isMember(key)
-        ? { value: valueOf(key), enumerable: true, configurable: true }
-        : undefined,
+      isMember(key) ? { value: valueOf(key), enumerable: true, configurable: true } : undefined,
   })
 }
 
 export function useController<Api extends object>(
   controller: () => Api | undefined,
-  api: Api
+  api: Api,
 ): void {
   createEffect(controller, (ctrl) => {
-    if (!ctrl) return
+    if (!ctrl) {
+      return
+    }
     attachController(ctrl, api)
     onCleanup(() => detachController(ctrl, api))
   })
@@ -112,7 +109,7 @@ function targetSignal(controller: object): Signal<unknown> {
 
 export function useControllerTarget<T>(
   controller: () => object | undefined,
-  nearest: T | null
+  nearest: T | null,
 ): () => T | undefined {
   return () => {
     const ctrl = controller()
@@ -123,12 +120,11 @@ export function useControllerTarget<T>(
   }
 }
 
-export function useControllerEntry(
-  controller: () => object | undefined,
-  value: unknown
-): void {
+export function useControllerEntry(controller: () => object | undefined, value: unknown): void {
   createEffect(controller, (ctrl) => {
-    if (!ctrl) return
+    if (!ctrl) {
+      return
+    }
     const [get, set] = targetSignal(ctrl)
     set(() => value)
     onCleanup(() => {

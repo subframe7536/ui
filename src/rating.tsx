@@ -1,24 +1,16 @@
-import type { JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  For,
-  omit,
-  useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, For, omit, useContext } from 'solid-js'
 
-export type RatingValueChangeReason = "click" | "keyboard" | "clear" | "programmatic"
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type RatingValueChangeReason = 'click' | 'keyboard' | 'clear' | 'programmatic'
 
 export type RatingChangeOptions = ChangeOptions<RatingValueChangeReason>
 
@@ -70,7 +62,7 @@ export type RatingItemProps = {
 export type RatingItemState = {
   index: number
   value: number
-  fill: "empty" | "half" | "full"
+  fill: 'empty' | 'half' | 'full'
   checked: boolean
   highlighted: boolean
   disabled: boolean
@@ -93,15 +85,20 @@ const RatingItemIndexContext = createContext<number | null>(null)
 
 function useRating(part: string): RatingContextValue {
   const ctx = useContext(RatingContext)
-  if (!ctx) throw new Error(`<Rating${part}> must be used inside <Rating>.`)
+  if (!ctx) {
+    throw new Error(`<Rating${part}> must be used inside <Rating>.`)
+  }
   return ctx
 }
 
 export function Rating(
   props: RatingOptions &
-    Omit<PartProps<"div", RatingState>, keyof RatingOptions | "onChange" | "onSelect" | "children"> & {
+    Omit<
+      PartProps<'div', RatingState>,
+      keyof RatingOptions | 'onChange' | 'onSelect' | 'children'
+    > & {
       children?: JSX.Element
-    }
+    },
 ) {
   const field = useFieldControl()
   const id = field?.controlId ?? `ui-rating-${createUniqueId()}`
@@ -140,23 +137,26 @@ export function Rating(
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
   const selectValue = (next: number, reason: RatingValueChangeReason, event?: Event) => {
-    if (disabled() || readOnly()) return
+    if (disabled() || readOnly()) {
+      return
+    }
     const prev = value()
     const clamped = Math.min(max(), Math.max(0, next))
-    const finalVal =
-      props.deselectable && clamped === prev && reason === "click" ? 0 : clamped
+    const finalVal = props.deselectable && clamped === prev && reason === 'click' ? 0 : clamped
     const details = createChangeDetails(reason, event)
     props.onValueChange?.(finalVal, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(finalVal)
     field?.setDirty(true)
     emitChange?.({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: finalVal,
       reason,
@@ -165,15 +165,16 @@ export function Rating(
   }
 
   const api: RatingApi = {
-    setValue: (next, options) => selectValue(next, options?.reason ?? "programmatic", options?.event),
-    clear: () => selectValue(0, "clear"),
+    setValue: (next, options) =>
+      selectValue(next, options?.reason ?? 'programmatic', options?.event),
+    clear: () => selectValue(0, 'clear'),
     getValue: () => value(),
   }
 
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "rating",
+    component: 'rating',
     getElements: () => [rootEl],
     getState: () => ({ value: value(), max: max(), disabled: disabled() }),
     getDisabled: disabled,
@@ -188,32 +189,30 @@ export function Rating(
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "max",
-    "step",
-    "deselectable",
-    "disabled",
-    "readOnly",
-    "required",
-    "invalid",
-    "name",
-    "form",
-    "loop",
-    "controller",
-    "debug",
-    "children"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'max',
+    'step',
+    'deselectable',
+    'disabled',
+    'readOnly',
+    'required',
+    'invalid',
+    'name',
+    'form',
+    'loop',
+    'controller',
+    'debug',
+    'children',
   )
 
-  const combinedProps: PartProps<"div", RatingState> = {
+  const combinedProps: PartProps<'div', RatingState> = {
     ...rest,
     children: (
       <For each={indices()}>
         {(starIndex) => (
-          <RatingItemIndexContext value={starIndex}>
-            {props.children}
-          </RatingItemIndexContext>
+          <RatingItemIndexContext value={starIndex}>{props.children}</RatingItemIndexContext>
         )}
       </For>
     ),
@@ -233,7 +232,7 @@ export function Rating(
         field,
       }}
     >
-      {renderPart("div", combinedProps, state, {
+      {renderPart('div', combinedProps, state, {
         ref: (el) => {
           rootEl = el
         },
@@ -241,36 +240,38 @@ export function Rating(
           const s = state()
           return {
             id,
-            role: "radiogroup",
-            "aria-labelledby": field?.labelId,
-            "aria-describedby": field?.describedBy(),
-            "aria-disabled": s.disabled ? "true" : undefined,
-            "aria-readonly": s.readOnly ? "true" : undefined,
-            "aria-invalid": s.invalid ? "true" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-readonly": s.readOnly ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
+            role: 'radiogroup',
+            'aria-labelledby': field?.labelId,
+            'aria-describedby': field?.describedBy(),
+            'aria-disabled': s.disabled ? 'true' : undefined,
+            'aria-readonly': s.readOnly ? 'true' : undefined,
+            'aria-invalid': s.invalid ? 'true' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-readonly': s.readOnly ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
           }
         },
         handlers: {
           onPointerLeave: () => setHoverValue(null),
           onKeyDown: (e: KeyboardEvent) => {
             const s = state()
-            if (s.disabled || s.readOnly) return
-            if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            if (s.disabled || s.readOnly) {
+              return
+            }
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
               e.preventDefault()
               const next = s.value + s.step
-              selectValue(next > s.max ? (props.loop ? s.step : s.max) : next, "keyboard", e)
-            } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+              selectValue(next > s.max ? (props.loop ? s.step : s.max) : next, 'keyboard', e)
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
               e.preventDefault()
               const next = s.value - s.step
-              selectValue(next < 0 ? (props.loop ? s.max : 0) : next, "keyboard", e)
-            } else if (e.key === "Home") {
+              selectValue(next < 0 ? (props.loop ? s.max : 0) : next, 'keyboard', e)
+            } else if (e.key === 'Home') {
               e.preventDefault()
-              selectValue(props.deselectable ? 0 : s.step, "keyboard", e)
-            } else if (e.key === "End") {
+              selectValue(props.deselectable ? 0 : s.step, 'keyboard', e)
+            } else if (e.key === 'End') {
               e.preventDefault()
-              selectValue(s.max, "keyboard", e)
+              selectValue(s.max, 'keyboard', e)
             }
           },
         },
@@ -280,9 +281,9 @@ export function Rating(
 }
 
 export function RatingItem(
-  props: RatingItemProps & Omit<PartProps<"span", RatingItemState>, keyof RatingItemProps>
+  props: RatingItemProps & Omit<PartProps<'span', RatingItemState>, keyof RatingItemProps>,
 ) {
-  const ctx = useRating("Item")
+  const ctx = useRating('Item')
   const ctxIndex = useContext(RatingItemIndexContext)
   const index = () => props.index ?? ctxIndex ?? 1
 
@@ -290,19 +291,19 @@ export function RatingItem(
     const s = ctx.state()
     const idx = index()
     const display = s.displayValue
-    const fill: "empty" | "half" | "full" =
-      display >= idx ? "full" : display >= idx - 0.5 && s.step === 0.5 ? "half" : "empty"
+    const fill: 'empty' | 'half' | 'full' =
+      display >= idx ? 'full' : display >= idx - 0.5 && s.step === 0.5 ? 'half' : 'empty'
     return {
       index: idx,
       value: idx,
       fill,
       checked: s.value === idx || (s.step === 0.5 && s.value === idx - 0.5),
-      highlighted: fill !== "empty",
+      highlighted: fill !== 'empty',
       disabled: s.disabled,
     }
   }
 
-  const rest = omit(props, "index")
+  const rest = omit(props, 'index')
 
   const pickFromPointer = (e: MouseEvent, el: HTMLElement): number => {
     const idx = index()
@@ -315,35 +316,38 @@ export function RatingItem(
     return idx
   }
 
-  return renderPart("span", rest, itemState, {
+  return renderPart('span', rest, itemState, {
     attrs: () => {
       const s = itemState()
       const root = ctx.state()
-      const isFocusable =
-        !root.disabled && (s.checked || (root.value === 0 && s.index === 1))
+      const isFocusable = !root.disabled && (s.checked || (root.value === 0 && s.index === 1))
       return {
-        role: "radio",
+        role: 'radio',
         tabindex: isFocusable ? 0 : -1,
-        "aria-checked": s.checked ? "true" : "false",
-        "aria-label": `${s.index} of ${root.max}`,
-        "aria-disabled": s.disabled ? "true" : undefined,
-        "data-index": s.index,
-        "data-fill": s.fill,
-        "data-checked": s.checked ? "" : undefined,
-        "data-highlighted": s.highlighted ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
+        'aria-checked': s.checked ? 'true' : 'false',
+        'aria-label': `${s.index} of ${root.max}`,
+        'aria-disabled': s.disabled ? 'true' : undefined,
+        'data-index': s.index,
+        'data-fill': s.fill,
+        'data-checked': s.checked ? '' : undefined,
+        'data-highlighted': s.highlighted ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
       }
     },
     handlers: {
       onPointerMove: (e: PointerEvent & { currentTarget: HTMLSpanElement }) => {
         const root = ctx.state()
-        if (root.disabled || root.readOnly) return
+        if (root.disabled || root.readOnly) {
+          return
+        }
         ctx.setHoverValue(pickFromPointer(e, e.currentTarget))
       },
       onClick: (e: MouseEvent & { currentTarget: HTMLSpanElement }) => {
         const root = ctx.state()
-        if (root.disabled || root.readOnly) return
-        ctx.selectValue(pickFromPointer(e, e.currentTarget), "click", e)
+        if (root.disabled || root.readOnly) {
+          return
+        }
+        ctx.selectValue(pickFromPointer(e, e.currentTarget), 'click', e)
       },
     },
   })

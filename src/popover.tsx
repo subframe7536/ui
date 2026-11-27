@@ -1,52 +1,44 @@
-import { Portal, type JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { markPopupResult } from "./foundation/action"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+
+import { markPopupResult } from './foundation/action'
 import {
   createController,
   useController,
   useControllerEntry,
   useControllerTarget,
-} from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import { useFocusManagement, type FocusTarget } from "./foundation/focus"
-import {
-  usePopupPosition,
-  type Align,
-  type PortalProps,
-  type PositionProps,
-  type Side,
-} from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { useFocusManagement } from './foundation/focus'
+import type { FocusTarget } from './foundation/focus'
+import { usePopupPosition } from './foundation/popup'
+import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type PopoverOpenChangeReason =
-  | "trigger-press"
-  | "close-press"
-  | "escape-key"
-  | "outside-press"
-  | "shortcut"
-  | "imperative"
+  | 'trigger-press'
+  | 'close-press'
+  | 'escape-key'
+  | 'outside-press'
+  | 'shortcut'
+  | 'imperative'
 
-export type PopoverDismissReason = "escape-key" | "outside-press"
-export type PopoverPayloadChangeReason = "trigger-press" | "shortcut" | "imperative"
+export type PopoverDismissReason = 'escape-key' | 'outside-press'
+export type PopoverPayloadChangeReason = 'trigger-press' | 'shortcut' | 'imperative'
 export type PopoverInitialFocus = FocusTarget
 export type PopoverFinalFocus = FocusTarget
 
 export type PopoverApi<Payload = unknown, Result = string> = {
-  open: (payload?: Payload, options?: ChangeOptions<PopoverOpenChangeReason>) => Promise<Result | undefined>
+  open: (
+    payload?: Payload,
+    options?: ChangeOptions<PopoverOpenChangeReason>,
+  ) => Promise<Result | undefined>
   close: (options?: { returnValue?: Result } & ChangeOptions<PopoverOpenChangeReason>) => void
   toggle: (options?: ChangeOptions<PopoverOpenChangeReason>) => void
   setOpen: (open: boolean, options?: ChangeOptions<PopoverOpenChangeReason>) => void
@@ -74,10 +66,7 @@ export type PopoverOptions<Payload = unknown, Result = string> = PortalProps & {
   debug?: boolean
 }
 
-export type PopoverProps<Payload = unknown, Result = string> = PopoverOptions<
-  Payload,
-  Result
-> & {
+export type PopoverProps<Payload = unknown, Result = string> = PopoverOptions<Payload, Result> & {
   children?: JSX.Element
 }
 
@@ -149,13 +138,13 @@ const PopoverShortcutContext = createContext<() => string | undefined>(() => und
 
 function usePopoverContext(part: string): PopoverContextValue {
   const ctx = useContext(PopoverContext)
-  if (!ctx) throw new Error(`<Popover${part}> must be used inside <Popover>.`)
+  if (!ctx) {
+    throw new Error(`<Popover${part}> must be used inside <Popover>.`)
+  }
   return ctx
 }
 
-export function Popover<Payload = unknown, Result = string>(
-  props: PopoverProps<Payload, Result>
-) {
+export function Popover<Payload = unknown, Result = string>(props: PopoverProps<Payload, Result>) {
   const uid = createUniqueId()
   const contentId = `ui-popover-${uid}`
   const titleId = `ui-popover-title-${uid}`
@@ -166,7 +155,7 @@ export function Popover<Payload = unknown, Result = string>(
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined
+    props.payload as Exclude<Payload, Function> | undefined,
   )
   const [hasTitle, setHasTitle] = createSignal(false)
   const [hasDescription, setHasDescription] = createSignal(false)
@@ -175,8 +164,8 @@ export function Popover<Payload = unknown, Result = string>(
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | undefined>(undefined)
 
   let arrowStyleGetter: () => Record<string, string> = () => ({})
-  let sideGetter: () => Side = () => "bottom"
-  let alignGetter: () => Align = () => "center"
+  let sideGetter: () => Side = () => 'bottom'
+  let alignGetter: () => Align = () => 'center'
   let pendingResolve: ((result: Result | undefined) => void) | undefined
 
   const modal = () => !!props.modal
@@ -185,14 +174,18 @@ export function Popover<Payload = unknown, Result = string>(
     next: boolean,
     reason: PopoverOpenChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"],
-    returnValue?: Result
+    source?: ChangeOptions['source'],
+    returnValue?: Result,
   ) => {
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setOpen(next)
     if (!next && pendingResolve) {
       const resolve = pendingResolve
@@ -200,7 +193,7 @@ export function Popover<Payload = unknown, Result = string>(
       resolve(returnValue)
     }
     reg.emit({
-      key: "open",
+      key: 'open',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -210,26 +203,21 @@ export function Popover<Payload = unknown, Result = string>(
 
   const api: PopoverApi<Payload, Result> = {
     open: (nextPayload, opts) => {
-      if (nextPayload !== undefined) setPayload(() => nextPayload)
-      applyOpen(true, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      if (nextPayload !== undefined) {
+        setPayload(() => nextPayload)
+      }
+      applyOpen(true, opts?.reason ?? 'imperative', opts?.event, opts?.source)
       return markPopupResult(
         new Promise<Result | undefined>((resolve) => {
           pendingResolve = resolve
-        })
+        }),
       )
     },
     close: (opts) =>
-      applyOpen(
-        false,
-        opts?.reason ?? "imperative",
-        opts?.event,
-        opts?.source,
-        opts?.returnValue
-      ),
-    toggle: (opts) =>
-      applyOpen(!open(), opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applyOpen(false, opts?.reason ?? 'imperative', opts?.event, opts?.source, opts?.returnValue),
+    toggle: (opts) => applyOpen(!open(), opts?.reason ?? 'imperative', opts?.event, opts?.source),
     setOpen: (next, opts) =>
-      applyOpen(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applyOpen(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     isOpen: open,
     getPayload: () => (props.payload !== undefined ? props.payload : payload()),
   }
@@ -245,7 +233,7 @@ export function Popover<Payload = unknown, Result = string>(
   })
 
   const reg = registerComponent({
-    component: "popover",
+    component: 'popover',
     getElements: () => [contentEl(), triggerEl()],
     getState: () => ({ open: open() }),
     actions: {
@@ -269,8 +257,10 @@ export function Popover<Payload = unknown, Result = string>(
     setHasTitle,
     setHasDescription,
     toggleFromTrigger: (nextPayload, event) => {
-      if (nextPayload !== undefined) setPayload(() => nextPayload as Payload)
-      applyOpen(!open(), "trigger-press", event)
+      if (nextPayload !== undefined) {
+        setPayload(() => nextPayload as Payload)
+      }
+      applyOpen(!open(), 'trigger-press', event)
     },
     close: (reason, event, returnValue) =>
       applyOpen(false, reason, event, undefined, returnValue as Result | undefined),
@@ -299,20 +289,10 @@ export function Popover<Payload = unknown, Result = string>(
 
 export function PopoverTrigger<Payload = unknown>(
   props: PopoverTriggerProps<Payload> &
-    Omit<PartProps<"button", PopoverTriggerState>, "value" | "onChange" | "type">
+    Omit<PartProps<'button', PopoverTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(
-    () => props.controller,
-    useContext(PopoverContext)
-  )
-  const rest = omit(
-    props,
-    "disabled",
-    "focusableWhenDisabled",
-    "payload",
-    "shortcut",
-    "controller"
-  )
+  const target = useControllerTarget(() => props.controller, useContext(PopoverContext))
+  const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = (): PopoverTriggerState => ({
     open: target()?.open() ?? false,
     disabled: !!props.disabled,
@@ -320,29 +300,31 @@ export function PopoverTrigger<Payload = unknown>(
 
   return (
     <PopoverShortcutContext value={() => props.shortcut}>
-      {renderPart("button", rest, state, {
+      {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
           const s = state()
           const ctx = target()
           const focusableDisabled = s.disabled && !!props.focusableWhenDisabled
           return {
-            type: "button",
-            "aria-haspopup": "dialog",
-            "aria-expanded": s.open ? "true" : "false",
-            "aria-controls": ctx?.contentId,
-            "aria-keyshortcuts": props.shortcut,
+            type: 'button',
+            'aria-haspopup': 'dialog',
+            'aria-expanded': s.open ? 'true' : 'false',
+            'aria-controls': ctx?.contentId,
+            'aria-keyshortcuts': props.shortcut,
             disabled: s.disabled && !focusableDisabled ? true : undefined,
-            "aria-disabled": focusableDisabled ? "true" : undefined,
-            "data-open": s.open ? "" : undefined,
-            "data-closed": !s.open ? "" : undefined,
-            "data-state": s.open ? "open" : "closed",
-            "data-disabled": s.disabled ? "" : undefined,
+            'aria-disabled': focusableDisabled ? 'true' : undefined,
+            'data-open': s.open ? '' : undefined,
+            'data-closed': !s.open ? '' : undefined,
+            'data-state': s.open ? 'open' : 'closed',
+            'data-disabled': s.disabled ? '' : undefined,
           }
         },
         handlers: {
           onClick: (event: MouseEvent) => {
-            if (props.disabled) return
+            if (props.disabled) {
+              return
+            }
             target()?.toggleFromTrigger(props.payload, event)
           },
         },
@@ -353,23 +335,23 @@ export function PopoverTrigger<Payload = unknown>(
 
 export function PopoverContent<Payload = unknown>(
   props: PopoverContentProps &
-    Omit<PartProps<"div", PopoverContentState<Payload>>, keyof PopoverContentProps>
+    Omit<PartProps<'div', PopoverContentState<Payload>>, keyof PopoverContentProps>,
 ) {
-  const ctx = usePopoverContext("Content")
+  const ctx = usePopoverContext('Content')
   const rest = omit(
     props,
-    "container",
-    "side",
-    "align",
-    "sideOffset",
-    "alignOffset",
-    "collisionPadding",
-    "arrowPadding",
-    "anchor",
-    "initialFocus",
-    "finalFocus",
-    "keepMounted",
-    "inline"
+    'container',
+    'side',
+    'align',
+    'sideOffset',
+    'alignOffset',
+    'collisionPadding',
+    'arrowPadding',
+    'anchor',
+    'initialFocus',
+    'finalFocus',
+    'keepMounted',
+    'inline',
   )
 
   const pos = usePopupPosition({
@@ -406,22 +388,22 @@ export function PopoverContent<Payload = unknown>(
   const shouldRender = () => ctx.open() || !!props.keepMounted
 
   const renderSurface = () =>
-    renderPart("div", rest, state, {
+    renderPart('div', rest, state, {
       ref: ctx.setContentEl,
       attrs: () => {
         const open = ctx.open()
         return {
-          role: "dialog",
+          role: 'dialog',
           id: props.id ?? ctx.contentId,
           tabindex: -1,
-          "aria-labelledby": ctx.hasTitle() ? ctx.titleId : undefined,
-          "aria-describedby": ctx.hasDescription() ? ctx.descriptionId : undefined,
+          'aria-labelledby': ctx.hasTitle() ? ctx.titleId : undefined,
+          'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
           hidden: open ? undefined : true,
-          "data-open": open ? "" : undefined,
-          "data-closed": !open ? "" : undefined,
-          "data-state": open ? "open" : "closed",
-          "data-side": pos.side(),
-          "data-align": pos.align(),
+          'data-open': open ? '' : undefined,
+          'data-closed': !open ? '' : undefined,
+          'data-state': open ? 'open' : 'closed',
+          'data-side': pos.side(),
+          'data-align': pos.align(),
         }
       },
       style: pos.style,
@@ -430,62 +412,60 @@ export function PopoverContent<Payload = unknown>(
   return (
     <Show when={shouldRender()}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={(props.container ?? ctx.container()) ?? undefined}>
-          {renderSurface()}
-        </Portal>
+        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
       </Show>
     </Show>
   )
 }
 
-export function PopoverTitle(props: PartProps<"h2", {}>) {
-  const ctx = usePopoverContext("Title")
+export function PopoverTitle(props: PartProps<'h2'>) {
+  const ctx = usePopoverContext('Title')
   ctx.setHasTitle(true)
-  return renderPart("h2", props, () => ({}), {
+  return renderPart('h2', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.titleId }),
   })
 }
 
-export function PopoverDescription(props: PartProps<"p", {}>) {
-  const ctx = usePopoverContext("Description")
+export function PopoverDescription(props: PartProps<'p'>) {
+  const ctx = usePopoverContext('Description')
   ctx.setHasDescription(true)
-  return renderPart("p", props, () => ({}), {
+  return renderPart('p', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.descriptionId }),
   })
 }
 
-export function PopoverClose(props: Omit<PartProps<"button", {}>, "type">) {
-  const ctx = usePopoverContext("Close")
-  return renderPart("button", props, () => ({}), {
-    attrs: () => ({ type: "button" }),
+export function PopoverClose(props: Omit<PartProps<'button'>, 'type'>) {
+  const ctx = usePopoverContext('Close')
+  return renderPart('button', props, () => ({}), {
+    attrs: () => ({ type: 'button' }),
     handlers: {
-      onClick: (event: MouseEvent) => ctx.close("close-press", event),
+      onClick: (event: MouseEvent) => ctx.close('close-press', event),
     },
   })
 }
 
-export function PopoverArrow(props: PartProps<"div", PopoverArrowState>) {
-  const ctx = usePopoverContext("Arrow")
+export function PopoverArrow(props: PartProps<'div', PopoverArrowState>) {
+  const ctx = usePopoverContext('Arrow')
   const state = (): PopoverArrowState => ({
     side: ctx.side(),
     align: ctx.align(),
   })
-  return renderPart("div", props, state, {
+  return renderPart('div', props, state, {
     ref: ctx.setArrowEl,
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-side": ctx.side(),
-      "data-align": ctx.align(),
+      'aria-hidden': 'true',
+      'data-side': ctx.side(),
+      'data-align': ctx.align(),
     }),
     style: ctx.arrowStyle,
   })
 }
 
 export function PopoverShortcut(
-  props: PopoverShortcutProps & PartProps<"kbd", PopoverShortcutState>
+  props: PopoverShortcutProps & PartProps<'kbd', PopoverShortcutState>,
 ) {
   const shortcut = useContext(PopoverShortcutContext)
-  return renderPart("kbd", props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ "aria-hidden": "true" }),
+  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
+    attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }

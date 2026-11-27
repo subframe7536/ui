@@ -1,41 +1,29 @@
-import { Portal, type JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  For,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import {
-  usePopupPosition,
-  type PortalProps,
-  type PositionProps,
-  type Side,
-} from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import {
-  defaultListFilter,
-  type ListAnnouncement,
-  type ListData,
-  type ListFilter,
-  type ListGroup,
-  type ListHighlightDetails,
-  type ListItem,
-  type ListSeparator,
-  type MatchSegment,
-} from "./listbox"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { usePopupPosition } from './foundation/popup'
+import type { PortalProps, PositionProps, Side } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import { defaultListFilter } from './listbox'
+import type {
+  ListAnnouncement,
+  ListData,
+  ListFilter,
+  ListGroup,
+  ListHighlightDetails,
+  ListItem,
+  ListSeparator,
+  MatchSegment,
+} from './listbox'
 
 export type {
   ListAnnouncement,
@@ -48,16 +36,16 @@ export type {
   MatchSegment,
 }
 
-export type SelectValueData<T extends string = string> = T | T[] | null
+export type SelectValueData<T extends string = string> = T | Array<T> | null
 export type SelectOpenChangeReason =
-  | "trigger-press"
-  | "item-press"
-  | "escape-key"
-  | "outside-press"
-  | "programmatic"
-export type SelectDismissReason = "escape-key" | "outside-press"
-export type SelectValueChangeReason = "item-press" | "clear" | "select-all" | "programmatic"
-export type SelectQueryChangeReason = "input" | "clear" | "programmatic"
+  | 'trigger-press'
+  | 'item-press'
+  | 'escape-key'
+  | 'outside-press'
+  | 'programmatic'
+export type SelectDismissReason = 'escape-key' | 'outside-press'
+export type SelectValueChangeReason = 'item-press' | 'clear' | 'select-all' | 'programmatic'
+export type SelectQueryChangeReason = 'input' | 'clear' | 'programmatic'
 export type SelectChangeOptions = ChangeOptions<SelectValueChangeReason>
 
 export type SelectApi<T extends string = string> = {
@@ -83,7 +71,7 @@ export type SelectOptions<T extends string = string> = {
   defaultValue?: SelectValueData<T>
   onValueChange?: (
     value: SelectValueData<T>,
-    details: ChangeDetails<SelectValueChangeReason>
+    details: ChangeDetails<SelectValueChangeReason>,
   ) => void
   open?: boolean
   defaultOpen?: boolean
@@ -134,7 +122,7 @@ export type SelectInputState = SelectState
 export type SelectItemProps<T extends string = string> = {
   value: T
   label?: string
-  keywords?: string[]
+  keywords?: Array<string>
   disabled?: boolean
 }
 export type SelectItemState = {
@@ -157,7 +145,7 @@ export type SelectSelectAllState = SelectState & { allSelected: boolean; someSel
 type RegisteredSelectOption = {
   value: string
   label: string
-  keywords?: string[]
+  keywords?: Array<string>
   disabled: boolean
 }
 
@@ -165,21 +153,21 @@ type SelectContextValue = {
   id: string
   listId: string
   labelId: string
-  state: () => SelectState<string>
-  api: SelectApi<string>
+  state: () => SelectState
+  api: SelectApi
   setOpen: (next: boolean, reason: SelectOpenChangeReason, event?: Event) => void
   setQuery: (next: string, reason: SelectQueryChangeReason, event?: Event) => void
   selectItem: (val: string, reason: SelectValueChangeReason, event?: Event) => void
   selectAll: (event?: Event) => void
   isSelected: (val: string) => boolean
-  isItemVisible: (label: string, keywords?: string[]) => boolean
+  isItemVisible: (label: string, keywords?: Array<string>) => boolean
   setHighlighted: (val: string | null) => void
   moveHighlight: (delta: 1 | -1) => void
   registerOption: (opt: RegisteredSelectOption) => () => void
-  getOptions: () => RegisteredSelectOption[]
+  getOptions: () => Array<RegisteredSelectOption>
   getLabelFor: (val: string) => string
   placeholder: () => string | undefined
-  items: () => ListData<string> | undefined
+  items: () => ListData | undefined
   triggerEl: () => HTMLElement | null
   setTriggerEl: (el: HTMLElement | null) => void
   contentEl: () => HTMLElement | null
@@ -195,7 +183,9 @@ const SelectGroupLabelIdContext = createContext<string | undefined>(undefined)
 
 function useSelect(part: string): SelectContextValue {
   const ctx = useContext(SelectContext)
-  if (!ctx) throw new Error(`<Select${part}> must be used inside <Select>.`)
+  if (!ctx) {
+    throw new Error(`<Select${part}> must be used inside <Select>.`)
+  }
   return ctx
 }
 
@@ -209,7 +199,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
   const isMultiple = () => !!props.multiple
   const [value, setRawValue] = createControlledSignal<SelectValueData<T>>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? (isMultiple() ? ([] as T[]) : null),
+    defaultValue: () => props.defaultValue ?? (isMultiple() ? ([] as Array<T>) : null),
   })
   const [open, setRawOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -217,14 +207,14 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
   })
   const [query, setRawQuery] = createControlledSignal<string>({
     value: () => props.query,
-    defaultValue: () => props.defaultQuery ?? "",
+    defaultValue: () => props.defaultQuery ?? '',
   })
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | null>(null)
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
-  const optionList: RegisteredSelectOption[] = []
+  const optionList: Array<RegisteredSelectOption> = []
   const labelMap = new Map<string, string>()
 
   const disabled = () => !!props.disabled || !!field?.disabled()
@@ -234,7 +224,9 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
 
   const isSelected = (val: string): boolean => {
     const cur = value()
-    if (Array.isArray(cur)) return cur.includes(val as T)
+    if (Array.isArray(cur)) {
+      return cur.includes(val as T)
+    }
     return cur === val
   }
 
@@ -261,89 +253,115 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
   const setOpen = (next: boolean, reason: SelectOpenChangeReason, event?: Event) => {
-    if (next && disabled()) return
+    if (next && disabled()) {
+      return
+    }
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawOpen(next)
-    if (!next) setQuery("", "clear")
-    emitChange?.({ key: "open", previous: prev, value: next, reason, source: details.source })
+    if (!next) {
+      setQuery('', 'clear')
+    }
+    emitChange?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
   }
 
   const setQuery = (next: string, reason: SelectQueryChangeReason, event?: Event) => {
     const details = createChangeDetails(reason, event)
     props.onQueryChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawQuery(next)
   }
 
-  const commitValue = (next: SelectValueData<T>, reason: SelectValueChangeReason, event?: Event) => {
+  const commitValue = (
+    next: SelectValueData<T>,
+    reason: SelectValueChangeReason,
+    event?: Event,
+  ) => {
     const prev = value()
     const details = createChangeDetails(reason, event)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({ key: "value", previous: prev, value: next, reason, source: details.source })
+    emitChange?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
   }
 
   const selectItem = (val: string, reason: SelectValueChangeReason, event?: Event) => {
-    if (disabled() || readOnly()) return
+    if (disabled() || readOnly()) {
+      return
+    }
     const cur = value()
     if (isMultiple()) {
       const arr = Array.isArray(cur) ? cur : []
-      const next = arr.includes(val as T)
-        ? arr.filter((v) => v !== val)
-        : [...arr, val as T]
+      const next = arr.includes(val as T) ? arr.filter((v) => v !== val) : [...arr, val as T]
       commitValue(next, reason, event)
     } else {
       commitValue(val as T, reason, event)
-      setOpen(false, "item-press", event)
+      setOpen(false, 'item-press', event)
     }
   }
 
-  const isItemVisible = (label: string, keywords?: string[]) => {
+  const isItemVisible = (label: string, keywords?: Array<string>) => {
     const q = query()
-    if (!q) return true
+    if (!q) {
+      return true
+    }
     return filterFn()(label, q, keywords)
   }
 
   const selectAll = (event?: Event) => {
-    if (!isMultiple() || disabled() || readOnly()) return
+    if (!isMultiple() || disabled() || readOnly()) {
+      return
+    }
     const enabledVals = optionList
       .filter((o) => !o.disabled && isItemVisible(o.label, o.keywords))
       .map((o) => o.value as T)
     const cur = value()
     const arr = Array.isArray(cur) ? cur : []
     const allSelected = enabledVals.length > 0 && enabledVals.every((v) => arr.includes(v))
-    commitValue(allSelected ? [] : enabledVals, "select-all", event)
+    commitValue(allSelected ? [] : enabledVals, 'select-all', event)
   }
 
   const moveHighlight = (delta: 1 | -1) => {
     const visible = optionList.filter((o) => !o.disabled && isItemVisible(o.label, o.keywords))
-    if (visible.length === 0) return
+    if (visible.length === 0) {
+      return
+    }
     const idx = visible.findIndex((o) => o.value === highlighted())
     let nextIdx = idx === -1 ? (delta === 1 ? 0 : visible.length - 1) : idx + delta
-    if (nextIdx < 0) nextIdx = visible.length - 1
-    if (nextIdx >= visible.length) nextIdx = 0
+    if (nextIdx < 0) {
+      nextIdx = visible.length - 1
+    }
+    if (nextIdx >= visible.length) {
+      nextIdx = 0
+    }
     setHighlighted(visible[nextIdx]?.value ?? null)
   }
 
   const api: SelectApi<T> = {
-    open: () => setOpen(true, "programmatic"),
-    close: () => setOpen(false, "programmatic"),
-    toggle: () => setOpen(!open(), "programmatic"),
-    setValue: (next, opts) => commitValue(next, opts?.reason ?? "programmatic", opts?.event),
-    select: (val) => selectItem(val, "programmatic"),
-    clear: () => commitValue(isMultiple() ? [] : null, "clear"),
-    setQuery: (q) => setQuery(q, "programmatic"),
+    open: () => setOpen(true, 'programmatic'),
+    close: () => setOpen(false, 'programmatic'),
+    toggle: () => setOpen(!open(), 'programmatic'),
+    setValue: (next, opts) => commitValue(next, opts?.reason ?? 'programmatic', opts?.event),
+    select: (val) => selectItem(val, 'programmatic'),
+    clear: () => commitValue(isMultiple() ? [] : null, 'clear'),
+    setQuery: (q) => setQuery(q, 'programmatic'),
     getValue: () => value(),
     isOpen: () => open(),
   }
@@ -351,7 +369,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "select",
+    component: 'select',
     getElements: () => [triggerEl(), contentEl()],
     getState: () => ({ value: value(), open: open(), disabled: disabled() }),
     getItems: () => optionList.map((o) => ({ value: o.value, label: o.label })),
@@ -369,7 +387,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     active: open,
     getElements: () => [triggerEl(), contentEl()],
     onDismiss: (reason, event) => {
-      setOpen(false, reason === "escape-key" ? "escape-key" : "outside-press", event)
+      setOpen(false, reason === 'escape-key' ? 'escape-key' : 'outside-press', event)
     },
   })
 
@@ -378,7 +396,9 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     labelMap.set(opt.value, opt.label)
     return () => {
       const idx = optionList.indexOf(opt)
-      if (idx >= 0) optionList.splice(idx, 1)
+      if (idx >= 0) {
+        optionList.splice(idx, 1)
+      }
     }
   }
 
@@ -390,8 +410,8 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
         id,
         listId,
         labelId,
-        state: state as () => SelectState<string>,
-        api: api as unknown as SelectApi<string>,
+        state,
+        api: api as unknown as SelectApi,
         setOpen,
         setQuery,
         selectItem,
@@ -404,7 +424,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
         getOptions: () => optionList,
         getLabelFor,
         placeholder: () => props.placeholder,
-        items: () => props.items as ListData<string> | undefined,
+        items: () => props.items,
         triggerEl,
         setTriggerEl,
         contentEl,
@@ -419,53 +439,60 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
   )
 }
 
-export function SelectLabel(props: PartProps<"label", SelectState>) {
-  const ctx = useSelect("Label")
-  return renderPart("label", props, ctx.state, {
+export function SelectLabel(props: PartProps<'label', SelectState>) {
+  const ctx = useSelect('Label')
+  return renderPart('label', props, ctx.state, {
     attrs: () => ({ id: props.id ?? ctx.labelId, for: ctx.id }),
   })
 }
 
 export function SelectTrigger(
-  props: SelectTriggerProps & Omit<PartProps<"button", SelectTriggerState>, keyof SelectTriggerProps | "type">
+  props: SelectTriggerProps &
+    Omit<PartProps<'button', SelectTriggerState>, keyof SelectTriggerProps | 'type'>,
 ) {
-  const ctx = useSelect("Trigger")
-  const rest = omit(props, "disabled")
-  return renderPart("button", rest, ctx.state, {
+  const ctx = useSelect('Trigger')
+  const rest = omit(props, 'disabled')
+  return renderPart('button', rest, ctx.state, {
     ref: (el: HTMLElement) => ctx.setTriggerEl(el),
     attrs: () => {
       const s = ctx.state()
       const isDisabled = !!props.disabled || s.disabled
       return {
         id: ctx.id,
-        type: "button",
-        role: "combobox",
+        type: 'button',
+        role: 'combobox',
         disabled: isDisabled,
-        "aria-expanded": s.open ? "true" : "false",
-        "aria-haspopup": "listbox",
-        "aria-controls": ctx.listId,
-        "aria-labelledby": ctx.labelId,
-        "aria-describedby": ctx.field?.describedBy(),
-        "aria-invalid": s.invalid ? "true" : undefined,
-        "data-open": s.open ? "" : undefined,
-        "data-empty": s.empty ? "" : undefined,
-        "data-disabled": isDisabled ? "" : undefined,
+        'aria-expanded': s.open ? 'true' : 'false',
+        'aria-haspopup': 'listbox',
+        'aria-controls': ctx.listId,
+        'aria-labelledby': ctx.labelId,
+        'aria-describedby': ctx.field?.describedBy(),
+        'aria-invalid': s.invalid ? 'true' : undefined,
+        'data-open': s.open ? '' : undefined,
+        'data-empty': s.empty ? '' : undefined,
+        'data-disabled': isDisabled ? '' : undefined,
       }
     },
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (props.disabled || ctx.state().disabled) return
-        ctx.setOpen(!ctx.state().open, "trigger-press", e)
+        if (props.disabled || ctx.state().disabled) {
+          return
+        }
+        ctx.setOpen(!ctx.state().open, 'trigger-press', e)
       },
       onKeyDown: (e: KeyboardEvent) => {
-        if (props.disabled || ctx.state().disabled) return
-        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        if (props.disabled || ctx.state().disabled) {
+          return
+        }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault()
-          if (!ctx.state().open) ctx.setOpen(true, "trigger-press", e)
-          ctx.moveHighlight(e.key === "ArrowDown" ? 1 : -1)
-        } else if (e.key === "Enter" && ctx.state().open && ctx.state().highlightedValue) {
+          if (!ctx.state().open) {
+            ctx.setOpen(true, 'trigger-press', e)
+          }
+          ctx.moveHighlight(e.key === 'ArrowDown' ? 1 : -1)
+        } else if (e.key === 'Enter' && ctx.state().open && ctx.state().highlightedValue) {
           e.preventDefault()
-          ctx.selectItem(ctx.state().highlightedValue!, "item-press", e)
+          ctx.selectItem(ctx.state().highlightedValue!, 'item-press', e)
         }
       },
     },
@@ -473,51 +500,50 @@ export function SelectTrigger(
 }
 
 export function SelectValue(
-  props: SelectValueProps & Omit<PartProps<"span", SelectValueState>, keyof SelectValueProps>
+  props: SelectValueProps & Omit<PartProps<'span', SelectValueState>, keyof SelectValueProps>,
 ) {
-  const ctx = useSelect("Value")
+  const ctx = useSelect('Value')
   const valState = (): SelectValueState => {
     const s = ctx.state()
     const val = s.value
     const text = Array.isArray(val)
-      ? val.map((v) => ctx.getLabelFor(v)).join(", ")
+      ? val.map((v) => ctx.getLabelFor(v)).join(', ')
       : val !== null
         ? ctx.getLabelFor(val)
-        : (props.placeholder ?? ctx.placeholder() ?? "")
+        : (props.placeholder ?? ctx.placeholder() ?? '')
     return { ...s, text, hasValue: !s.empty }
   }
-  const rest = omit(props, "placeholder")
-  const resolvedProps: PartProps<"span", SelectValueState> =
-    props.children !== undefined
-      ? rest
-      : { ...rest, children: (s: SelectValueState) => s.text }
+  const rest = omit(props, 'placeholder')
+  const resolvedProps: PartProps<'span', SelectValueState> =
+    props.children !== undefined ? rest : { ...rest, children: (s: SelectValueState) => s.text }
 
-  return renderPart("span", resolvedProps, valState, {
+  return renderPart('span', resolvedProps, valState, {
     attrs: () => ({
-      "data-placeholder": !valState().hasValue ? "" : undefined,
+      'data-placeholder': !valState().hasValue ? '' : undefined,
     }),
   })
 }
 
-export function SelectValueIcon(props: PartProps<"span", SelectState>) {
-  const ctx = useSelect("ValueIcon")
-  return renderPart("span", props, ctx.state, {
-    attrs: () => ({ "aria-hidden": true }),
+export function SelectValueIcon(props: PartProps<'span', SelectState>) {
+  const ctx = useSelect('ValueIcon')
+  return renderPart('span', props, ctx.state, {
+    attrs: () => ({ 'aria-hidden': true }),
   })
 }
 
 export function SelectClear(
-  props: SelectClearProps & Omit<PartProps<"button", SelectClearState>, keyof SelectClearProps | "type">
+  props: SelectClearProps &
+    Omit<PartProps<'button', SelectClearState>, keyof SelectClearProps | 'type'>,
 ) {
-  const ctx = useSelect("Clear")
-  const rest = omit(props, "disabled")
+  const ctx = useSelect('Clear')
+  const rest = omit(props, 'disabled')
   return (
     <Show when={!ctx.state().empty}>
-      {renderPart("button", rest, ctx.state, {
+      {renderPart('button', rest, ctx.state, {
         attrs: () => ({
-          type: "button",
+          type: 'button',
           disabled: !!props.disabled || ctx.state().disabled,
-          "aria-label": "Clear selection",
+          'aria-label': 'Clear selection',
         }),
         handlers: {
           onClick: (e: MouseEvent) => {
@@ -531,16 +557,16 @@ export function SelectClear(
 }
 
 export function SelectContent(
-  props: SelectContentProps & Omit<PartProps<"div", SelectContentState>, keyof SelectContentProps>
+  props: SelectContentProps & Omit<PartProps<'div', SelectContentState>, keyof SelectContentProps>,
 ) {
-  const ctx = useSelect("Content")
+  const ctx = useSelect('Content')
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.triggerEl() ?? undefined,
     floating: () => ctx.contentEl() ?? undefined,
     arrow: () => ctx.arrowEl() ?? undefined,
-    side: () => props.side ?? "bottom",
-    align: () => props.align ?? "start",
+    side: () => props.side ?? 'bottom',
+    align: () => props.align ?? 'start',
     sideOffset: () => props.sideOffset ?? 4,
     alignOffset: () => props.alignOffset ?? 0,
     collisionPadding: () => props.collisionPadding ?? 8,
@@ -553,27 +579,27 @@ export function SelectContent(
 
   const rest = omit(
     props,
-    "side",
-    "align",
-    "sideOffset",
-    "alignOffset",
-    "collisionPadding",
-    "container",
-    "keepMounted"
+    'side',
+    'align',
+    'sideOffset',
+    'alignOffset',
+    'collisionPadding',
+    'container',
+    'keepMounted',
   )
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
       <Portal mount={props.container ?? undefined}>
-        {renderPart("div", rest, contentState, {
+        {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
-            "data-open": ctx.state().open ? "" : undefined,
-            "data-side": pos.side(),
+            'data-open': ctx.state().open ? '' : undefined,
+            'data-side': pos.side(),
           }),
           style: () => ({
             ...pos.style(),
-            display: ctx.state().open ? undefined : "none",
+            display: ctx.state().open ? undefined : 'none',
           }),
         })}
       </Portal>
@@ -581,87 +607,92 @@ export function SelectContent(
   )
 }
 
-export function SelectArrow(props: PartProps<"div", SelectArrowState>) {
-  const ctx = useSelect("Arrow")
-  return renderPart("div", props, () => ({ side: "bottom" as Side }), {
+export function SelectArrow(props: PartProps<'div', SelectArrowState>) {
+  const ctx = useSelect('Arrow')
+  return renderPart('div', props, () => ({ side: 'bottom' as Side }), {
     ref: (el: HTMLElement) => ctx.setArrowEl(el),
-    attrs: () => ({ "aria-hidden": true }),
+    attrs: () => ({ 'aria-hidden': true }),
   })
 }
 
-export function SelectInput(
-  props: Omit<PartProps<"input", SelectInputState>, "type" | "value">
-) {
-  const ctx = useSelect("Input")
-  return renderPart("input", props, ctx.state, {
+export function SelectInput(props: Omit<PartProps<'input', SelectInputState>, 'type' | 'value'>) {
+  const ctx = useSelect('Input')
+  return renderPart('input', props, ctx.state, {
     attrs: () => ({
-      type: "text",
+      type: 'text',
       value: ctx.state().query,
-      autocomplete: "off",
-      "aria-controls": ctx.listId,
+      autocomplete: 'off',
+      'aria-controls': ctx.listId,
     }),
     handlers: {
       onInput: (e: InputEvent & { currentTarget: HTMLInputElement }) => {
-        ctx.setQuery(e.currentTarget.value, "input", e)
+        ctx.setQuery(e.currentTarget.value, 'input', e)
       },
       onKeyDown: (e: KeyboardEvent) => {
-        if (e.key === "ArrowDown") {
+        if (e.key === 'ArrowDown') {
           e.preventDefault()
           ctx.moveHighlight(1)
-        } else if (e.key === "ArrowUp") {
+        } else if (e.key === 'ArrowUp') {
           e.preventDefault()
           ctx.moveHighlight(-1)
-        } else if (e.key === "Enter" && ctx.state().highlightedValue) {
+        } else if (e.key === 'Enter' && ctx.state().highlightedValue) {
           e.preventDefault()
-          ctx.selectItem(ctx.state().highlightedValue!, "item-press", e)
+          ctx.selectItem(ctx.state().highlightedValue!, 'item-press', e)
         }
       },
     },
   })
 }
 
-export function SelectList(props: PartProps<"div", SelectState>) {
-  const ctx = useSelect("List")
-  return renderPart("div", props, ctx.state, {
+export function SelectList(props: PartProps<'div', SelectState>) {
+  const ctx = useSelect('List')
+  return renderPart('div', props, ctx.state, {
     attrs: () => ({
       id: ctx.listId,
-      role: "listbox",
-      "aria-multiselectable": ctx.state().multiple ? "true" : undefined,
+      role: 'listbox',
+      'aria-multiselectable': ctx.state().multiple ? 'true' : undefined,
     }),
   })
 }
 
 export function SelectItems(props: {
-  items?: ListData<string>
-  renderItem?: (item: ListItem<string>) => JSX.Element
+  items?: ListData
+  renderItem?: (item: ListItem) => JSX.Element
 }) {
-  const ctx = useSelect("Items")
+  const ctx = useSelect('Items')
   const list = () => props.items ?? ctx.items() ?? []
   return (
     <For each={list()}>
       {(entry) => {
-        if (entry.type === "separator") return <SelectSeparator />
-        if (entry.type === "group") {
+        if (entry.type === 'separator') {
+          return <SelectSeparator />
+        }
+        if (entry.type === 'group') {
           return (
             <SelectGroup>
               <SelectGroupLabel>{entry.label}</SelectGroupLabel>
               <For each={entry.items}>
-                {(sub) =>
-                  sub.type === "separator" ? (
+                {(sub) => (
+                  <Show
+                    when={sub.type === 'separator'}
+                    fallback={
+                      props.renderItem ? (
+                        props.renderItem(sub)
+                      ) : (
+                        <SelectItem
+                          value={sub.value}
+                          label={sub.label}
+                          keywords={sub.keywords}
+                          disabled={sub.disabled}
+                        >
+                          <SelectItemText>{sub.label ?? sub.value}</SelectItemText>
+                        </SelectItem>
+                      )
+                    }
+                  >
                     <SelectSeparator />
-                  ) : props.renderItem ? (
-                    props.renderItem(sub)
-                  ) : (
-                    <SelectItem
-                      value={sub.value}
-                      label={sub.label}
-                      keywords={sub.keywords}
-                      disabled={sub.disabled}
-                    >
-                      <SelectItemText>{sub.label ?? sub.value}</SelectItemText>
-                    </SelectItem>
-                  )
-                }
+                  </Show>
+                )}
               </For>
             </SelectGroup>
           )
@@ -683,37 +714,37 @@ export function SelectItems(props: {
   )
 }
 
-export function SelectGroup(props: PartProps<"div", SelectState>) {
-  const ctx = useSelect("Group")
+export function SelectGroup(props: PartProps<'div', SelectState>) {
+  const ctx = useSelect('Group')
   const labelId = `ui-select-group-${createUniqueId()}`
   return (
     <SelectGroupLabelIdContext value={labelId}>
-      {renderPart("div", props, ctx.state, {
-        attrs: () => ({ role: "group", "aria-labelledby": labelId }),
+      {renderPart('div', props, ctx.state, {
+        attrs: () => ({ role: 'group', 'aria-labelledby': labelId }),
       })}
     </SelectGroupLabelIdContext>
   )
 }
 
-export function SelectGroupLabel(props: PartProps<"div", SelectState>) {
-  const ctx = useSelect("GroupLabel")
+export function SelectGroupLabel(props: PartProps<'div', SelectState>) {
+  const ctx = useSelect('GroupLabel')
   const labelId = useContext(SelectGroupLabelIdContext)
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ id: props.id ?? labelId, role: "presentation" }),
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ id: props.id ?? labelId, role: 'presentation' }),
   })
 }
 
-export function SelectSeparator(props: PartProps<"div", SelectState>) {
-  const ctx = useSelect("Separator")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ role: "separator" }),
+export function SelectSeparator(props: PartProps<'div', SelectState>) {
+  const ctx = useSelect('Separator')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ role: 'separator' }),
   })
 }
 
 export function SelectItem<T extends string = string>(
-  props: SelectItemProps<T> & Omit<PartProps<"div", SelectItemState>, keyof SelectItemProps<T>>
+  props: SelectItemProps<T> & Omit<PartProps<'div', SelectItemState>, keyof SelectItemProps<T>>,
 ) {
-  const ctx = useSelect("Item")
+  const ctx = useSelect('Item')
   let cleanup: (() => void) | undefined
   const label = () => props.label ?? props.value
 
@@ -726,12 +757,12 @@ export function SelectItem<T extends string = string>(
     visible: ctx.isItemVisible(label(), props.keywords),
   })
 
-  const rest = omit(props, "value", "label", "keywords", "disabled")
+  const rest = omit(props, 'value', 'label', 'keywords', 'disabled')
 
   return (
     <Show when={itemState().visible}>
       <SelectItemContext value={itemState}>
-        {renderPart("div", rest, itemState, {
+        {renderPart('div', rest, itemState, {
           ref: (el: HTMLElement | null) => {
             cleanup?.()
             if (el) {
@@ -746,22 +777,26 @@ export function SelectItem<T extends string = string>(
           attrs: () => {
             const s = itemState()
             return {
-              role: "option",
-              "aria-selected": s.selected ? "true" : "false",
-              "aria-disabled": s.disabled ? "true" : undefined,
-              "data-value": s.value,
-              "data-selected": s.selected ? "" : undefined,
-              "data-highlighted": s.highlighted ? "" : undefined,
-              "data-disabled": s.disabled ? "" : undefined,
+              role: 'option',
+              'aria-selected': s.selected ? 'true' : 'false',
+              'aria-disabled': s.disabled ? 'true' : undefined,
+              'data-value': s.value,
+              'data-selected': s.selected ? '' : undefined,
+              'data-highlighted': s.highlighted ? '' : undefined,
+              'data-disabled': s.disabled ? '' : undefined,
             }
           },
           handlers: {
             onPointerMove: () => {
-              if (!itemState().disabled) ctx.setHighlighted(props.value)
+              if (!itemState().disabled) {
+                ctx.setHighlighted(props.value)
+              }
             },
             onClick: (e: MouseEvent) => {
-              if (itemState().disabled) return
-              ctx.selectItem(props.value, "item-press", e)
+              if (itemState().disabled) {
+                return
+              }
+              ctx.selectItem(props.value, 'item-press', e)
             },
           },
         })}
@@ -770,67 +805,70 @@ export function SelectItem<T extends string = string>(
   )
 }
 
-export function SelectItemText(props: PartProps<"span", SelectItemTextState>) {
+export function SelectItemText(props: PartProps<'span', SelectItemTextState>) {
   const itemState = useContext(SelectItemContext)
-  if (!itemState) throw new Error("<SelectItemText> must be used inside <SelectItem>.")
-  return renderPart("span", props, itemState)
+  if (!itemState) {
+    throw new Error('<SelectItemText> must be used inside <SelectItem>.')
+  }
+  return renderPart('span', props, itemState)
 }
 
 export function SelectItemIcon(
-  props: SelectItemIconProps & PartProps<"span", SelectItemIconState>
+  props: SelectItemIconProps & PartProps<'span', SelectItemIconState>,
 ) {
   const itemState = useContext(SelectItemContext)
-  if (!itemState) throw new Error("<SelectItemIcon> must be used inside <SelectItem>.")
-  return renderPart("span", props, itemState, { attrs: () => ({ "aria-hidden": true }) })
+  if (!itemState) {
+    throw new Error('<SelectItemIcon> must be used inside <SelectItem>.')
+  }
+  return renderPart('span', props, itemState, { attrs: () => ({ 'aria-hidden': true }) })
 }
 
 export function SelectItemIndicator(
   props: SelectItemIndicatorProps &
-    Omit<PartProps<"span", SelectItemIndicatorState>, keyof SelectItemIndicatorProps>
+    Omit<PartProps<'span', SelectItemIndicatorState>, keyof SelectItemIndicatorProps>,
 ) {
   const itemState = useContext(SelectItemContext)
-  if (!itemState) throw new Error("<SelectItemIndicator> must be used inside <SelectItem>.")
-  const rest = omit(props, "keepMounted")
+  if (!itemState) {
+    throw new Error('<SelectItemIndicator> must be used inside <SelectItem>.')
+  }
+  const rest = omit(props, 'keepMounted')
   return (
     <Show when={itemState().selected || !!props.keepMounted}>
-      {renderPart("span", rest, itemState, {
+      {renderPart('span', rest, itemState, {
         attrs: () => ({
-          "aria-hidden": true,
-          "data-selected": itemState().selected ? "" : undefined,
+          'aria-hidden': true,
+          'data-selected': itemState().selected ? '' : undefined,
         }),
       })}
     </Show>
   )
 }
 
-export function SelectEmpty(props: PartProps<"div", SelectEmptyState>) {
-  const ctx = useSelect("Empty")
-  const hasVisible = () =>
-    ctx.getOptions().some((o) => ctx.isItemVisible(o.label, o.keywords))
+export function SelectEmpty(props: PartProps<'div', SelectEmptyState>) {
+  const ctx = useSelect('Empty')
+  const hasVisible = () => ctx.getOptions().some((o) => ctx.isItemVisible(o.label, o.keywords))
   return (
     <Show when={!hasVisible()}>
-      {renderPart("div", props, ctx.state, {
-        attrs: () => ({ role: "status" }),
+      {renderPart('div', props, ctx.state, {
+        attrs: () => ({ role: 'status' }),
       })}
     </Show>
   )
 }
 
-export function SelectStatus(props: PartProps<"div", SelectStatusState>) {
-  const ctx = useSelect("Status")
+export function SelectStatus(props: PartProps<'div', SelectStatusState>) {
+  const ctx = useSelect('Status')
   const statusState = (): SelectStatusState => ({
     ...ctx.state(),
     count: ctx.getOptions().filter((o) => ctx.isItemVisible(o.label, o.keywords)).length,
   })
-  return renderPart("div", props, statusState, {
-    attrs: () => ({ role: "status", "aria-live": "polite" }),
+  return renderPart('div', props, statusState, {
+    attrs: () => ({ role: 'status', 'aria-live': 'polite' }),
   })
 }
 
-export function SelectSelectAll(
-  props: Omit<PartProps<"button", SelectSelectAllState>, "type">
-) {
-  const ctx = useSelect("SelectAll")
+export function SelectSelectAll(props: Omit<PartProps<'button', SelectSelectAllState>, 'type'>) {
+  const ctx = useSelect('SelectAll')
   const selectAllState = (): SelectSelectAllState => {
     const s = ctx.state()
     const enabled = ctx
@@ -843,10 +881,10 @@ export function SelectSelectAll(
       someSelected: selectedCount > 0 && selectedCount < enabled.length,
     }
   }
-  return renderPart("button", props, selectAllState, {
+  return renderPart('button', props, selectAllState, {
     attrs: () => ({
-      type: "button",
-      "data-all-selected": selectAllState().allSelected ? "" : undefined,
+      type: 'button',
+      'data-all-selected': selectAllState().allSelected ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => ctx.selectAll(e),

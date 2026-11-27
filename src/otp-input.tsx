@@ -1,25 +1,18 @@
-import type { JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
 
-export type OTPInputPattern = "numeric" | "alphanumeric" | RegExp
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
-export type OTPInputValueChangeReason = "input" | "paste" | "clear" | "programmatic"
+export type OTPInputPattern = 'numeric' | 'alphanumeric' | RegExp
+
+export type OTPInputValueChangeReason = 'input' | 'paste' | 'clear' | 'programmatic'
 
 export type OTPInputChangeOptions = ChangeOptions<OTPInputValueChangeReason>
 
@@ -71,7 +64,7 @@ export type OTPInputState = {
   disabled: boolean
   readOnly: boolean
   invalid: boolean
-  slots: OTPInputSlotData[]
+  slots: Array<OTPInputSlotData>
 }
 
 export type OTPInputSlotProps = {
@@ -84,16 +77,16 @@ export type OTPInputSlotState = OTPInputSlotData & {
 }
 
 function sanitizeOTP(raw: string, maxLength: number, pattern: OTPInputPattern): string {
-  let chars = ""
+  let chars = ''
   const re =
-    pattern === "numeric"
-      ? /^[0-9]$/
-      : pattern === "alphanumeric"
-        ? /^[a-zA-Z0-9]$/
-        : pattern
+    pattern === 'numeric' ? /^[0-9]$/ : pattern === 'alphanumeric' ? /^[a-zA-Z0-9]$/ : pattern
   for (const ch of raw) {
-    if (chars.length >= maxLength) break
-    if (re.test(ch)) chars += ch
+    if (chars.length >= maxLength) {
+      break
+    }
+    if (re.test(ch)) {
+      chars += ch
+    }
   }
   return chars
 }
@@ -108,36 +101,36 @@ const OTPInputContext = createContext<OTPInputContextValue | null>(null)
 
 function useOTPInput(part: string): OTPInputContextValue {
   const ctx = useContext(OTPInputContext)
-  if (!ctx) throw new Error(`<OTPInput${part}> must be used inside <OTPInput>.`)
+  if (!ctx) {
+    throw new Error(`<OTPInput${part}> must be used inside <OTPInput>.`)
+  }
   return ctx
 }
 
 type InputForwardedProps = Pick<
-  JSX.IntrinsicElements["input"],
-  | "id"
-  | "autofocus"
-  | "aria-label"
-  | "aria-labelledby"
-  | "aria-describedby"
-  | "aria-invalid"
+  JSX.IntrinsicElements['input'],
+  'id' | 'autofocus' | 'aria-label' | 'aria-labelledby' | 'aria-describedby' | 'aria-invalid'
 >
 
 export function OTPInput(
   props: OTPInputOptions &
     InputForwardedProps &
     Omit<
-      PartProps<"div", OTPInputState>,
-      keyof OTPInputOptions | keyof InputForwardedProps | "defaultValue" | "onChange" | "onSelect"
-    >
+      PartProps<'div', OTPInputState>,
+      keyof OTPInputOptions | keyof InputForwardedProps | 'defaultValue' | 'onChange' | 'onSelect'
+    >,
 ) {
   const field = useFieldControl()
-  const id = () => (typeof props.id === "string" ? props.id : undefined) ?? field?.controlId ?? `ui-otp-${createUniqueId()}`
+  const id = () =>
+    (typeof props.id === 'string' ? props.id : undefined) ??
+    field?.controlId ??
+    `ui-otp-${createUniqueId()}`
   const maxLength = () => props.maxLength ?? 6
-  const pattern = (): OTPInputPattern => props.pattern ?? "numeric"
+  const pattern = (): OTPInputPattern => props.pattern ?? 'numeric'
 
   const [value, setRawValue] = createControlledSignal<string>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? "",
+    defaultValue: () => props.defaultValue ?? '',
   })
 
   const [focused, setFocused] = createSignal(false)
@@ -154,15 +147,15 @@ export function OTPInput(
     const len = maxLength()
     const isFocused = focused()
     const activeIdx = isFocused ? Math.min(selectionIndex(), len - 1) : -1
-    const slots: OTPInputSlotData[] = Array.from({ length: len }, (_, index) => {
-      const char = val[index] ?? ""
+    const slots: Array<OTPInputSlotData> = Array.from({ length: len }, (_, index) => {
+      const char = val[index] ?? ''
       const active = index === activeIdx
       return {
         index,
         char,
         active,
-        caret: active && char === "",
-        filled: char !== "",
+        caret: active && char === '',
+        filled: char !== '',
       }
     })
     return {
@@ -184,21 +177,23 @@ export function OTPInput(
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
-  const updateValue = (raw: string, reason: OTPInputValueChangeReason = "input", event?: Event) => {
+  const updateValue = (raw: string, reason: OTPInputValueChangeReason = 'input', event?: Event) => {
     const next = sanitizeOTP(raw, maxLength(), pattern())
     const details = createChangeDetails(reason, event)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     const prev = value()
     setRawValue(next)
     setSelectionIndex(Math.min(next.length, maxLength() - 1))
     field?.setDirty(true)
     emitChange?.({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: next,
       reason,
@@ -210,8 +205,9 @@ export function OTPInput(
   }
 
   const api: OTPInputApi = {
-    setValue: (next, options) => updateValue(next, options?.reason ?? "programmatic", options?.event),
-    clear: () => updateValue("", "clear"),
+    setValue: (next, options) =>
+      updateValue(next, options?.reason ?? 'programmatic', options?.event),
+    clear: () => updateValue('', 'clear'),
     focus: () => inputEl?.focus(),
     getValue: () => value(),
   }
@@ -219,12 +215,12 @@ export function OTPInput(
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "otp-input",
+    component: 'otp-input',
     getElements: () => [rootEl, inputEl],
     getState: () => ({ value: value(), complete: state().complete, disabled: disabled() }),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(String(v ?? "")),
+      setValue: (v) => api.setValue(String(v ?? '')),
       clear: () => api.clear(),
     },
   })
@@ -232,42 +228,42 @@ export function OTPInput(
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "onComplete",
-    "maxLength",
-    "pattern",
-    "disabled",
-    "readOnly",
-    "required",
-    "invalid",
-    "name",
-    "form",
-    "autoComplete",
-    "controller",
-    "debug",
-    "id",
-    "autofocus",
-    "aria-label",
-    "aria-labelledby",
-    "aria-describedby",
-    "aria-invalid"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'onComplete',
+    'maxLength',
+    'pattern',
+    'disabled',
+    'readOnly',
+    'required',
+    'invalid',
+    'name',
+    'form',
+    'autoComplete',
+    'controller',
+    'debug',
+    'id',
+    'autofocus',
+    'aria-label',
+    'aria-labelledby',
+    'aria-describedby',
+    'aria-invalid',
   )
 
-  const combinedProps: PartProps<"div", OTPInputState> = {
+  const combinedProps: PartProps<'div', OTPInputState> = {
     ...rest,
     children: (s: OTPInputState) => (
       <>
-        {typeof props.children === "function" ? props.children(s) : props.children}
+        {typeof props.children === 'function' ? props.children(s) : props.children}
         <input
           ref={(el) => {
             inputEl = el
           }}
           id={id()}
           type="text"
-          inputmode={pattern() === "numeric" ? "numeric" : "text"}
-          autocomplete={props.autoComplete ?? "one-time-code"}
+          inputmode={pattern() === 'numeric' ? 'numeric' : 'text'}
+          autocomplete={props.autoComplete ?? 'one-time-code'}
           maxlength={maxLength()}
           value={value()}
           name={props.name ?? field?.name()}
@@ -276,19 +272,19 @@ export function OTPInput(
           readonly={readOnly()}
           required={!!props.required || !!field?.required()}
           autofocus={props.autofocus}
-          aria-label={props["aria-label"]}
-          aria-labelledby={props["aria-labelledby"] ?? field?.labelId}
-          aria-describedby={props["aria-describedby"] ?? field?.describedBy()}
-          aria-invalid={props["aria-invalid"] ?? (invalid() ? "true" : undefined)}
+          aria-label={props['aria-label']}
+          aria-labelledby={props['aria-labelledby'] ?? field?.labelId}
+          aria-describedby={props['aria-describedby'] ?? field?.describedBy()}
+          aria-invalid={props['aria-invalid'] ?? (invalid() ? 'true' : undefined)}
           style={{
-            position: "absolute",
-            inset: "0",
-            width: "100%",
-            height: "100%",
-            opacity: "0",
-            border: "0",
-            margin: "0",
-            padding: "0",
+            position: 'absolute',
+            inset: '0',
+            width: '100%',
+            height: '100%',
+            opacity: '0',
+            border: '0',
+            margin: '0',
+            padding: '0',
           }}
           onFocus={(e) => {
             setFocused(true)
@@ -299,13 +295,13 @@ export function OTPInput(
             field?.setTouched(true)
           }}
           onInput={(e) => {
-            updateValue(e.currentTarget.value, "input", e)
+            updateValue(e.currentTarget.value, 'input', e)
           }}
           onPaste={(e) => {
-            const pasted = e.clipboardData?.getData("text") ?? ""
+            const pasted = e.clipboardData?.getData('text') ?? ''
             if (pasted) {
               e.preventDefault()
-              updateValue(pasted, "paste", e)
+              updateValue(pasted, 'paste', e)
             }
           }}
           onSelect={(e) => {
@@ -318,19 +314,19 @@ export function OTPInput(
 
   return (
     <OTPInputContext value={{ state, api, focusInput: () => inputEl?.focus() }}>
-      {renderPart("div", combinedProps, state, {
+      {renderPart('div', combinedProps, state, {
         ref: (el) => {
           rootEl = el
         },
-        style: () => ({ position: "relative" }),
+        style: () => ({ position: 'relative' }),
         attrs: () => {
           const s = state()
           return {
-            "data-focused": s.focused ? "" : undefined,
-            "data-complete": s.complete ? "" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-readonly": s.readOnly ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
+            'data-focused': s.focused ? '' : undefined,
+            'data-complete': s.complete ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-readonly': s.readOnly ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
           }
         },
         handlers: {
@@ -341,22 +337,22 @@ export function OTPInput(
   )
 }
 
-export function OTPInputGroup(props: PartProps<"div", OTPInputState>) {
-  const ctx = useOTPInput("Group")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ role: "group" }),
+export function OTPInputGroup(props: PartProps<'div', OTPInputState>) {
+  const ctx = useOTPInput('Group')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ role: 'group' }),
   })
 }
 
 export function OTPInputSlot(
-  props: OTPInputSlotProps & Omit<PartProps<"div", OTPInputSlotState>, keyof OTPInputSlotProps>
+  props: OTPInputSlotProps & Omit<PartProps<'div', OTPInputSlotState>, keyof OTPInputSlotProps>,
 ) {
-  const ctx = useOTPInput("Slot")
+  const ctx = useOTPInput('Slot')
   const slotState = (): OTPInputSlotState => {
     const s = ctx.state()
     const slot = s.slots[props.index] ?? {
       index: props.index,
-      char: "",
+      char: '',
       active: false,
       caret: false,
       filled: false,
@@ -368,30 +364,28 @@ export function OTPInputSlot(
     }
   }
 
-  const rest = omit(props, "index")
-  const resolvedProps: PartProps<"div", OTPInputSlotState> =
-    props.children !== undefined
-      ? rest
-      : { ...rest, children: (s: OTPInputSlotState) => s.char }
+  const rest = omit(props, 'index')
+  const resolvedProps: PartProps<'div', OTPInputSlotState> =
+    props.children !== undefined ? rest : { ...rest, children: (s: OTPInputSlotState) => s.char }
 
-  return renderPart("div", resolvedProps, slotState, {
+  return renderPart('div', resolvedProps, slotState, {
     attrs: () => {
       const s = slotState()
       return {
-        "data-slot-index": s.index,
-        "data-active": s.active ? "" : undefined,
-        "data-caret": s.caret ? "" : undefined,
-        "data-filled": s.filled ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
-        "data-invalid": s.invalid ? "" : undefined,
+        'data-slot-index': s.index,
+        'data-active': s.active ? '' : undefined,
+        'data-caret': s.caret ? '' : undefined,
+        'data-filled': s.filled ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-invalid': s.invalid ? '' : undefined,
       }
     },
   })
 }
 
-export function OTPInputSeparator(props: PartProps<"div", OTPInputState>) {
-  const ctx = useOTPInput("Separator")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ role: "separator", "aria-hidden": true }),
+export function OTPInputSeparator(props: PartProps<'div', OTPInputState>) {
+  const ctx = useOTPInput('Separator')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ role: 'separator', 'aria-hidden': true }),
   })
 }

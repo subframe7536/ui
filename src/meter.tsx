@@ -1,6 +1,8 @@
-import { createContext, createUniqueId, omit, useContext } from "solid-js"
-import { renderPart, type PartProps } from "./foundation/render"
-import type { NumberFormat } from "./progress"
+import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import type { NumberFormat } from './progress'
 
 export type MeterLabelDetails = {
   value: number
@@ -40,12 +42,14 @@ const MeterContext = createContext<MeterContextValue | null>(null)
 
 function useMeter(part: string): MeterContextValue {
   const ctx = useContext(MeterContext)
-  if (!ctx) throw new Error(`<Meter${part}> must be used inside <Meter>.`)
+  if (!ctx) {
+    throw new Error(`<Meter${part}> must be used inside <Meter>.`)
+  }
   return ctx
 }
 
 export function Meter(
-  props: MeterOptions & Omit<PartProps<"div", MeterState>, keyof MeterOptions>
+  props: MeterOptions & Omit<PartProps<'div', MeterState>, keyof MeterOptions>,
 ) {
   const labelId = `ui-meter-label-${createUniqueId()}`
   const min = () => props.min ?? 0
@@ -61,26 +65,39 @@ export function Meter(
 
   const formattedValue = () => {
     const s = state()
-    if (props.getValueLabel) return props.getValueLabel(s)
-    return new Intl.NumberFormat(undefined, props.format ?? { style: "percent" }).format(
-      s.percent / 100
+    if (props.getValueLabel) {
+      return props.getValueLabel(s)
+    }
+    return new Intl.NumberFormat(undefined, props.format ?? { style: 'percent' }).format(
+      s.percent / 100,
     )
   }
 
-  const rest = omit(props, "value", "min", "max", "low", "high", "optimum", "format", "getValueLabel", "debug")
+  const rest = omit(
+    props,
+    'value',
+    'min',
+    'max',
+    'low',
+    'high',
+    'optimum',
+    'format',
+    'getValueLabel',
+    'debug',
+  )
 
   return (
     <MeterContext value={{ state, labelId, formattedValue }}>
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         attrs: () => {
           const s = state()
           return {
-            role: "meter",
-            "aria-valuemin": s.min,
-            "aria-valuemax": s.max,
-            "aria-valuenow": s.value,
-            "aria-valuetext": formattedValue(),
-            "aria-labelledby": labelId,
+            role: 'meter',
+            'aria-valuemin': s.min,
+            'aria-valuemax': s.max,
+            'aria-valuenow': s.value,
+            'aria-valuetext': formattedValue(),
+            'aria-labelledby': labelId,
           }
         },
       })}
@@ -88,30 +105,30 @@ export function Meter(
   )
 }
 
-export function MeterTrack(props: PartProps<"div", MeterState>) {
-  const ctx = useMeter("Track")
-  return renderPart("div", props, ctx.state)
+export function MeterTrack(props: PartProps<'div', MeterState>) {
+  const ctx = useMeter('Track')
+  return renderPart('div', props, ctx.state)
 }
 
-export function MeterIndicator(props: PartProps<"div", MeterState>) {
-  const ctx = useMeter("Indicator")
-  return renderPart("div", props, ctx.state, {
+export function MeterIndicator(props: PartProps<'div', MeterState>) {
+  const ctx = useMeter('Indicator')
+  return renderPart('div', props, ctx.state, {
     style: () => ({ width: `${ctx.state().percent}%` }),
   })
 }
 
-export function MeterLabel(props: PartProps<"span", MeterState>) {
-  const ctx = useMeter("Label")
-  return renderPart("span", props, ctx.state, {
+export function MeterLabel(props: PartProps<'span', MeterState>) {
+  const ctx = useMeter('Label')
+  return renderPart('span', props, ctx.state, {
     attrs: () => ({ id: props.id ?? ctx.labelId }),
   })
 }
 
-export function MeterValue(props: PartProps<"span", MeterValueState>) {
-  const ctx = useMeter("Value")
+export function MeterValue(props: PartProps<'span', MeterValueState>) {
+  const ctx = useMeter('Value')
   const state = (): MeterValueState => ({ ...ctx.state(), text: ctx.formattedValue() })
   return renderPart(
-    "span",
+    'span',
     {
       ...props,
       get children() {
@@ -120,8 +137,8 @@ export function MeterValue(props: PartProps<"span", MeterValueState>) {
     },
     state,
     {
-      attrs: () => ({ "aria-hidden": "true" }),
-    }
+      attrs: () => ({ 'aria-hidden': 'true' }),
+    },
   )
 }
 

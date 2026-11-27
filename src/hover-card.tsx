@@ -1,4 +1,5 @@
-import { Portal, type JSX } from "@solidjs/web"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
 import {
   createContext,
   createSignal,
@@ -7,38 +8,32 @@ import {
   onCleanup,
   Show,
   useContext,
-} from "solid-js"
+} from 'solid-js'
+
 import {
   createController,
   useController,
   useControllerEntry,
   useControllerTarget,
-} from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import {
-  usePopupPosition,
-  type Align,
-  type PortalProps,
-  type PositionProps,
-  type Side,
-} from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { usePopupPosition } from './foundation/popup'
+import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type HoverCardOpenChangeReason =
-  | "trigger-hover"
-  | "trigger-focus"
-  | "escape-key"
-  | "outside-press"
-  | "imperative"
+  | 'trigger-hover'
+  | 'trigger-focus'
+  | 'escape-key'
+  | 'outside-press'
+  | 'imperative'
 
-export type HoverCardPayloadChangeReason = "trigger-hover" | "trigger-focus" | "imperative"
+export type HoverCardPayloadChangeReason = 'trigger-hover' | 'trigger-focus' | 'imperative'
 
 export type HoverCardApi<Payload = unknown> = {
   open: (payload?: Payload, options?: ChangeOptions<HoverCardOpenChangeReason>) => void
@@ -127,7 +122,9 @@ const HoverCardContext = createContext<HoverCardContextValue | null>(null)
 
 function useHoverCardContext(part: string): HoverCardContextValue {
   const ctx = useContext(HoverCardContext)
-  if (!ctx) throw new Error(`<HoverCard${part}> must be used inside <HoverCard>.`)
+  if (!ctx) {
+    throw new Error(`<HoverCard${part}> must be used inside <HoverCard>.`)
+  }
   return ctx
 }
 
@@ -139,7 +136,7 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined
+    props.payload as Exclude<Payload, Function> | undefined,
   )
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
@@ -148,8 +145,8 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
   let openTimer: ReturnType<typeof setTimeout> | undefined
   let closeTimer: ReturnType<typeof setTimeout> | undefined
   let arrowStyleGetter: () => Record<string, string> = () => ({})
-  let sideGetter: () => Side = () => "bottom"
-  let alignGetter: () => Align = () => "center"
+  let sideGetter: () => Side = () => 'bottom'
+  let alignGetter: () => Align = () => 'center'
 
   const cancelTimers = () => {
     if (openTimer !== undefined) {
@@ -168,17 +165,23 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
     next: boolean,
     reason: HoverCardOpenChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
-    if (props.disabled && next && reason !== "imperative") return
+    if (props.disabled && next && reason !== 'imperative') {
+      return
+    }
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setOpen(next)
     reg.emit({
-      key: "open",
+      key: 'open',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -186,13 +189,11 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
     })
   }
 
-  const scheduleOpen = (
-    nextPayload: unknown,
-    reason: HoverCardOpenChangeReason,
-    event?: Event
-  ) => {
+  const scheduleOpen = (nextPayload: unknown, reason: HoverCardOpenChangeReason, event?: Event) => {
     cancelTimers()
-    if (nextPayload !== undefined) setPayload(() => nextPayload as Payload)
+    if (nextPayload !== undefined) {
+      setPayload(() => nextPayload as Payload)
+    }
     const delay = props.openDelay ?? 400
     if (delay <= 0) {
       applyOpen(true, reason, event)
@@ -220,16 +221,18 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
   const api: HoverCardApi<Payload> = {
     open: (nextPayload, opts) => {
       cancelTimers()
-      if (nextPayload !== undefined) setPayload(() => nextPayload)
-      applyOpen(true, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      if (nextPayload !== undefined) {
+        setPayload(() => nextPayload)
+      }
+      applyOpen(true, opts?.reason ?? 'imperative', opts?.event, opts?.source)
     },
     close: (opts) => {
       cancelTimers()
-      applyOpen(false, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      applyOpen(false, opts?.reason ?? 'imperative', opts?.event, opts?.source)
     },
     setOpen: (next, opts) => {
       cancelTimers()
-      applyOpen(next, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      applyOpen(next, opts?.reason ?? 'imperative', opts?.event, opts?.source)
     },
     isOpen: open,
     getPayload: () => (props.payload !== undefined ? props.payload : payload()),
@@ -249,7 +252,7 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
   })
 
   const reg = registerComponent({
-    component: "hover-card",
+    component: 'hover-card',
     getElements: () => [contentEl(), triggerEl()],
     getState: () => ({ open: open() }),
     getDisabled: () => !!props.disabled,
@@ -294,42 +297,43 @@ export function HoverCard<Payload = unknown>(props: HoverCardProps<Payload>) {
 
 export function HoverCardTrigger<Payload = unknown>(
   props: HoverCardTriggerProps<Payload> &
-    Omit<PartProps<"a", HoverCardTriggerState>, "value" | "onChange">
+    Omit<PartProps<'a', HoverCardTriggerState>, 'value' | 'onChange'>,
 ) {
-  const target = useControllerTarget(
-    () => props.controller,
-    useContext(HoverCardContext)
-  )
-  const rest = omit(props, "disabled", "payload", "controller")
+  const target = useControllerTarget(() => props.controller, useContext(HoverCardContext))
+  const rest = omit(props, 'disabled', 'payload', 'controller')
   const state = (): HoverCardTriggerState => ({
     open: target()?.open() ?? false,
     disabled: !!props.disabled || (target()?.disabled() ?? false),
   })
 
-  return renderPart("a", rest, state, {
+  return renderPart('a', rest, state, {
     ref: (el: HTMLElement) => target()?.setTriggerEl(el),
     attrs: () => {
       const s = state()
       return {
-        "data-open": s.open ? "" : undefined,
-        "data-closed": !s.open ? "" : undefined,
-        "data-state": s.open ? "open" : "closed",
+        'data-open': s.open ? '' : undefined,
+        'data-closed': !s.open ? '' : undefined,
+        'data-state': s.open ? 'open' : 'closed',
       }
     },
     handlers: {
       onPointerEnter: (event: PointerEvent) => {
-        if (state().disabled) return
-        target()?.scheduleOpen(props.payload, "trigger-hover", event)
+        if (state().disabled) {
+          return
+        }
+        target()?.scheduleOpen(props.payload, 'trigger-hover', event)
       },
       onPointerLeave: (event: PointerEvent) => {
-        target()?.scheduleClose("trigger-hover", event)
+        target()?.scheduleClose('trigger-hover', event)
       },
       onFocus: (event: FocusEvent) => {
-        if (state().disabled) return
-        target()?.scheduleOpen(props.payload, "trigger-focus", event)
+        if (state().disabled) {
+          return
+        }
+        target()?.scheduleOpen(props.payload, 'trigger-focus', event)
       },
       onBlur: (event: FocusEvent) => {
-        target()?.scheduleClose("trigger-focus", event)
+        target()?.scheduleClose('trigger-focus', event)
       },
     },
   })
@@ -337,21 +341,21 @@ export function HoverCardTrigger<Payload = unknown>(
 
 export function HoverCardContent<Payload = unknown>(
   props: HoverCardContentProps &
-    Omit<PartProps<"div", HoverCardContentState<Payload>>, keyof HoverCardContentProps>
+    Omit<PartProps<'div', HoverCardContentState<Payload>>, keyof HoverCardContentProps>,
 ) {
-  const ctx = useHoverCardContext("Content")
+  const ctx = useHoverCardContext('Content')
   const rest = omit(
     props,
-    "container",
-    "side",
-    "align",
-    "sideOffset",
-    "alignOffset",
-    "collisionPadding",
-    "arrowPadding",
-    "anchor",
-    "keepMounted",
-    "inline"
+    'container',
+    'side',
+    'align',
+    'sideOffset',
+    'alignOffset',
+    'collisionPadding',
+    'arrowPadding',
+    'anchor',
+    'keepMounted',
+    'inline',
   )
 
   const pos = usePopupPosition({
@@ -359,7 +363,7 @@ export function HoverCardContent<Payload = unknown>(
     reference: () => props.anchor ?? ctx.triggerEl(),
     floating: ctx.contentEl,
     arrow: ctx.arrowEl,
-    side: () => props.side ?? "bottom",
+    side: () => props.side ?? 'bottom',
     align: () => props.align,
     sideOffset: () => props.sideOffset ?? 6,
     alignOffset: () => props.alignOffset,
@@ -380,47 +384,45 @@ export function HoverCardContent<Payload = unknown>(
   const shouldRender = () => ctx.open() || !!props.keepMounted
 
   const renderSurface = () =>
-    renderPart("div", rest, state, {
+    renderPart('div', rest, state, {
       ref: ctx.setContentEl,
       attrs: () => {
         const open = ctx.open()
         return {
           id: props.id ?? ctx.contentId,
           hidden: open ? undefined : true,
-          "data-open": open ? "" : undefined,
-          "data-closed": !open ? "" : undefined,
-          "data-state": open ? "open" : "closed",
-          "data-side": pos.side(),
-          "data-align": pos.align(),
+          'data-open': open ? '' : undefined,
+          'data-closed': !open ? '' : undefined,
+          'data-state': open ? 'open' : 'closed',
+          'data-side': pos.side(),
+          'data-align': pos.align(),
         }
       },
       style: pos.style,
       handlers: {
         onPointerEnter: () => ctx.cancelTimers(),
-        onPointerLeave: (event: PointerEvent) => ctx.scheduleClose("trigger-hover", event),
+        onPointerLeave: (event: PointerEvent) => ctx.scheduleClose('trigger-hover', event),
       },
     })
 
   return (
     <Show when={shouldRender()}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={(props.container ?? ctx.container()) ?? undefined}>
-          {renderSurface()}
-        </Portal>
+        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
       </Show>
     </Show>
   )
 }
 
-export function HoverCardArrow(props: PartProps<"div", HoverCardArrowState>) {
-  const ctx = useHoverCardContext("Arrow")
+export function HoverCardArrow(props: PartProps<'div', HoverCardArrowState>) {
+  const ctx = useHoverCardContext('Arrow')
   const state = (): HoverCardArrowState => ({ side: ctx.side(), align: ctx.align() })
-  return renderPart("div", props, state, {
+  return renderPart('div', props, state, {
     ref: ctx.setArrowEl,
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-side": ctx.side(),
-      "data-align": ctx.align(),
+      'aria-hidden': 'true',
+      'data-side': ctx.side(),
+      'data-align': ctx.align(),
     }),
     style: ctx.arrowStyle,
   })

@@ -1,25 +1,27 @@
-import { createSignal, omit } from "solid-js"
-import { useFieldControl } from "./field"
-import { useController } from "./foundation/controller"
-import { createChangeDetails, type ChangeOptions } from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import {
-  createInputController,
-  type InputApi,
-  type InputController,
-  type InputGroupOptions,
-  type InputGroupState,
-  type InputOptions,
-  type InputProps,
-  type InputState,
-  type InputValueChangeReason,
-  type TextareaOptions,
-  type TextareaProps,
-  type TextareaState,
-  type TextareaSubmitDetails,
-} from "./input"
+import { createSignal, omit } from 'solid-js'
+
+import { useFieldControl } from './field'
+import { useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import { createInputController } from './input'
+import type {
+  InputApi,
+  InputController,
+  InputGroupOptions,
+  InputGroupState,
+  InputOptions,
+  InputProps,
+  InputState,
+  InputValueChangeReason,
+  TextareaOptions,
+  TextareaProps,
+  TextareaState,
+  TextareaSubmitDetails,
+} from './input'
 
 export function Textarea(props: TextareaProps) {
   const field = useFieldControl()
@@ -28,7 +30,7 @@ export function Textarea(props: TextareaProps) {
 
   const [value, setValue] = createControlledSignal<string>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? "",
+    defaultValue: () => props.defaultValue ?? '',
   })
 
   const isDisabled = () => !!props.disabled || (field?.disabled() ?? false)
@@ -40,17 +42,21 @@ export function Textarea(props: TextareaProps) {
     next: string,
     reason: InputValueChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = value()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setValue(next)
     field?.setDirty(true)
     reg.emit({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -60,9 +66,8 @@ export function Textarea(props: TextareaProps) {
 
   const api: InputApi = {
     setValue: (next, opts) =>
-      applyValue(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
-    clear: (opts) =>
-      applyValue("", opts?.reason ?? "clear-press", opts?.event, opts?.source),
+      applyValue(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
+    clear: (opts) => applyValue('', opts?.reason ?? 'clear-press', opts?.event, opts?.source),
     focus: () => elRef?.focus(),
     getValue: value,
   }
@@ -70,12 +75,12 @@ export function Textarea(props: TextareaProps) {
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "textarea",
+    component: 'textarea',
     getElements: () => [elRef],
     getState: () => ({ value: value(), required: isRequired() }),
     getDisabled: () => isDisabled() || isReadOnly(),
     actions: {
-      setValue: (next) => api.setValue(String(next ?? "")),
+      setValue: (next) => api.setValue(String(next ?? '')),
       clear: () => api.clear(),
     },
   })
@@ -92,20 +97,20 @@ export function Textarea(props: TextareaProps) {
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "disabled",
-    "readOnly",
-    "required",
-    "invalid",
-    "controller",
-    "debug",
-    "submitOnEnter",
-    "onSubmit"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'disabled',
+    'readOnly',
+    'required',
+    'invalid',
+    'controller',
+    'debug',
+    'submitOnEnter',
+    'onSubmit',
   )
 
-  return renderPart("textarea", rest, state, {
+  return renderPart('textarea', rest, state, {
     ref: (el: HTMLTextAreaElement) => {
       elRef = el
     },
@@ -118,21 +123,21 @@ export function Textarea(props: TextareaProps) {
         disabled: s.disabled || undefined,
         readonly: s.readOnly || undefined,
         required: s.required || undefined,
-        "aria-invalid": s.invalid ? "true" : undefined,
-        "aria-describedby": field?.describedBy(),
-        "data-empty": s.empty ? "" : undefined,
-        "data-focused": s.focused ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
-        "data-invalid": s.invalid ? "" : undefined,
+        'aria-invalid': s.invalid ? 'true' : undefined,
+        'aria-describedby': field?.describedBy(),
+        'data-empty': s.empty ? '' : undefined,
+        'data-focused': s.focused ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-invalid': s.invalid ? '' : undefined,
       }
     },
     handlers: {
       onInput: (event: Event) => {
         const target = event.currentTarget as HTMLTextAreaElement
-        applyValue(target.value, "input-change", event)
+        applyValue(target.value, 'input-change', event)
       },
       onKeyDown: (event: KeyboardEvent) => {
-        if (props.submitOnEnter && event.key === "Enter" && !event.shiftKey) {
+        if (props.submitOnEnter && event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault()
           props.onSubmit?.({ value: value(), event })
         }

@@ -1,43 +1,37 @@
-import { Portal, type JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { markPopupResult, runAction, type ActionDetails } from "./foundation/action"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+
+import { markPopupResult, runAction } from './foundation/action'
+import type { ActionDetails } from './foundation/action'
 import {
   createController,
   useController,
   useControllerEntry,
   useControllerTarget,
-} from "./foundation/controller"
-import {
-  createChangeDetails,
-  inferSource,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import { useFocusManagement, type FocusTarget } from "./foundation/focus"
-import type { PortalProps } from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from './foundation/controller'
+import { createChangeDetails, inferSource } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { useFocusManagement } from './foundation/focus'
+import type { FocusTarget } from './foundation/focus'
+import type { PortalProps } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type DialogOpenChangeReason =
-  | "trigger-press"
-  | "close-press"
-  | "escape-key"
-  | "outside-press"
-  | "action"
-  | "shortcut"
-  | "imperative"
+  | 'trigger-press'
+  | 'close-press'
+  | 'escape-key'
+  | 'outside-press'
+  | 'action'
+  | 'shortcut'
+  | 'imperative'
 
-export type DialogPayloadChangeReason = "trigger-press" | "shortcut" | "imperative"
-export type DialogDismissReason = "escape-key" | "outside-press"
+export type DialogPayloadChangeReason = 'trigger-press' | 'shortcut' | 'imperative'
+export type DialogDismissReason = 'escape-key' | 'outside-press'
 export type DialogInitialFocus = FocusTarget
 export type DialogFinalFocus = FocusTarget
 export type DialogCloseActionDetails = ActionDetails
@@ -46,7 +40,10 @@ export type DialogOpenChangeDetails<Reason extends string = DialogOpenChangeReas
   ChangeDetails<Reason>
 
 export type DialogApi<Payload = unknown, Result = string> = {
-  open: (payload?: Payload, options?: ChangeOptions<DialogOpenChangeReason>) => Promise<Result | undefined>
+  open: (
+    payload?: Payload,
+    options?: ChangeOptions<DialogOpenChangeReason>,
+  ) => Promise<Result | undefined>
   close: (options?: { returnValue?: Result } & ChangeOptions<DialogOpenChangeReason>) => void
   setOpen: (open: boolean, options?: ChangeOptions<DialogOpenChangeReason>) => void
   isOpen: () => boolean
@@ -124,7 +121,7 @@ export type DialogShortcutProps = {}
 export type DialogShortcutState = { shortcut: string | undefined }
 
 type DialogContextValue = {
-  role: "dialog" | "alertdialog"
+  role: 'dialog' | 'alertdialog'
   open: () => boolean
   modal: () => boolean
   payload: () => unknown
@@ -150,13 +147,15 @@ const TriggerShortcutContext = createContext<() => string | undefined>(() => und
 
 function useDialogContext(part: string): DialogContextValue {
   const ctx = useContext(DialogContext)
-  if (!ctx) throw new Error(`<Dialog${part}> must be used inside <Dialog>.`)
+  if (!ctx) {
+    throw new Error(`<Dialog${part}> must be used inside <Dialog>.`)
+  }
   return ctx
 }
 
-export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnOutside: boolean) {
+export function createDialogRoot(role: 'dialog' | 'alertdialog', defaultCloseOnOutside: boolean) {
   return function DialogRoot<Payload = unknown, Result = string>(
-    props: DialogProps<Payload, Result>
+    props: DialogProps<Payload, Result>,
   ) {
     const uid = createUniqueId()
     const contentId = `ui-${role}-${uid}`
@@ -168,7 +167,7 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
       defaultValue: () => !!props.defaultOpen,
     })
     const [payload, setPayload] = createSignal<Payload | undefined>(
-      props.payload as Exclude<Payload, Function> | undefined
+      props.payload as Exclude<Payload, Function> | undefined,
     )
     const [hasTitle, setHasTitle] = createSignal(false)
     const [hasDescription, setHasDescription] = createSignal(false)
@@ -183,14 +182,18 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
       next: boolean,
       reason: DialogOpenChangeReason,
       event?: Event,
-      source?: ChangeOptions["source"],
-      returnValue?: Result
+      source?: ChangeOptions['source'],
+      returnValue?: Result,
     ) => {
       const prev = open()
-      if (prev === next) return
+      if (prev === next) {
+        return
+      }
       const details = createChangeDetails(reason, event, source)
       props.onOpenChange?.(next, details)
-      if (details.canceled) return
+      if (details.canceled) {
+        return
+      }
       setOpen(next)
       if (!next && pendingResolve) {
         const resolve = pendingResolve
@@ -198,7 +201,7 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
         resolve(returnValue)
       }
       reg.emit({
-        key: "open",
+        key: 'open',
         previous: prev,
         value: next,
         reason: details.reason,
@@ -208,24 +211,26 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
 
     const api: DialogApi<Payload, Result> = {
       open: (nextPayload, opts) => {
-        if (nextPayload !== undefined) setPayload(() => nextPayload)
-        applyOpen(true, opts?.reason ?? "imperative", opts?.event, opts?.source)
+        if (nextPayload !== undefined) {
+          setPayload(() => nextPayload)
+        }
+        applyOpen(true, opts?.reason ?? 'imperative', opts?.event, opts?.source)
         return markPopupResult(
           new Promise<Result | undefined>((resolve) => {
             pendingResolve = resolve
-          })
+          }),
         )
       },
       close: (opts) =>
         applyOpen(
           false,
-          opts?.reason ?? "imperative",
+          opts?.reason ?? 'imperative',
           opts?.event,
           opts?.source,
-          opts?.returnValue
+          opts?.returnValue,
         ),
       setOpen: (next, opts) =>
-        applyOpen(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+        applyOpen(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
       isOpen: open,
       getPayload: () => (props.payload !== undefined ? props.payload : payload()),
     }
@@ -245,14 +250,18 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
       getElements: () => [contentEl, triggerEl],
       getState: () => ({ open: open() }),
       getText: () => {
-        if (!contentEl) return []
+        if (!contentEl) {
+          return []
+        }
         const title = document.getElementById(titleId)?.textContent?.trim()
         const desc = document.getElementById(descriptionId)?.textContent?.trim()
         return [title, desc].filter((t): t is string => !!t)
       },
       getButtons: () => {
-        if (!contentEl) return []
-        return Array.from(contentEl.querySelectorAll("button"))
+        if (!contentEl) {
+          return []
+        }
+        return Array.from(contentEl.querySelectorAll('button'))
           .map((btn) => btn.textContent?.trim())
           .filter((t): t is string => !!t)
       },
@@ -261,10 +270,14 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
         close: () => api.close(),
         setOpen: (next) => api.setOpen(Boolean(next)),
         press: (buttonLabel) => {
-          if (!contentEl) return
-          const needle = String(buttonLabel ?? "").trim().toLowerCase()
-          const target = Array.from(contentEl.querySelectorAll("button")).find(
-            (btn) => btn.textContent?.trim().toLowerCase() === needle
+          if (!contentEl) {
+            return
+          }
+          const needle = String(buttonLabel ?? '')
+            .trim()
+            .toLowerCase()
+          const target = Array.from(contentEl.querySelectorAll('button')).find(
+            (btn) => btn.textContent?.trim().toLowerCase() === needle,
           )
           target?.click()
         },
@@ -285,8 +298,10 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
       setHasTitle,
       setHasDescription,
       openFromTrigger: (nextPayload, event) => {
-        if (nextPayload !== undefined) setPayload(() => nextPayload as Payload)
-        applyOpen(true, "trigger-press", event)
+        if (nextPayload !== undefined) {
+          setPayload(() => nextPayload as Payload)
+        }
+        applyOpen(true, 'trigger-press', event)
       },
       close: (reason, event, returnValue) =>
         applyOpen(false, reason, event, undefined, returnValue as Result | undefined),
@@ -307,24 +322,14 @@ export function createDialogRoot(role: "dialog" | "alertdialog", defaultCloseOnO
   }
 }
 
-export const Dialog = createDialogRoot("dialog", true)
+export const Dialog = createDialogRoot('dialog', true)
 
 export function DialogTrigger<Payload = unknown>(
   props: DialogTriggerProps<Payload> &
-    Omit<PartProps<"button", DialogTriggerState>, "value" | "onChange" | "type">
+    Omit<PartProps<'button', DialogTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(
-    () => props.controller,
-    useContext(DialogContext)
-  )
-  const rest = omit(
-    props,
-    "disabled",
-    "focusableWhenDisabled",
-    "payload",
-    "shortcut",
-    "controller"
-  )
+  const target = useControllerTarget(() => props.controller, useContext(DialogContext))
+  const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = (): DialogTriggerState => ({
     open: target()?.open() ?? false,
     disabled: !!props.disabled,
@@ -332,29 +337,31 @@ export function DialogTrigger<Payload = unknown>(
 
   return (
     <TriggerShortcutContext value={() => props.shortcut}>
-      {renderPart("button", rest, state, {
+      {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
           const s = state()
           const ctx = target()
           const focusableDisabled = s.disabled && !!props.focusableWhenDisabled
           return {
-            type: "button",
-            "aria-haspopup": "dialog",
-            "aria-expanded": s.open ? "true" : "false",
-            "aria-controls": ctx?.contentId,
-            "aria-keyshortcuts": props.shortcut,
+            type: 'button',
+            'aria-haspopup': 'dialog',
+            'aria-expanded': s.open ? 'true' : 'false',
+            'aria-controls': ctx?.contentId,
+            'aria-keyshortcuts': props.shortcut,
             disabled: s.disabled && !focusableDisabled ? true : undefined,
-            "aria-disabled": focusableDisabled ? "true" : undefined,
-            "data-open": s.open ? "" : undefined,
-            "data-closed": !s.open ? "" : undefined,
-            "data-state": s.open ? "open" : "closed",
-            "data-disabled": s.disabled ? "" : undefined,
+            'aria-disabled': focusableDisabled ? 'true' : undefined,
+            'data-open': s.open ? '' : undefined,
+            'data-closed': !s.open ? '' : undefined,
+            'data-state': s.open ? 'open' : 'closed',
+            'data-disabled': s.disabled ? '' : undefined,
           }
         },
         handlers: {
           onClick: (event: MouseEvent) => {
-            if (props.disabled) return
+            if (props.disabled) {
+              return
+            }
             target()?.openFromTrigger(props.payload, event)
           },
         },
@@ -363,18 +370,18 @@ export function DialogTrigger<Payload = unknown>(
   )
 }
 
-export function DialogBackdrop(props: PartProps<"div", DialogBackdropState>) {
-  const ctx = useDialogContext("Backdrop")
+export function DialogBackdrop(props: PartProps<'div', DialogBackdropState>) {
+  const ctx = useDialogContext('Backdrop')
   const state = (): DialogBackdropState => ({ open: ctx.open() })
 
   return (
     <Show when={ctx.open()}>
       <Portal mount={ctx.container() ?? undefined}>
-        {renderPart("div", props, state, {
+        {renderPart('div', props, state, {
           attrs: () => ({
-            "aria-hidden": "true",
-            "data-open": ctx.open() ? "" : undefined,
-            "data-state": ctx.open() ? "open" : "closed",
+            'aria-hidden': 'true',
+            'data-open': ctx.open() ? '' : undefined,
+            'data-state': ctx.open() ? 'open' : 'closed',
           }),
         })}
       </Portal>
@@ -384,10 +391,10 @@ export function DialogBackdrop(props: PartProps<"div", DialogBackdropState>) {
 
 export function DialogContent<Payload = unknown>(
   props: DialogContentProps &
-    Omit<PartProps<"div", DialogContentState<Payload>>, keyof DialogContentProps>
+    Omit<PartProps<'div', DialogContentState<Payload>>, keyof DialogContentProps>,
 ) {
-  const ctx = useDialogContext("Content")
-  const rest = omit(props, "container", "keepMounted", "initialFocus", "finalFocus")
+  const ctx = useDialogContext('Content')
+  const rest = omit(props, 'container', 'keepMounted', 'initialFocus', 'finalFocus')
   const state = (): DialogContentState<Payload> => ({
     open: ctx.open(),
     modal: ctx.modal(),
@@ -406,8 +413,8 @@ export function DialogContent<Payload = unknown>(
 
   return (
     <Show when={shouldRender()}>
-      <Portal mount={(props.container ?? ctx.container()) ?? undefined}>
-        {renderPart("div", rest, state, {
+      <Portal mount={props.container ?? ctx.container() ?? undefined}>
+        {renderPart('div', rest, state, {
           ref: ctx.setContentEl,
           attrs: () => {
             const open = ctx.open()
@@ -415,13 +422,13 @@ export function DialogContent<Payload = unknown>(
               role: ctx.role,
               id: props.id ?? ctx.contentId,
               tabindex: -1,
-              "aria-modal": ctx.modal() ? "true" : undefined,
-              "aria-labelledby": ctx.hasTitle() ? ctx.titleId : undefined,
-              "aria-describedby": ctx.hasDescription() ? ctx.descriptionId : undefined,
+              'aria-modal': ctx.modal() ? 'true' : undefined,
+              'aria-labelledby': ctx.hasTitle() ? ctx.titleId : undefined,
+              'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
               hidden: open ? undefined : true,
-              "data-open": open ? "" : undefined,
-              "data-closed": !open ? "" : undefined,
-              "data-state": open ? "open" : "closed",
+              'data-open': open ? '' : undefined,
+              'data-closed': !open ? '' : undefined,
+              'data-state': open ? 'open' : 'closed',
             }
           },
         })}
@@ -430,27 +437,27 @@ export function DialogContent<Payload = unknown>(
   )
 }
 
-export function DialogTitle(props: PartProps<"h2", {}>) {
-  const ctx = useDialogContext("Title")
+export function DialogTitle(props: PartProps<'h2'>) {
+  const ctx = useDialogContext('Title')
   ctx.setHasTitle(true)
-  return renderPart("h2", props, () => ({}), {
+  return renderPart('h2', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.titleId }),
   })
 }
 
-export function DialogDescription(props: PartProps<"p", {}>) {
-  const ctx = useDialogContext("Description")
+export function DialogDescription(props: PartProps<'p'>) {
+  const ctx = useDialogContext('Description')
   ctx.setHasDescription(true)
-  return renderPart("p", props, () => ({}), {
+  return renderPart('p', props, () => ({}), {
     attrs: () => ({ id: props.id ?? ctx.descriptionId }),
   })
 }
 
 export function DialogClose<Result = string>(
   props: DialogCloseProps<Result> &
-    Omit<PartProps<"button", DialogCloseState>, keyof DialogCloseProps<Result> | "type">
+    Omit<PartProps<'button', DialogCloseState>, keyof DialogCloseProps<Result> | 'type'>,
 ) {
-  const ctx = useDialogContext("Close")
+  const ctx = useDialogContext('Close')
   const [pending, setPending] = createSignal(false)
   const [error, setError] = createSignal<unknown>(undefined)
 
@@ -460,28 +467,30 @@ export function DialogClose<Result = string>(
     error: error(),
   })
 
-  const rest = omit(props, "disabled", "returnValue", "action")
+  const rest = omit(props, 'disabled', 'returnValue', 'action')
 
-  return renderPart("button", rest, state, {
+  return renderPart('button', rest, state, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: props.disabled || undefined,
-      "aria-busy": pending() ? "true" : undefined,
-      "aria-disabled": pending() ? "true" : undefined,
-      "data-pending": pending() ? "" : undefined,
-      "data-disabled": props.disabled ? "" : undefined,
+      'aria-busy': pending() ? 'true' : undefined,
+      'aria-disabled': pending() ? 'true' : undefined,
+      'data-pending': pending() ? '' : undefined,
+      'data-disabled': props.disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (event: MouseEvent) => {
-        if (props.disabled || pending()) return
+        if (props.disabled || pending()) {
+          return
+        }
         if (!props.action) {
-          ctx.close("close-press", event, props.returnValue)
+          ctx.close('close-press', event, props.returnValue)
           return
         }
         setError(undefined)
         runAction(props.action, inferSource(event), {
           pending: setPending,
-          done: () => ctx.close("action", event, props.returnValue),
+          done: () => ctx.close('action', event, props.returnValue),
           failed: setError,
         })
       },
@@ -489,11 +498,9 @@ export function DialogClose<Result = string>(
   })
 }
 
-export function DialogShortcut(
-  props: DialogShortcutProps & PartProps<"kbd", DialogShortcutState>
-) {
+export function DialogShortcut(props: DialogShortcutProps & PartProps<'kbd', DialogShortcutState>) {
   const shortcut = useContext(TriggerShortcutContext)
-  return renderPart("kbd", props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ "aria-hidden": "true" }),
+  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
+    attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }

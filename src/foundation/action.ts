@@ -1,6 +1,7 @@
-import { withSource, type ChangeSource } from "./details"
+import { withSource } from './details'
+import type { ChangeSource } from './details'
 
-export const DEFAULT_PENDING_ANNOUNCEMENT = "Loading"
+export const DEFAULT_PENDING_ANNOUNCEMENT = 'Loading'
 export const PENDING_ANNOUNCE_DELAY = 1000
 
 export type ActionDetails = {
@@ -17,8 +18,8 @@ export function markPopupResult<T extends object>(promise: T): T {
 function isPendingPromise(value: unknown): value is PromiseLike<unknown> {
   return (
     !!value &&
-    typeof (value as PromiseLike<unknown>).then === "function" &&
-    !popupResults.has(value as object)
+    typeof (value as PromiseLike<unknown>).then === 'function' &&
+    !popupResults.has(value)
   )
 }
 
@@ -29,7 +30,7 @@ export function runAction(
     pending: (pending: boolean) => void
     done: () => void
     failed: (error: unknown) => void
-  }
+  },
 ): void {
   let result: unknown
   try {
@@ -53,6 +54,6 @@ export function runAction(
     (error) => {
       handlers.pending(false)
       handlers.failed(error)
-    }
+    },
   )
 }

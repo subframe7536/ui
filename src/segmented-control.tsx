@@ -5,21 +5,20 @@ import {
   createUniqueId,
   omit,
   useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from 'solid-js'
 
-export type SegmentedControlOrientation = "horizontal" | "vertical"
-export type SegmentedControlDirection = "ltr" | "rtl"
-export type SegmentedControlValueChangeReason = "click" | "keyboard" | "programmatic"
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type SegmentedControlOrientation = 'horizontal' | 'vertical'
+export type SegmentedControlDirection = 'ltr' | 'rtl'
+export type SegmentedControlValueChangeReason = 'click' | 'keyboard' | 'programmatic'
 
 export type SegmentedControlChangeOptions = ChangeOptions<SegmentedControlValueChangeReason>
 
@@ -37,10 +36,7 @@ export type SegmentedControlController<T extends string = string> = SegmentedCon
 export type SegmentedControlOptions<T extends string = string> = {
   value?: T
   defaultValue?: T
-  onValueChange?: (
-    value: T,
-    details: ChangeDetails<SegmentedControlValueChangeReason>
-  ) => void
+  onValueChange?: (value: T, details: ChangeDetails<SegmentedControlValueChangeReason>) => void
   orientation?: SegmentedControlOrientation
   dir?: SegmentedControlDirection
   disabled?: boolean
@@ -94,13 +90,18 @@ const SegmentedControlContext = createContext<SegmentedControlContextValue | nul
 
 function useSegmentedControl(part: string): SegmentedControlContextValue {
   const ctx = useContext(SegmentedControlContext)
-  if (!ctx) throw new Error(`<SegmentedControl${part}> must be used inside <SegmentedControl>.`)
+  if (!ctx) {
+    throw new Error(`<SegmentedControl${part}> must be used inside <SegmentedControl>.`)
+  }
   return ctx
 }
 
 export function SegmentedControl<T extends string = string>(
   props: SegmentedControlOptions<T> &
-    Omit<PartProps<"div", SegmentedControlState>, keyof SegmentedControlOptions<T> | "onChange" | "onSelect">
+    Omit<
+      PartProps<'div', SegmentedControlState>,
+      keyof SegmentedControlOptions<T> | 'onChange' | 'onSelect'
+    >,
 ) {
   const field = useFieldControl()
   const id = field?.controlId ?? `ui-segmented-${createUniqueId()}`
@@ -122,7 +123,7 @@ export function SegmentedControl<T extends string = string>(
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
-  const orientation = (): SegmentedControlOrientation => props.orientation ?? "horizontal"
+  const orientation = (): SegmentedControlOrientation => props.orientation ?? 'horizontal'
 
   const state = (): SegmentedControlState => ({
     value: value(),
@@ -149,7 +150,7 @@ export function SegmentedControl<T extends string = string>(
 
   createEffect(
     () => value(),
-    () => measureIndicator()
+    () => measureIndicator(),
   )
 
   let emitChange:
@@ -158,20 +159,24 @@ export function SegmentedControl<T extends string = string>(
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
   const select = (next: string, reason: SegmentedControlValueChangeReason, event?: Event) => {
-    if (disabled() || readOnly()) return
+    if (disabled() || readOnly()) {
+      return
+    }
     const prev = value()
     const details = createChangeDetails(reason, event)
     props.onValueChange?.(next as T, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(next as T)
     field?.setDirty(true)
     emitChange?.({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: next,
       reason,
@@ -180,14 +185,14 @@ export function SegmentedControl<T extends string = string>(
   }
 
   const api: SegmentedControlApi<T> = {
-    setValue: (next, options) => select(next, options?.reason ?? "programmatic", options?.event),
+    setValue: (next, options) => select(next, options?.reason ?? 'programmatic', options?.event),
     getValue: () => value(),
   }
 
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "segmented-control",
+    component: 'segmented-control',
     getElements: () => [rootEl],
     getState: () => ({ value: value(), disabled: disabled() }),
     getDisabled: disabled,
@@ -199,35 +204,43 @@ export function SegmentedControl<T extends string = string>(
 
   const moveFocus = (current: string, delta: 1 | -1) => {
     const entries = [...itemEls.entries()].filter(
-      ([, el]) => !el.hasAttribute("data-disabled") && !(el as HTMLButtonElement).disabled
+      ([, el]) => !el.hasAttribute('data-disabled') && !(el as HTMLButtonElement).disabled,
     )
-    if (entries.length === 0) return
+    if (entries.length === 0) {
+      return
+    }
     const idx = entries.findIndex(([v]) => v === current)
     const loop = props.loop ?? true
     let nextIdx = idx + delta
-    if (nextIdx < 0) nextIdx = loop ? entries.length - 1 : 0
-    if (nextIdx >= entries.length) nextIdx = loop ? 0 : entries.length - 1
+    if (nextIdx < 0) {
+      nextIdx = loop ? entries.length - 1 : 0
+    }
+    if (nextIdx >= entries.length) {
+      nextIdx = loop ? 0 : entries.length - 1
+    }
     const target = entries[nextIdx]
-    if (!target) return
+    if (!target) {
+      return
+    }
     target[1].focus()
-    select(target[0], "keyboard")
+    select(target[0], 'keyboard')
   }
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "orientation",
-    "dir",
-    "disabled",
-    "readOnly",
-    "required",
-    "name",
-    "form",
-    "loop",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'orientation',
+    'dir',
+    'disabled',
+    'readOnly',
+    'required',
+    'name',
+    'form',
+    'loop',
+    'controller',
+    'debug',
   )
 
   return (
@@ -237,15 +250,20 @@ export function SegmentedControl<T extends string = string>(
         state,
         select,
         registerItem: (val, el) => {
-          if (el) itemEls.set(val, el)
-          else itemEls.delete(val)
-          if (val === value()) measureIndicator()
+          if (el) {
+            itemEls.set(val, el)
+          } else {
+            itemEls.delete(val)
+          }
+          if (val === value()) {
+            measureIndicator()
+          }
         },
         moveFocus,
         indicatorRect,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
         },
@@ -253,15 +271,15 @@ export function SegmentedControl<T extends string = string>(
           const s = state()
           return {
             id,
-            role: "radiogroup",
+            role: 'radiogroup',
             dir: props.dir,
-            "aria-orientation": s.orientation,
-            "aria-labelledby": field?.labelId,
-            "aria-describedby": field?.describedBy(),
-            "aria-disabled": s.disabled ? "true" : undefined,
-            "data-orientation": s.orientation,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-readonly": s.readOnly ? "" : undefined,
+            'aria-orientation': s.orientation,
+            'aria-labelledby': field?.labelId,
+            'aria-describedby': field?.describedBy(),
+            'aria-disabled': s.disabled ? 'true' : undefined,
+            'data-orientation': s.orientation,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-readonly': s.readOnly ? '' : undefined,
           }
         },
       })}
@@ -271,9 +289,9 @@ export function SegmentedControl<T extends string = string>(
 
 export function SegmentedControlItem<T extends string = string>(
   props: SegmentedControlItemProps<T> &
-    Omit<PartProps<"button", SegmentedControlItemState>, keyof SegmentedControlItemProps<T>>
+    Omit<PartProps<'button', SegmentedControlItemState>, keyof SegmentedControlItemProps<T>>,
 ) {
-  const ctx = useSegmentedControl("Item")
+  const ctx = useSegmentedControl('Item')
   const itemState = (): SegmentedControlItemState => {
     const s = ctx.state()
     return {
@@ -282,36 +300,40 @@ export function SegmentedControlItem<T extends string = string>(
       disabled: s.disabled || !!props.disabled,
     }
   }
-  const rest = omit(props, "value", "disabled")
+  const rest = omit(props, 'value', 'disabled')
 
-  return renderPart("button", rest, itemState, {
+  return renderPart('button', rest, itemState, {
     ref: (el) => ctx.registerItem(props.value, el),
     attrs: () => {
       const s = itemState()
       const root = ctx.state()
       return {
-        type: "button",
-        role: "radio",
+        type: 'button',
+        role: 'radio',
         tabindex: s.checked || !root.value ? 0 : -1,
         disabled: s.disabled,
-        "aria-checked": s.checked ? "true" : "false",
-        "data-checked": s.checked ? "" : undefined,
-        "data-unchecked": !s.checked ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
+        'aria-checked': s.checked ? 'true' : 'false',
+        'data-checked': s.checked ? '' : undefined,
+        'data-unchecked': !s.checked ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
       }
     },
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (itemState().disabled) return
-        ctx.select(props.value, "click", e)
+        if (itemState().disabled) {
+          return
+        }
+        ctx.select(props.value, 'click', e)
       },
       onKeyDown: (e: KeyboardEvent) => {
-        if (itemState().disabled) return
-        const horiz = ctx.state().orientation === "horizontal"
-        if ((horiz && e.key === "ArrowRight") || (!horiz && e.key === "ArrowDown")) {
+        if (itemState().disabled) {
+          return
+        }
+        const horiz = ctx.state().orientation === 'horizontal'
+        if ((horiz && e.key === 'ArrowRight') || (!horiz && e.key === 'ArrowDown')) {
           e.preventDefault()
           ctx.moveFocus(props.value, 1)
-        } else if ((horiz && e.key === "ArrowLeft") || (!horiz && e.key === "ArrowUp")) {
+        } else if ((horiz && e.key === 'ArrowLeft') || (!horiz && e.key === 'ArrowUp')) {
           e.preventDefault()
           ctx.moveFocus(props.value, -1)
         }
@@ -321,13 +343,13 @@ export function SegmentedControlItem<T extends string = string>(
 }
 
 export function SegmentedControlIndicator(
-  props: SegmentedControlIndicatorProps & PartProps<"span", SegmentedControlIndicatorState>
+  props: SegmentedControlIndicatorProps & PartProps<'span', SegmentedControlIndicatorState>,
 ) {
-  const ctx = useSegmentedControl("Indicator")
-  return renderPart("span", props, ctx.indicatorRect, {
+  const ctx = useSegmentedControl('Indicator')
+  return renderPart('span', props, ctx.indicatorRect, {
     attrs: () => ({
-      "aria-hidden": true,
-      "data-ready": ctx.indicatorRect().ready ? "" : undefined,
+      'aria-hidden': true,
+      'data-ready': ctx.indicatorRect().ready ? '' : undefined,
     }),
     style: () => {
       const r = ctx.indicatorRect()
@@ -336,9 +358,9 @@ export function SegmentedControlIndicator(
             transform: `translate(${r.x}px, ${r.y}px)`,
             width: `${r.width}px`,
             height: `${r.height}px`,
-            "pointer-events": "none",
+            'pointer-events': 'none',
           }
-        : { display: "none" }
+        : { display: 'none' }
     },
   })
 }

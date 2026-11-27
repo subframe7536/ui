@@ -1,5 +1,6 @@
-import { render } from "@solidjs/web"
-import { describe, expect, it } from "vitest"
+import { render } from '@solidjs/web'
+import { describe, expect, it } from 'vitest'
+
 import {
   Avatar,
   AvatarFallback,
@@ -63,11 +64,11 @@ import {
   WaterfallCell,
   WaterfallRow,
   WaterfallRowHeader,
-} from "../src/index"
+} from '../src/index'
 
 function mount(fn: () => any) {
-  const container = document.createElement("div")
-  document.body.appendChild(container)
+  const container = document.createElement('div')
+  document.body.append(container)
   const dispose = render(fn, container)
   return {
     container,
@@ -78,19 +79,19 @@ function mount(fn: () => any) {
   }
 }
 
-describe("Phase 5 Specialized & Rich Interactive Components", () => {
-  it("Avatar shows fallback before image loads", () => {
+describe('phase 5 Specialized & Rich Interactive Components', () => {
+  it('avatar shows fallback before image loads', () => {
     const { container, unmount } = mount(() => (
       <Avatar>
         <AvatarImage src="https://example.com/a.png" alt="Alice" />
         <AvatarFallback>AL</AvatarFallback>
       </Avatar>
     ))
-    expect(container.textContent).toContain("AL")
+    expect(container.textContent).toContain('AL')
     unmount()
   })
 
-  it("Carousel navigates slides via controller", () => {
+  it('carousel navigates slides via controller', () => {
     const ctrl = createCarouselController()
     const { unmount } = mount(() => (
       <Carousel slideCount={3} loop controller={ctrl}>
@@ -114,7 +115,7 @@ describe("Phase 5 Specialized & Rich Interactive Components", () => {
     unmount()
   })
 
-  it("Resizable updates and collapses panels", () => {
+  it('resizable updates and collapses panels', () => {
     const ctrl = createResizableController()
     const { unmount } = mount(() => (
       <Resizable defaultLayout={[40, 60]} controller={ctrl}>
@@ -129,13 +130,13 @@ describe("Phase 5 Specialized & Rich Interactive Components", () => {
     unmount()
   })
 
-  it("ScrollArea and Preferences work cleanly", () => {
+  it('scrollArea and Preferences work cleanly', () => {
     const scrollCtrl = createScrollAreaController()
     let themeGetter: (() => string) | undefined
     let themeSetter: ((v: string) => void) | undefined
 
     function Child() {
-      const [theme, setTheme] = usePreference("theme", "light")
+      const [theme, setTheme] = usePreference('theme', 'light')
       themeGetter = theme
       themeSetter = setTheme
       return <span>{theme()}</span>
@@ -153,13 +154,13 @@ describe("Phase 5 Specialized & Rich Interactive Components", () => {
       </Preferences>
     ))
 
-    expect(themeGetter?.()).toBe("light")
-    themeSetter?.("dark")
-    expect(themeGetter?.()).toBe("dark")
+    expect(themeGetter?.()).toBe('light')
+    themeSetter?.('dark')
+    expect(themeGetter?.()).toBe('dark')
     unmount()
   })
 
-  it("Calendar, DateInput, TimeInput, and DatePicker manage ISO dates & times", () => {
+  it('calendar, DateInput, TimeInput, and DatePicker manage ISO dates & times', () => {
     const calCtrl = createCalendarController()
     const diCtrl = createDateInputController()
     const tiCtrl = createTimeInputController()
@@ -198,28 +199,36 @@ describe("Phase 5 Specialized & Rich Interactive Components", () => {
       </div>
     ))
 
-    calCtrl.selectDate("2026-05-15")
-    expect(calCtrl.getValue()).toBe("2026-05-15")
+    calCtrl.selectDate('2026-05-15')
+    expect(calCtrl.getValue()).toBe('2026-05-15')
     calCtrl.nextMonth()
-    expect(calCtrl.getMonth()).toBe("2026-06")
+    expect(calCtrl.getMonth()).toBe('2026-06')
 
-    expect(diCtrl.getValue()).toBe("2026-05-10")
-    expect(tiCtrl.getValue()).toBe("09:30")
+    expect(diCtrl.getValue()).toBe('2026-05-10')
+    expect(tiCtrl.getValue()).toBe('09:30')
 
-    dpCtrl.setValue("2026-06-01")
-    expect(dpCtrl.getValue()).toBe("2026-06-01")
+    dpCtrl.setValue('2026-06-01')
+    expect(dpCtrl.getValue()).toBe('2026-06-01')
     unmount()
   })
 
-  it("ColorPicker, ImageCropper, Timeline, and Waterfall work via controllers", () => {
+  it('colorPicker, ImageCropper, Timeline, and Waterfall work via controllers', () => {
     const colorCtrl = createColorPickerController()
     const cropCtrl = createImageCropperController()
     const tlCtrl = createTimelineController()
     const wfCtrl = createWaterfallController()
 
     const rows = visibleWaterfallRows(
-      [{ id: "req", label: "GET /", start: 0, duration: 200, children: [{ id: "db", label: "SQL", start: 50, duration: 100 }] }],
-      ["req"]
+      [
+        {
+          id: 'req',
+          label: 'GET /',
+          start: 0,
+          duration: 200,
+          children: [{ id: 'db', label: 'SQL', start: 50, duration: 100 }],
+        },
+      ],
+      ['req'],
     )
     expect(rows.length).toBe(2)
 
@@ -258,8 +267,8 @@ describe("Phase 5 Specialized & Rich Interactive Components", () => {
       </div>
     ))
 
-    colorCtrl.setValue("#00ff00")
-    expect(colorCtrl.getValue()).toBe("#00ff00")
+    colorCtrl.setValue('#00ff00')
+    expect(colorCtrl.getValue()).toBe('#00ff00')
 
     cropCtrl.rotate(90)
     expect(cropCtrl.getRotation()).toBe(90)
@@ -267,8 +276,8 @@ describe("Phase 5 Specialized & Rich Interactive Components", () => {
     tlCtrl.setActiveIndex(0)
     expect(tlCtrl.getActiveIndex()).toBe(0)
 
-    wfCtrl.setValue("req")
-    expect(wfCtrl.getValue()).toBe("req")
+    wfCtrl.setValue('req')
+    expect(wfCtrl.getValue()).toBe('req')
     unmount()
   })
 })

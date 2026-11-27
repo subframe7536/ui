@@ -6,12 +6,12 @@ import {
   offset,
   shift,
   size,
-  type Placement,
-} from "@floating-ui/dom"
-import { createEffect, createSignal, onCleanup } from "solid-js"
+} from '@floating-ui/dom'
+import type { Placement } from '@floating-ui/dom'
+import { createEffect, createSignal, onCleanup } from 'solid-js'
 
-export type Side = "top" | "right" | "bottom" | "left"
-export type Align = "start" | "center" | "end"
+export type Side = 'top' | 'right' | 'bottom' | 'left'
+export type Align = 'start' | 'center' | 'end'
 
 export type PopupContainer = HTMLElement | null | undefined
 
@@ -30,12 +30,12 @@ export type PositionProps = {
 }
 
 function toPlacement(side: Side, align: Align): Placement {
-  return align === "center" ? side : (`${side}-${align}` as Placement)
+  return align === 'center' ? side : (`${side}-${align}` as Placement)
 }
 
 function parsePlacement(placement: Placement): { side: Side; align: Align } {
-  const [side, align] = placement.split("-") as [Side, Align | undefined]
-  return { side, align: align ?? "center" }
+  const [side, align] = placement.split('-') as [Side, Align | undefined]
+  return { side, align: align ?? 'center' }
 }
 
 export function usePopupPosition(options: {
@@ -50,12 +50,12 @@ export function usePopupPosition(options: {
   collisionPadding?: () => number | undefined
   arrowPadding?: () => number | undefined
 }) {
-  const [side, setSide] = createSignal<Side>(options.side?.() ?? "bottom")
-  const [align, setAlign] = createSignal<Align>(options.align?.() ?? "center")
+  const [side, setSide] = createSignal<Side>(options.side?.() ?? 'bottom')
+  const [align, setAlign] = createSignal<Align>(options.align?.() ?? 'center')
   const [style, setStyle] = createSignal<Record<string, string>>({
-    position: "fixed",
-    left: "0px",
-    top: "0px",
+    position: 'fixed',
+    left: '0px',
+    top: '0px',
   })
   const [arrowStyle, setArrowStyle] = createSignal<Record<string, string>>({})
 
@@ -66,8 +66,8 @@ export function usePopupPosition(options: {
         options.reference(),
         options.floating(),
         options.arrow?.(),
-        options.side?.() ?? "bottom",
-        options.align?.() ?? "center",
+        options.side?.() ?? 'bottom',
+        options.align?.() ?? 'center',
         options.sideOffset?.() ?? 4,
         options.alignOffset?.() ?? 0,
         options.collisionPadding?.() ?? 8,
@@ -85,7 +85,9 @@ export function usePopupPosition(options: {
       collisionPadding,
       arrowPadding,
     ]) => {
-      if (!isOpen || !refEl || !floatEl) return
+      if (!isOpen || !refEl || !floatEl) {
+        return
+      }
 
       const update = () => {
         const middleware = [
@@ -95,10 +97,10 @@ export function usePopupPosition(options: {
           size({
             padding: collisionPadding,
             apply({ availableWidth, availableHeight, rects }) {
-              floatEl.style.setProperty("--available-width", `${Math.max(0, availableWidth)}px`)
-              floatEl.style.setProperty("--available-height", `${Math.max(0, availableHeight)}px`)
-              floatEl.style.setProperty("--anchor-width", `${rects.reference.width}px`)
-              floatEl.style.setProperty("--anchor-height", `${rects.reference.height}px`)
+              floatEl.style.setProperty('--available-width', `${Math.max(0, availableWidth)}px`)
+              floatEl.style.setProperty('--available-height', `${Math.max(0, availableHeight)}px`)
+              floatEl.style.setProperty('--anchor-width', `${rects.reference.width}px`)
+              floatEl.style.setProperty('--anchor-height', `${rects.reference.height}px`)
             },
           }),
         ]
@@ -107,7 +109,7 @@ export function usePopupPosition(options: {
         }
 
         computePosition(refEl, floatEl, {
-          strategy: "fixed",
+          strategy: 'fixed',
           placement: toPlacement(prefSide, prefAlign),
           middleware,
         }).then(({ x, y, placement, middlewareData }) => {
@@ -115,15 +117,19 @@ export function usePopupPosition(options: {
           setSide(parsed.side)
           setAlign(parsed.align)
           setStyle({
-            position: "fixed",
+            position: 'fixed',
             left: `${Math.round(x)}px`,
             top: `${Math.round(y)}px`,
           })
           if (middlewareData.arrow) {
             const { x: ax, y: ay } = middlewareData.arrow
-            const nextArrow: Record<string, string> = { position: "absolute" }
-            if (ax != null) nextArrow.left = `${Math.round(ax)}px`
-            if (ay != null) nextArrow.top = `${Math.round(ay)}px`
+            const nextArrow: Record<string, string> = { position: 'absolute' }
+            if (ax != null) {
+              nextArrow.left = `${Math.round(ax)}px`
+            }
+            if (ay != null) {
+              nextArrow.top = `${Math.round(ay)}px`
+            }
             setArrowStyle(nextArrow)
           }
         })
@@ -131,7 +137,7 @@ export function usePopupPosition(options: {
 
       const stop = autoUpdate(refEl, floatEl, update)
       onCleanup(stop)
-    }
+    },
   )
 
   return {

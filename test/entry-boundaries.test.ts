@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
-import { describe, expect, test } from 'vitest'
+import { describe, expect } from 'vitest'
 
 const ROOT = resolve(__dirname, '..')
 const DIST = resolve(ROOT, 'dist')
@@ -61,7 +61,7 @@ function collectBareImports(entry: string): Set<string> {
 }
 
 describe.skipIf(!existsSync(join(DIST, 'index.mjs')))('package entry boundaries', () => {
-  test('all package.json subpath exports exist in dist', () => {
+  it('all package.json subpath exports exist in dist', () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
       exports: Record<string, string | Record<string, string>>
     }
@@ -77,7 +77,7 @@ describe.skipIf(!existsSync(join(DIST, 'index.mjs')))('package entry boundaries'
     }
   })
 
-  test.each(['index.mjs', 'index.jsx', 'index.d.mts'])(
+  it.each(['index.mjs', 'index.jsx', 'index.d.mts'])(
     '%s does not import forbidden packages',
     (entry) => {
       const imports = collectBareImports(entry)
@@ -87,12 +87,12 @@ describe.skipIf(!existsSync(join(DIST, 'index.mjs')))('package entry boundaries'
     },
   )
 
-  test.each(NON_FLOATING_ENTRIES)('%s does not pull in @floating-ui/dom', (entry) => {
+  it.each(NON_FLOATING_ENTRIES)('%s does not pull in @floating-ui/dom', (entry) => {
     const imports = collectBareImports(entry)
     expect([...imports].filter((name) => name.startsWith('@floating-ui/dom'))).toEqual([])
   })
 
-  test.each(PURE_TS_ENTRIES)('%s does not pull in @solidjs/web', (entry) => {
+  it.each(PURE_TS_ENTRIES)('%s does not pull in @solidjs/web', (entry) => {
     const imports = collectBareImports(entry)
     expect([...imports].filter((name) => name.startsWith('@solidjs/web'))).toEqual([])
   })

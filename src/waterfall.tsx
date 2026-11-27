@@ -1,26 +1,19 @@
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import type { ListHighlightDetails } from "./listbox"
-import type { NumberFormat } from "./progress"
+import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import type { ListHighlightDetails } from './listbox'
+import type { NumberFormat } from './progress'
 
 export type { ListHighlightDetails, NumberFormat }
 
-export type WaterfallValueChangeReason = "click" | "keyboard" | "programmatic" | "clear"
-export type WaterfallExpandedChangeReason = "click" | "keyboard" | "programmatic"
+export type WaterfallValueChangeReason = 'click' | 'keyboard' | 'programmatic' | 'clear'
+export type WaterfallExpandedChangeReason = 'click' | 'keyboard' | 'programmatic'
 export type WaterfallChangeOptions = ChangeOptions<WaterfallValueChangeReason>
 
 export type WaterfallDataItem = {
@@ -28,10 +21,10 @@ export type WaterfallDataItem = {
   label: string
   start: number
   duration: number
-  children?: WaterfallDataItem[]
+  children?: Array<WaterfallDataItem>
 }
 
-export type WaterfallData = WaterfallDataItem[]
+export type WaterfallData = Array<WaterfallDataItem>
 
 export type WaterfallDataRow = {
   id: string
@@ -45,10 +38,10 @@ export type WaterfallDataRow = {
 
 export function visibleWaterfallRows(
   items: WaterfallData,
-  expanded: Set<string> | string[]
-): WaterfallDataRow[] {
+  expanded: Set<string> | Array<string>,
+): Array<WaterfallDataRow> {
   const set = expanded instanceof Set ? expanded : new Set(expanded)
-  const out: WaterfallDataRow[] = []
+  const out: Array<WaterfallDataRow> = []
   const walk = (nodes: WaterfallData, depth: number) => {
     for (const n of nodes) {
       const hasChildren = !!n.children && n.children.length > 0
@@ -62,7 +55,9 @@ export function visibleWaterfallRows(
         hasChildren,
         expanded: isExpanded,
       })
-      if (isExpanded && n.children) walk(n.children, depth + 1)
+      if (isExpanded && n.children) {
+        walk(n.children, depth + 1)
+      }
     }
   }
   walk(items, 0)
@@ -87,7 +82,7 @@ export type WaterfallApi = {
   collapse: (id: string) => void
   toggleExpanded: (id: string) => void
   getValue: () => string | null
-  getExpanded: () => string[]
+  getExpanded: () => Array<string>
 }
 
 export function createWaterfallController() {
@@ -99,15 +94,12 @@ export type WaterfallController = ReturnType<typeof createWaterfallController>
 export type WaterfallOptions = {
   value?: string | null
   defaultValue?: string | null
-  onValueChange?: (
-    value: string | null,
-    details: ChangeDetails<WaterfallValueChangeReason>
-  ) => void
-  expanded?: string[]
-  defaultExpanded?: string[]
+  onValueChange?: (value: string | null, details: ChangeDetails<WaterfallValueChangeReason>) => void
+  expanded?: Array<string>
+  defaultExpanded?: Array<string>
   onExpandedChange?: (
-    expanded: string[],
-    details: ChangeDetails<WaterfallExpandedChangeReason>
+    expanded: Array<string>,
+    details: ChangeDetails<WaterfallExpandedChangeReason>,
   ) => void
   min?: number
   max?: number
@@ -119,7 +111,7 @@ export type WaterfallOptions = {
 
 export type WaterfallState = {
   value: string | null
-  expanded: string[]
+  expanded: Array<string>
   highlightedValue: string | null
   min: number
   max: number
@@ -128,7 +120,7 @@ export type WaterfallState = {
 
 export type WaterfallPrimitive = WaterfallState
 export type WaterfallProps = WaterfallOptions &
-  Omit<PartProps<"div", WaterfallState>, keyof WaterfallOptions | "defaultValue" | "onChange">
+  Omit<PartProps<'div', WaterfallState>, keyof WaterfallOptions | 'defaultValue' | 'onChange'>
 
 export type WaterfallRowProps = {
   value: string
@@ -154,7 +146,7 @@ export type WaterfallRowState = {
 }
 
 export type WaterfallAxisProps = { ticks?: number }
-export type WaterfallAxisState = WaterfallState & { ticks: WaterfallTickData[] }
+export type WaterfallAxisState = WaterfallState & { ticks: Array<WaterfallTickData> }
 export type WaterfallTimeProps = { value: number }
 export type WaterfallTimeState = { value: number; percent: number; text: string }
 
@@ -172,13 +164,17 @@ const WaterfallRowContext = createContext<(() => WaterfallRowState) | null>(null
 
 function useWaterfall(part: string): WaterfallContextValue {
   const ctx = useContext(WaterfallContext)
-  if (!ctx) throw new Error(`<Waterfall${part}> must be used inside <Waterfall>.`)
+  if (!ctx) {
+    throw new Error(`<Waterfall${part}> must be used inside <Waterfall>.`)
+  }
   return ctx
 }
 
 function useWaterfallRow(part: string): () => WaterfallRowState {
   const ctx = useContext(WaterfallRowContext)
-  if (!ctx) throw new Error(`<Waterfall${part}> must be used inside <WaterfallRow>.`)
+  if (!ctx) {
+    throw new Error(`<Waterfall${part}> must be used inside <WaterfallRow>.`)
+  }
   return ctx
 }
 
@@ -188,7 +184,7 @@ export function Waterfall(props: WaterfallProps) {
     value: () => props.value,
     defaultValue: () => props.defaultValue ?? null,
   })
-  const [expanded, setRawExpanded] = createControlledSignal<string[]>({
+  const [expanded, setRawExpanded] = createControlledSignal<Array<string>>({
     value: () => props.expanded,
     defaultValue: () => props.defaultExpanded ?? [],
   })
@@ -211,7 +207,9 @@ export function Waterfall(props: WaterfallProps) {
   const selectRow = (next: string | null, reason: WaterfallValueChangeReason, event?: Event) => {
     const details = createChangeDetails(reason, event)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(next)
   }
 
@@ -220,26 +218,34 @@ export function Waterfall(props: WaterfallProps) {
     const next = cur.includes(target) ? cur.filter((x) => x !== target) : [...cur, target]
     const details = createChangeDetails(reason, event)
     props.onExpandedChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawExpanded(next)
   }
 
   const toPercent = (v: number) => Math.min(100, Math.max(0, ((v - min()) / span()) * 100))
 
   const formatTime = (v: number) => {
-    const num = props.format ? new Intl.NumberFormat(undefined, props.format).format(v) : String(Math.round(v))
+    const num = props.format
+      ? new Intl.NumberFormat(undefined, props.format).format(v)
+      : String(Math.round(v))
     return props.unit ? `${num}${props.unit}` : `${num}ms`
   }
 
   const api: WaterfallApi = {
-    setValue: (next, opts) => selectRow(next, opts?.reason ?? "programmatic", opts?.event),
+    setValue: (next, opts) => selectRow(next, opts?.reason ?? 'programmatic', opts?.event),
     expand: (target) => {
-      if (!expanded().includes(target)) toggleExpand(target, "programmatic")
+      if (!expanded().includes(target)) {
+        toggleExpand(target, 'programmatic')
+      }
     },
     collapse: (target) => {
-      if (expanded().includes(target)) toggleExpand(target, "programmatic")
+      if (expanded().includes(target)) {
+        toggleExpand(target, 'programmatic')
+      }
     },
-    toggleExpanded: (target) => toggleExpand(target, "programmatic"),
+    toggleExpanded: (target) => toggleExpand(target, 'programmatic'),
     getValue: () => value(),
     getExpanded: () => expanded(),
   }
@@ -247,7 +253,7 @@ export function Waterfall(props: WaterfallProps) {
   useController(() => props.controller, api)
 
   registerComponent({
-    component: "waterfall",
+    component: 'waterfall',
     getElements: () => [rootEl],
     getState: () => ({ value: value(), expanded: expanded(), min: min(), max: max() }),
     actions: {
@@ -257,102 +263,99 @@ export function Waterfall(props: WaterfallProps) {
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "expanded",
-    "defaultExpanded",
-    "onExpandedChange",
-    "min",
-    "max",
-    "unit",
-    "format",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'expanded',
+    'defaultExpanded',
+    'onExpandedChange',
+    'min',
+    'max',
+    'unit',
+    'format',
+    'controller',
+    'debug',
   )
 
   return (
     <WaterfallContext
       value={{ state, selectRow, toggleExpand, setHighlighted, toPercent, formatTime }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
         },
-        attrs: () => ({ id, role: "treegrid" }),
+        attrs: () => ({ id, role: 'treegrid' }),
       })}
     </WaterfallContext>
   )
 }
 
-export function WaterfallHeaderRow(props: PartProps<"div", WaterfallState>) {
-  const ctx = useWaterfall("HeaderRow")
-  return renderPart("div", props, ctx.state, { attrs: () => ({ role: "row" }) })
+export function WaterfallHeaderRow(props: PartProps<'div', WaterfallState>) {
+  const ctx = useWaterfall('HeaderRow')
+  return renderPart('div', props, ctx.state, { attrs: () => ({ role: 'row' }) })
 }
 
-export function WaterfallColumnHeader(props: PartProps<"div", WaterfallState>) {
-  const ctx = useWaterfall("ColumnHeader")
-  return renderPart("div", props, ctx.state, { attrs: () => ({ role: "columnheader" }) })
+export function WaterfallColumnHeader(props: PartProps<'div', WaterfallState>) {
+  const ctx = useWaterfall('ColumnHeader')
+  return renderPart('div', props, ctx.state, { attrs: () => ({ role: 'columnheader' }) })
 }
 
 export function WaterfallAxis(
-  props: WaterfallAxisProps &
-    Omit<PartProps<"div", WaterfallAxisState>, keyof WaterfallAxisProps>
+  props: WaterfallAxisProps & Omit<PartProps<'div', WaterfallAxisState>, keyof WaterfallAxisProps>,
 ) {
-  const ctx = useWaterfall("Axis")
+  const ctx = useWaterfall('Axis')
   const axisState = (): WaterfallAxisState => {
     const s = ctx.state()
     const count = Math.max(2, props.ticks ?? 5)
-    const ticks: WaterfallTickData[] = Array.from({ length: count }, (_, i) => {
+    const ticks: Array<WaterfallTickData> = Array.from({ length: count }, (_, i) => {
       const ratio = i / (count - 1)
       const val = s.min + ratio * s.span
       return { value: val, percent: ratio * 100, label: ctx.formatTime(val) }
     })
     return { ...s, ticks }
   }
-  const rest = omit(props, "ticks")
-  return renderPart("div", rest, axisState, { style: () => ({ position: "relative" }) })
+  const rest = omit(props, 'ticks')
+  return renderPart('div', rest, axisState, { style: () => ({ position: 'relative' }) })
 }
 
 export function WaterfallTick(
-  props: WaterfallTimeProps &
-    Omit<PartProps<"span", WaterfallTimeState>, keyof WaterfallTimeProps>
+  props: WaterfallTimeProps & Omit<PartProps<'span', WaterfallTimeState>, keyof WaterfallTimeProps>,
 ) {
-  const ctx = useWaterfall("Tick")
+  const ctx = useWaterfall('Tick')
   const tickState = (): WaterfallTimeState => ({
     value: props.value,
     percent: ctx.toPercent(props.value),
     text: ctx.formatTime(props.value),
   })
-  const rest = omit(props, "value")
-  const resolvedProps: PartProps<"span", WaterfallTimeState> =
+  const rest = omit(props, 'value')
+  const resolvedProps: PartProps<'span', WaterfallTimeState> =
     props.children !== undefined ? rest : { ...rest, children: (s) => s.text }
-  return renderPart("span", resolvedProps, tickState, {
-    style: () => ({ position: "absolute", left: `${tickState().percent}%` }),
+  return renderPart('span', resolvedProps, tickState, {
+    style: () => ({ position: 'absolute', left: `${tickState().percent}%` }),
   })
 }
 
 export function WaterfallMark(
-  props: WaterfallTimeProps &
-    Omit<PartProps<"div", WaterfallTimeState>, keyof WaterfallTimeProps>
+  props: WaterfallTimeProps & Omit<PartProps<'div', WaterfallTimeState>, keyof WaterfallTimeProps>,
 ) {
-  const ctx = useWaterfall("Mark")
+  const ctx = useWaterfall('Mark')
   const markState = (): WaterfallTimeState => ({
     value: props.value,
     percent: ctx.toPercent(props.value),
     text: ctx.formatTime(props.value),
   })
-  const rest = omit(props, "value")
-  return renderPart("div", rest, markState, {
-    attrs: () => ({ "aria-hidden": true }),
-    style: () => ({ position: "absolute", left: `${markState().percent}%` }),
+  const rest = omit(props, 'value')
+  return renderPart('div', rest, markState, {
+    attrs: () => ({ 'aria-hidden': true }),
+    style: () => ({ position: 'absolute', left: `${markState().percent}%` }),
   })
 }
 
 export function WaterfallRow(
-  props: WaterfallRowProps & Omit<PartProps<"div", WaterfallRowState>, keyof WaterfallRowProps>
+  props: WaterfallRowProps & Omit<PartProps<'div', WaterfallRowState>, keyof WaterfallRowProps>,
 ) {
-  const ctx = useWaterfall("Row")
+  const ctx = useWaterfall('Row')
   const rowState = (): WaterfallRowState => {
     const s = ctx.state()
     const startPercent = ctx.toPercent(props.start)
@@ -370,27 +373,29 @@ export function WaterfallRow(
       hasChildren: !!props.hasChildren,
     }
   }
-  const rest = omit(props, "value", "start", "duration", "depth", "hasChildren")
+  const rest = omit(props, 'value', 'start', 'duration', 'depth', 'hasChildren')
 
   return (
     <WaterfallRowContext value={rowState}>
-      {renderPart("div", rest, rowState, {
+      {renderPart('div', rest, rowState, {
         attrs: () => {
           const s = rowState()
           return {
-            role: "row",
+            role: 'row',
             tabindex: 0,
-            "aria-level": s.depth + 1,
-            "aria-selected": s.selected ? "true" : "false",
-            "aria-expanded": s.hasChildren ? (s.expanded ? "true" : "false") : undefined,
-            "data-selected": s.selected ? "" : undefined,
-            "data-expanded": s.expanded ? "" : undefined,
+            'aria-level': s.depth + 1,
+            'aria-selected': s.selected ? 'true' : 'false',
+            'aria-expanded': s.hasChildren ? (s.expanded ? 'true' : 'false') : undefined,
+            'data-selected': s.selected ? '' : undefined,
+            'data-expanded': s.expanded ? '' : undefined,
           }
         },
         handlers: {
           onClick: (e: MouseEvent) => {
-            ctx.selectRow(props.value, "click", e)
-            if (props.hasChildren) ctx.toggleExpand(props.value, "click", e)
+            ctx.selectRow(props.value, 'click', e)
+            if (props.hasChildren) {
+              ctx.toggleExpand(props.value, 'click', e)
+            }
           },
         },
       })}
@@ -398,36 +403,40 @@ export function WaterfallRow(
   )
 }
 
-export function WaterfallRowHeader(props: WaterfallRowPartProps & PartProps<"div", WaterfallRowState>) {
-  const state = useWaterfallRow("RowHeader")
-  return renderPart("div", props, state, { attrs: () => ({ role: "rowheader" }) })
+export function WaterfallRowHeader(
+  props: WaterfallRowPartProps & PartProps<'div', WaterfallRowState>,
+) {
+  const state = useWaterfallRow('RowHeader')
+  return renderPart('div', props, state, { attrs: () => ({ role: 'rowheader' }) })
 }
 
-export function WaterfallCell(props: WaterfallRowPartProps & PartProps<"div", WaterfallRowState>) {
-  const state = useWaterfallRow("Cell")
-  return renderPart("div", props, state, {
-    attrs: () => ({ role: "gridcell" }),
-    style: () => ({ position: "relative" }),
+export function WaterfallCell(props: WaterfallRowPartProps & PartProps<'div', WaterfallRowState>) {
+  const state = useWaterfallRow('Cell')
+  return renderPart('div', props, state, {
+    attrs: () => ({ role: 'gridcell' }),
+    style: () => ({ position: 'relative' }),
   })
 }
 
-export function WaterfallBar(props: WaterfallRowPartProps & PartProps<"div", WaterfallRowState>) {
-  const state = useWaterfallRow("Bar")
-  return renderPart("div", props, state, {
+export function WaterfallBar(props: WaterfallRowPartProps & PartProps<'div', WaterfallRowState>) {
+  const state = useWaterfallRow('Bar')
+  return renderPart('div', props, state, {
     style: () => ({
-      position: "absolute",
+      position: 'absolute',
       left: `${state().startPercent}%`,
       width: `${state().widthPercent}%`,
     }),
   })
 }
 
-export function WaterfallIndicator(props: WaterfallRowPartProps & PartProps<"span", WaterfallRowState>) {
-  const state = useWaterfallRow("Indicator")
-  return renderPart("span", props, state, {
+export function WaterfallIndicator(
+  props: WaterfallRowPartProps & PartProps<'span', WaterfallRowState>,
+) {
+  const state = useWaterfallRow('Indicator')
+  return renderPart('span', props, state, {
     attrs: () => ({
-      "aria-hidden": true,
-      "data-expanded": state().expanded ? "" : undefined,
+      'aria-hidden': true,
+      'data-expanded': state().expanded ? '' : undefined,
     }),
   })
 }

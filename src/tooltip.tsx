@@ -1,4 +1,5 @@
-import { Portal, type JSX } from "@solidjs/web"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
 import {
   createContext,
   createSignal,
@@ -7,38 +8,32 @@ import {
   onCleanup,
   Show,
   useContext,
-} from "solid-js"
+} from 'solid-js'
+
 import {
   createController,
   useController,
   useControllerEntry,
   useControllerTarget,
-} from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import {
-  usePopupPosition,
-  type Align,
-  type PortalProps,
-  type PositionProps,
-  type Side,
-} from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { usePopupPosition } from './foundation/popup'
+import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type TooltipOpenChangeReason =
-  | "trigger-hover"
-  | "trigger-focus"
-  | "trigger-press"
-  | "escape-key"
-  | "imperative"
+  | 'trigger-hover'
+  | 'trigger-focus'
+  | 'trigger-press'
+  | 'escape-key'
+  | 'imperative'
 
-export type TooltipPayloadChangeReason = "trigger-hover" | "trigger-focus" | "imperative"
+export type TooltipPayloadChangeReason = 'trigger-hover' | 'trigger-focus' | 'imperative'
 
 export type TooltipApi<Payload = unknown> = {
   open: (payload?: Payload, options?: ChangeOptions<TooltipOpenChangeReason>) => void
@@ -133,7 +128,9 @@ const TooltipShortcutContext = createContext<() => string | undefined>(() => und
 
 function useTooltipContext(part: string): TooltipContextValue {
   const ctx = useContext(TooltipContext)
-  if (!ctx) throw new Error(`<Tooltip${part}> must be used inside <Tooltip>.`)
+  if (!ctx) {
+    throw new Error(`<Tooltip${part}> must be used inside <Tooltip>.`)
+  }
   return ctx
 }
 
@@ -145,7 +142,7 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
     defaultValue: () => !!props.defaultOpen,
   })
   const [payload, setPayload] = createSignal<Payload | undefined>(
-    props.payload as Exclude<Payload, Function> | undefined
+    props.payload as Exclude<Payload, Function> | undefined,
   )
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
@@ -154,8 +151,8 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
   let openTimer: ReturnType<typeof setTimeout> | undefined
   let closeTimer: ReturnType<typeof setTimeout> | undefined
   let arrowStyleGetter: () => Record<string, string> = () => ({})
-  let sideGetter: () => Side = () => "top"
-  let alignGetter: () => Align = () => "center"
+  let sideGetter: () => Side = () => 'top'
+  let alignGetter: () => Align = () => 'center'
 
   const cancelTimers = () => {
     if (openTimer !== undefined) {
@@ -174,17 +171,23 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
     next: boolean,
     reason: TooltipOpenChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
-    if (props.disabled && next && reason !== "imperative") return
+    if (props.disabled && next && reason !== 'imperative') {
+      return
+    }
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setOpen(next)
     reg.emit({
-      key: "open",
+      key: 'open',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -192,14 +195,12 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
     })
   }
 
-  const scheduleOpen = (
-    nextPayload: unknown,
-    reason: TooltipOpenChangeReason,
-    event?: Event
-  ) => {
+  const scheduleOpen = (nextPayload: unknown, reason: TooltipOpenChangeReason, event?: Event) => {
     cancelTimers()
-    if (nextPayload !== undefined) setPayload(() => nextPayload as Payload)
-    const delay = reason === "trigger-focus" ? 0 : (props.openDelay ?? 300)
+    if (nextPayload !== undefined) {
+      setPayload(() => nextPayload as Payload)
+    }
+    const delay = reason === 'trigger-focus' ? 0 : (props.openDelay ?? 300)
     if (delay <= 0) {
       applyOpen(true, reason, event)
     } else {
@@ -226,16 +227,18 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
   const api: TooltipApi<Payload> = {
     open: (nextPayload, opts) => {
       cancelTimers()
-      if (nextPayload !== undefined) setPayload(() => nextPayload)
-      applyOpen(true, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      if (nextPayload !== undefined) {
+        setPayload(() => nextPayload)
+      }
+      applyOpen(true, opts?.reason ?? 'imperative', opts?.event, opts?.source)
     },
     close: (opts) => {
       cancelTimers()
-      applyOpen(false, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      applyOpen(false, opts?.reason ?? 'imperative', opts?.event, opts?.source)
     },
     setOpen: (next, opts) => {
       cancelTimers()
-      applyOpen(next, opts?.reason ?? "imperative", opts?.event, opts?.source)
+      applyOpen(next, opts?.reason ?? 'imperative', opts?.event, opts?.source)
     },
     isOpen: open,
     getPayload: () => (props.payload !== undefined ? props.payload : payload()),
@@ -249,15 +252,15 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
     dismissOnEscape: () => true,
     dismissOnOutsidePress: () => false,
     onDismiss: (reason, event) => {
-      if (reason === "escape-key") {
+      if (reason === 'escape-key') {
         cancelTimers()
-        applyOpen(false, "escape-key", event)
+        applyOpen(false, 'escape-key', event)
       }
     },
   })
 
   const reg = registerComponent({
-    component: "tooltip",
+    component: 'tooltip',
     getElements: () => [contentEl(), triggerEl()],
     getState: () => ({ open: open() }),
     getDisabled: () => !!props.disabled,
@@ -306,13 +309,10 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
 
 export function TooltipTrigger<Payload = unknown>(
   props: TooltipTriggerProps<Payload> &
-    Omit<PartProps<"button", TooltipTriggerState>, "value" | "onChange" | "type">
+    Omit<PartProps<'button', TooltipTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(
-    () => props.controller,
-    useContext(TooltipContext)
-  )
-  const rest = omit(props, "disabled", "payload", "shortcut", "controller")
+  const target = useControllerTarget(() => props.controller, useContext(TooltipContext))
+  const rest = omit(props, 'disabled', 'payload', 'shortcut', 'controller')
   const state = (): TooltipTriggerState => ({
     open: target()?.open() ?? false,
     disabled: !!props.disabled || (target()?.disabled() ?? false),
@@ -320,36 +320,40 @@ export function TooltipTrigger<Payload = unknown>(
 
   return (
     <TooltipShortcutContext value={() => props.shortcut}>
-      {renderPart("button", rest, state, {
+      {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => target()?.setTriggerEl(el),
         attrs: () => {
           const s = state()
           const ctx = target()
           return {
-            type: "button",
-            "aria-describedby": s.open ? ctx?.contentId : undefined,
-            "data-open": s.open ? "" : undefined,
-            "data-closed": !s.open ? "" : undefined,
-            "data-state": s.open ? "open" : "closed",
+            type: 'button',
+            'aria-describedby': s.open ? ctx?.contentId : undefined,
+            'data-open': s.open ? '' : undefined,
+            'data-closed': !s.open ? '' : undefined,
+            'data-state': s.open ? 'open' : 'closed',
           }
         },
         handlers: {
           onPointerEnter: (event: PointerEvent) => {
-            if (state().disabled) return
-            target()?.scheduleOpen(props.payload, "trigger-hover", event)
+            if (state().disabled) {
+              return
+            }
+            target()?.scheduleOpen(props.payload, 'trigger-hover', event)
           },
           onPointerLeave: (event: PointerEvent) => {
-            target()?.scheduleClose("trigger-hover", event)
+            target()?.scheduleClose('trigger-hover', event)
           },
           onFocus: (event: FocusEvent) => {
-            if (state().disabled) return
-            target()?.scheduleOpen(props.payload, "trigger-focus", event)
+            if (state().disabled) {
+              return
+            }
+            target()?.scheduleOpen(props.payload, 'trigger-focus', event)
           },
           onBlur: (event: FocusEvent) => {
-            target()?.closeImmediate("trigger-focus", event)
+            target()?.closeImmediate('trigger-focus', event)
           },
           onPointerDown: (event: PointerEvent) => {
-            target()?.closeImmediate("trigger-press", event)
+            target()?.closeImmediate('trigger-press', event)
           },
         },
       })}
@@ -359,21 +363,21 @@ export function TooltipTrigger<Payload = unknown>(
 
 export function TooltipContent<Payload = unknown>(
   props: TooltipContentProps &
-    Omit<PartProps<"div", TooltipContentState<Payload>>, keyof TooltipContentProps>
+    Omit<PartProps<'div', TooltipContentState<Payload>>, keyof TooltipContentProps>,
 ) {
-  const ctx = useTooltipContext("Content")
+  const ctx = useTooltipContext('Content')
   const rest = omit(
     props,
-    "container",
-    "side",
-    "align",
-    "sideOffset",
-    "alignOffset",
-    "collisionPadding",
-    "arrowPadding",
-    "anchor",
-    "keepMounted",
-    "inline"
+    'container',
+    'side',
+    'align',
+    'sideOffset',
+    'alignOffset',
+    'collisionPadding',
+    'arrowPadding',
+    'anchor',
+    'keepMounted',
+    'inline',
   )
 
   const pos = usePopupPosition({
@@ -381,7 +385,7 @@ export function TooltipContent<Payload = unknown>(
     reference: () => props.anchor ?? ctx.triggerEl(),
     floating: ctx.contentEl,
     arrow: ctx.arrowEl,
-    side: () => props.side ?? "top",
+    side: () => props.side ?? 'top',
     align: () => props.align,
     sideOffset: () => props.sideOffset ?? 6,
     alignOffset: () => props.alignOffset,
@@ -402,58 +406,56 @@ export function TooltipContent<Payload = unknown>(
   const shouldRender = () => ctx.open() || !!props.keepMounted
 
   const renderSurface = () =>
-    renderPart("div", rest, state, {
+    renderPart('div', rest, state, {
       ref: ctx.setContentEl,
       attrs: () => {
         const open = ctx.open()
         return {
-          role: "tooltip",
+          role: 'tooltip',
           id: props.id ?? ctx.contentId,
           hidden: open ? undefined : true,
-          "data-open": open ? "" : undefined,
-          "data-closed": !open ? "" : undefined,
-          "data-state": open ? "open" : "closed",
-          "data-side": pos.side(),
-          "data-align": pos.align(),
+          'data-open': open ? '' : undefined,
+          'data-closed': !open ? '' : undefined,
+          'data-state': open ? 'open' : 'closed',
+          'data-side': pos.side(),
+          'data-align': pos.align(),
         }
       },
       style: pos.style,
       handlers: {
         onPointerEnter: () => ctx.cancelTimers(),
-        onPointerLeave: (event: PointerEvent) => ctx.scheduleClose("trigger-hover", event),
+        onPointerLeave: (event: PointerEvent) => ctx.scheduleClose('trigger-hover', event),
       },
     })
 
   return (
     <Show when={shouldRender()}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={(props.container ?? ctx.container()) ?? undefined}>
-          {renderSurface()}
-        </Portal>
+        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
       </Show>
     </Show>
   )
 }
 
-export function TooltipArrow(props: PartProps<"div", TooltipArrowState>) {
-  const ctx = useTooltipContext("Arrow")
+export function TooltipArrow(props: PartProps<'div', TooltipArrowState>) {
+  const ctx = useTooltipContext('Arrow')
   const state = (): TooltipArrowState => ({ side: ctx.side(), align: ctx.align() })
-  return renderPart("div", props, state, {
+  return renderPart('div', props, state, {
     ref: ctx.setArrowEl,
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-side": ctx.side(),
-      "data-align": ctx.align(),
+      'aria-hidden': 'true',
+      'data-side': ctx.side(),
+      'data-align': ctx.align(),
     }),
     style: ctx.arrowStyle,
   })
 }
 
 export function TooltipShortcut(
-  props: TooltipShortcutProps & PartProps<"kbd", TooltipShortcutState>
+  props: TooltipShortcutProps & PartProps<'kbd', TooltipShortcutState>,
 ) {
   const shortcut = useContext(TooltipShortcutContext)
-  return renderPart("kbd", props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ "aria-hidden": "true" }),
+  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
+    attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }

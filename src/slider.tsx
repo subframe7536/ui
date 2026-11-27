@@ -1,25 +1,18 @@
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import type { NumberFormat } from "./progress"
+import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import type { NumberFormat } from './progress'
 
 export type { NumberFormat }
 
-export type SliderValueChangeReason = "drag" | "track" | "keyboard" | "programmatic"
+export type SliderValueChangeReason = 'drag' | 'track' | 'keyboard' | 'programmatic'
 
 export type SliderChangeOptions = ChangeOptions<SliderValueChangeReason>
 
@@ -29,19 +22,19 @@ export type SliderValueChangeDetails = ChangeDetails<SliderValueChangeReason> & 
 
 export type SliderValueCommitDetails = SliderValueChangeDetails
 
-export type SliderApi<T extends number | number[] = number> = {
+export type SliderApi<T extends number | Array<number> = number> = {
   setValue: (value: T, options?: SliderChangeOptions) => void
   setThumbValue: (index: number, value: number, options?: SliderChangeOptions) => void
-  getValues: () => number[]
+  getValues: () => Array<number>
 }
 
-export function createSliderController<T extends number | number[] = number>() {
+export function createSliderController<T extends number | Array<number> = number>() {
   return createController<SliderApi<T>>()
 }
 
-export type SliderController<T extends number | number[] = number> = SliderApi<T>
+export type SliderController<T extends number | Array<number> = number> = SliderApi<T>
 
-export type SliderOptions<T extends number | number[] = number> = {
+export type SliderOptions<T extends number | Array<number> = number> = {
   value?: T
   defaultValue?: T
   onValueChange?: (value: T, details: SliderValueChangeDetails) => void
@@ -51,7 +44,7 @@ export type SliderOptions<T extends number | number[] = number> = {
   step?: number
   largeStep?: number
   minStepsBetweenValues?: number
-  orientation?: "horizontal" | "vertical"
+  orientation?: 'horizontal' | 'vertical'
   format?: NumberFormat
   locale?: string
   disabled?: boolean
@@ -64,11 +57,11 @@ export type SliderOptions<T extends number | number[] = number> = {
 }
 
 export type SliderState = {
-  values: number[]
+  values: Array<number>
   min: number
   max: number
   step: number
-  orientation: "horizontal" | "vertical"
+  orientation: 'horizontal' | 'vertical'
   dragging: boolean
   activeThumbIndex: number
   disabled: boolean
@@ -89,25 +82,31 @@ export type SliderThumbState = {
 }
 
 export type SliderValueState = SliderState & {
-  formattedValues: string[]
+  formattedValues: Array<string>
   text: string
 }
 
-function toArray(val: number | number[] | undefined, fallback: number): number[] {
-  if (val === undefined) return [fallback]
+function toArray(val: number | Array<number> | undefined, fallback: number): Array<number> {
+  if (val === undefined) {
+    return [fallback]
+  }
   return Array.isArray(val) ? [...val] : [val]
 }
 
 function snapValue(val: number, min: number, max: number, step: number): number {
   const clamped = Math.min(max, Math.max(min, val))
-  if (step <= 0) return clamped
+  if (step <= 0) {
+    return clamped
+  }
   const steps = Math.round((clamped - min) / step)
-  const precision = Math.max(0, (step.toString().split(".")[1] ?? "").length)
+  const precision = Math.max(0, (step.toString().split('.')[1] ?? '').length)
   return Math.min(max, Math.max(min, Number((min + steps * step).toFixed(precision))))
 }
 
 function toPercent(val: number, min: number, max: number): number {
-  if (max <= min) return 0
+  if (max <= min) {
+    return 0
+  }
   return ((val - min) / (max - min)) * 100
 }
 
@@ -118,7 +117,7 @@ type SliderContextValue = {
     index: number,
     nextVal: number,
     reason: SliderValueChangeReason,
-    event?: Event
+    event?: Event,
   ) => void
   commitValue: (index: number, reason: SliderValueChangeReason, event?: Event) => void
   setDragging: (dragging: boolean, index?: number) => void
@@ -135,13 +134,18 @@ const SliderContext = createContext<SliderContextValue | null>(null)
 
 function useSlider(part: string): SliderContextValue {
   const ctx = useContext(SliderContext)
-  if (!ctx) throw new Error(`<Slider${part}> must be used inside <Slider>.`)
+  if (!ctx) {
+    throw new Error(`<Slider${part}> must be used inside <Slider>.`)
+  }
   return ctx
 }
 
-export function Slider<T extends number | number[] = number>(
+export function Slider<T extends number | Array<number> = number>(
   props: SliderOptions<T> &
-    Omit<PartProps<"div", SliderState>, keyof SliderOptions<T> | "defaultValue" | "onChange" | "onSelect">
+    Omit<
+      PartProps<'div', SliderState>,
+      keyof SliderOptions<T> | 'defaultValue' | 'onChange' | 'onSelect'
+    >,
 ) {
   const field = useFieldControl()
   const id = field?.controlId ?? `ui-slider-${createUniqueId()}`
@@ -149,7 +153,7 @@ export function Slider<T extends number | number[] = number>(
   const max = () => props.max ?? 100
   const step = () => props.step ?? 1
   const largeStep = () => props.largeStep ?? step() * 10
-  const orientation = () => props.orientation ?? "horizontal"
+  const orientation = () => props.orientation ?? 'horizontal'
 
   const isRange = () => Array.isArray(props.value ?? props.defaultValue)
 
@@ -182,7 +186,7 @@ export function Slider<T extends number | number[] = number>(
     invalid: invalid(),
   })
 
-  const packValues = (arr: number[]): T => (isRange() ? (arr as T) : ((arr[0] ?? min()) as T))
+  const packValues = (arr: Array<number>): T => (isRange() ? (arr as T) : ((arr[0] ?? min()) as T))
 
   let emitChange:
     | ((change: {
@@ -190,15 +194,15 @@ export function Slider<T extends number | number[] = number>(
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
   const updateValues = (
-    arr: number[],
+    arr: Array<number>,
     thumbIdx: number,
     reason: SliderValueChangeReason,
-    event?: Event
+    event?: Event,
   ) => {
     const prev = rawValue()
     const packed = packValues(arr)
@@ -207,11 +211,13 @@ export function Slider<T extends number | number[] = number>(
       activeThumbIndex: thumbIdx,
     }
     props.onValueChange?.(packed, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(packed)
     field?.setDirty(true)
     emitChange?.({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: packed,
       reason,
@@ -223,17 +229,23 @@ export function Slider<T extends number | number[] = number>(
     index: number,
     nextVal: number,
     reason: SliderValueChangeReason,
-    event?: Event
+    event?: Event,
   ) => {
-    if (disabled() || readOnly()) return
+    if (disabled() || readOnly()) {
+      return
+    }
     const current = [...values()]
     const snapped = snapValue(nextVal, min(), max(), step())
     const minGap = (props.minStepsBetweenValues ?? 0) * step()
     const prev = current[index - 1]
     const next = current[index + 1]
     let bounded = snapped
-    if (prev !== undefined && bounded < prev + minGap) bounded = prev + minGap
-    if (next !== undefined && bounded > next - minGap) bounded = next - minGap
+    if (prev !== undefined && bounded < prev + minGap) {
+      bounded = prev + minGap
+    }
+    if (next !== undefined && bounded > next - minGap) {
+      bounded = next - minGap
+    }
     current[index] = bounded
     updateValues(current, index, reason, event)
   }
@@ -250,10 +262,10 @@ export function Slider<T extends number | number[] = number>(
   const api: SliderApi<T> = {
     setValue: (val, options) => {
       const arr = toArray(val, min()).map((v) => snapValue(v, min(), max(), step()))
-      updateValues(arr, 0, options?.reason ?? "programmatic", options?.event)
+      updateValues(arr, 0, options?.reason ?? 'programmatic', options?.event)
     },
     setThumbValue: (idx, val, options) => {
-      setThumbValue(idx, val, options?.reason ?? "programmatic", options?.event)
+      setThumbValue(idx, val, options?.reason ?? 'programmatic', options?.event)
     },
     getValues: () => values(),
   }
@@ -261,7 +273,7 @@ export function Slider<T extends number | number[] = number>(
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "slider",
+    component: 'slider',
     getElements: () => [rootEl],
     getState: () => ({ values: values(), min: min(), max: max(), disabled: disabled() }),
     getDisabled: disabled,
@@ -272,7 +284,9 @@ export function Slider<T extends number | number[] = number>(
   emitChange = reg.emit
 
   const formatValue = (v: number): string => {
-    if (!props.format && !props.locale) return String(v)
+    if (!props.format && !props.locale) {
+      return String(v)
+    }
     try {
       return new Intl.NumberFormat(props.locale, props.format).format(v)
     } catch {
@@ -282,25 +296,25 @@ export function Slider<T extends number | number[] = number>(
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "onValueCommit",
-    "min",
-    "max",
-    "step",
-    "largeStep",
-    "minStepsBetweenValues",
-    "orientation",
-    "format",
-    "locale",
-    "disabled",
-    "readOnly",
-    "invalid",
-    "name",
-    "form",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'onValueCommit',
+    'min',
+    'max',
+    'step',
+    'largeStep',
+    'minStepsBetweenValues',
+    'orientation',
+    'format',
+    'locale',
+    'disabled',
+    'readOnly',
+    'invalid',
+    'name',
+    'form',
+    'controller',
+    'debug',
   )
 
   return (
@@ -325,20 +339,20 @@ export function Slider<T extends number | number[] = number>(
         field,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => {
           const s = state()
           return {
-            role: s.values.length > 1 ? "group" : undefined,
-            "aria-labelledby": s.values.length > 1 ? field?.labelId : undefined,
-            "data-orientation": s.orientation,
-            "data-dragging": s.dragging ? "" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-readonly": s.readOnly ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
+            role: s.values.length > 1 ? 'group' : undefined,
+            'aria-labelledby': s.values.length > 1 ? field?.labelId : undefined,
+            'data-orientation': s.orientation,
+            'data-dragging': s.dragging ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-readonly': s.readOnly ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
           }
         },
       })}
@@ -349,10 +363,12 @@ export function Slider<T extends number | number[] = number>(
 function pointerToValue(e: PointerEvent, ctx: SliderContextValue): number {
   const track = ctx.getTrack()
   const s = ctx.state()
-  if (!track) return s.min
+  if (!track) {
+    return s.min
+  }
   const rect = track.getBoundingClientRect()
   const ratio =
-    s.orientation === "vertical"
+    s.orientation === 'vertical'
       ? rect.height > 0
         ? (rect.bottom - e.clientY) / rect.height
         : 0
@@ -363,21 +379,23 @@ function pointerToValue(e: PointerEvent, ctx: SliderContextValue): number {
   return s.min + clamped * (s.max - s.min)
 }
 
-export function SliderControl(props: PartProps<"div", SliderState>) {
-  const ctx = useSlider("Control")
-  return renderPart("div", props, ctx.state, {
+export function SliderControl(props: PartProps<'div', SliderState>) {
+  const ctx = useSlider('Control')
+  return renderPart('div', props, ctx.state, {
     attrs: () => {
       const s = ctx.state()
       return {
-        "data-orientation": s.orientation,
-        "data-dragging": s.dragging ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
+        'data-orientation': s.orientation,
+        'data-dragging': s.dragging ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
       }
     },
     handlers: {
       onPointerDown: (e: PointerEvent) => {
         const s = ctx.state()
-        if (s.disabled || s.readOnly || e.button !== 0) return
+        if (s.disabled || s.readOnly || e.button !== 0) {
+          return
+        }
         const targetVal = pointerToValue(e, ctx)
         let closest = 0
         let minDist = Infinity
@@ -389,49 +407,48 @@ export function SliderControl(props: PartProps<"div", SliderState>) {
           }
         })
         ctx.setDragging(true, closest)
-        ctx.setThumbValue(closest, targetVal, "track", e)
+        ctx.setThumbValue(closest, targetVal, 'track', e)
 
         const onMove = (ev: PointerEvent) => {
-          ctx.setThumbValue(closest, pointerToValue(ev, ctx), "drag", ev)
+          ctx.setThumbValue(closest, pointerToValue(ev, ctx), 'drag', ev)
         }
         const onUp = (ev: PointerEvent) => {
           ctx.setDragging(false)
-          ctx.commitValue(closest, "drag", ev)
-          window.removeEventListener("pointermove", onMove)
-          window.removeEventListener("pointerup", onUp)
+          ctx.commitValue(closest, 'drag', ev)
+          window.removeEventListener('pointermove', onMove)
+          window.removeEventListener('pointerup', onUp)
         }
-        window.addEventListener("pointermove", onMove)
-        window.addEventListener("pointerup", onUp)
+        window.addEventListener('pointermove', onMove)
+        window.addEventListener('pointerup', onUp)
       },
     },
   })
 }
 
-export function SliderTrack(props: PartProps<"div", SliderState>) {
-  const ctx = useSlider("Track")
-  return renderPart("div", props, ctx.state, {
+export function SliderTrack(props: PartProps<'div', SliderState>) {
+  const ctx = useSlider('Track')
+  return renderPart('div', props, ctx.state, {
     ref: (el) => ctx.registerTrack(el),
     attrs: () => ({
-      "data-orientation": ctx.state().orientation,
-      "data-disabled": ctx.state().disabled ? "" : undefined,
+      'data-orientation': ctx.state().orientation,
+      'data-disabled': ctx.state().disabled ? '' : undefined,
     }),
   })
 }
 
-export function SliderIndicator(props: PartProps<"div", SliderState>) {
-  const ctx = useSlider("Indicator")
-  return renderPart("div", props, ctx.state, {
+export function SliderIndicator(props: PartProps<'div', SliderState>) {
+  const ctx = useSlider('Indicator')
+  return renderPart('div', props, ctx.state, {
     attrs: () => ({
-      "data-orientation": ctx.state().orientation,
-      "data-disabled": ctx.state().disabled ? "" : undefined,
+      'data-orientation': ctx.state().orientation,
+      'data-disabled': ctx.state().disabled ? '' : undefined,
     }),
     style: () => {
       const s = ctx.state()
-      const start =
-        s.values.length > 1 ? toPercent(s.values[0] ?? s.min, s.min, s.max) : 0
+      const start = s.values.length > 1 ? toPercent(s.values[0] ?? s.min, s.min, s.max) : 0
       const end = toPercent(s.values.at(-1) ?? s.min, s.min, s.max)
       const size = Math.max(0, end - start)
-      return s.orientation === "vertical"
+      return s.orientation === 'vertical'
         ? { bottom: `${start}%`, height: `${size}%` }
         : { left: `${start}%`, width: `${size}%` }
     },
@@ -439,9 +456,9 @@ export function SliderIndicator(props: PartProps<"div", SliderState>) {
 }
 
 export function SliderThumb(
-  props: SliderThumbProps & Omit<PartProps<"div", SliderThumbState>, keyof SliderThumbProps>
+  props: SliderThumbProps & Omit<PartProps<'div', SliderThumbState>, keyof SliderThumbProps>,
 ) {
-  const ctx = useSlider("Thumb")
+  const ctx = useSlider('Thumb')
   const index = () => props.index ?? 0
   const thumbState = (): SliderThumbState => {
     const s = ctx.state()
@@ -455,34 +472,34 @@ export function SliderThumb(
       disabled: s.disabled,
     }
   }
-  const rest = omit(props, "index")
+  const rest = omit(props, 'index')
 
-  return renderPart("div", rest, thumbState, {
+  return renderPart('div', rest, thumbState, {
     attrs: () => {
       const ts = thumbState()
       const s = ctx.state()
       return {
         id: s.values.length === 1 ? ctx.id : `${ctx.id}-thumb-${ts.index}`,
-        role: "slider",
+        role: 'slider',
         tabindex: s.disabled ? -1 : 0,
-        "aria-valuemin": s.min,
-        "aria-valuemax": s.max,
-        "aria-valuenow": ts.value,
-        "aria-valuetext": ctx.formatValue(ts.value),
-        "aria-orientation": s.orientation,
-        "aria-disabled": s.disabled ? "true" : undefined,
-        "aria-readonly": s.readOnly ? "true" : undefined,
-        "aria-labelledby": s.values.length === 1 ? ctx.field?.labelId : undefined,
-        "aria-describedby": ctx.field?.describedBy(),
-        "data-index": ts.index,
-        "data-dragging": ts.dragging ? "" : undefined,
-        "data-disabled": ts.disabled ? "" : undefined,
+        'aria-valuemin': s.min,
+        'aria-valuemax': s.max,
+        'aria-valuenow': ts.value,
+        'aria-valuetext': ctx.formatValue(ts.value),
+        'aria-orientation': s.orientation,
+        'aria-disabled': s.disabled ? 'true' : undefined,
+        'aria-readonly': s.readOnly ? 'true' : undefined,
+        'aria-labelledby': s.values.length === 1 ? ctx.field?.labelId : undefined,
+        'aria-describedby': ctx.field?.describedBy(),
+        'data-index': ts.index,
+        'data-dragging': ts.dragging ? '' : undefined,
+        'data-disabled': ts.disabled ? '' : undefined,
       }
     },
     style: () => {
       const ts = thumbState()
       const s = ctx.state()
-      return s.orientation === "vertical"
+      return s.orientation === 'vertical'
         ? { bottom: `${ts.percent}%` }
         : { left: `${ts.percent}%` }
     },
@@ -490,44 +507,51 @@ export function SliderThumb(
       onKeyDown: (e: KeyboardEvent) => {
         const s = ctx.state()
         const ts = thumbState()
-        if (s.disabled || s.readOnly) return
+        if (s.disabled || s.readOnly) {
+          return
+        }
         let next: number | null = null
-        if (e.key === "ArrowRight" || e.key === "ArrowUp") next = ts.value + s.step
-        else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = ts.value - s.step
-        else if (e.key === "PageUp") next = ts.value + ctx.largeStep()
-        else if (e.key === "PageDown") next = ts.value - ctx.largeStep()
-        else if (e.key === "Home") next = s.min
-        else if (e.key === "End") next = s.max
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+          next = ts.value + s.step
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+          next = ts.value - s.step
+        } else if (e.key === 'PageUp') {
+          next = ts.value + ctx.largeStep()
+        } else if (e.key === 'PageDown') {
+          next = ts.value - ctx.largeStep()
+        } else if (e.key === 'Home') {
+          next = s.min
+        } else if (e.key === 'End') {
+          next = s.max
+        }
         if (next !== null) {
           e.preventDefault()
-          ctx.setThumbValue(ts.index, next, "keyboard", e)
-          ctx.commitValue(ts.index, "keyboard", e)
+          ctx.setThumbValue(ts.index, next, 'keyboard', e)
+          ctx.commitValue(ts.index, 'keyboard', e)
         }
       },
     },
   })
 }
 
-export function SliderValue(props: PartProps<"output", SliderValueState>) {
-  const ctx = useSlider("Value")
+export function SliderValue(props: PartProps<'output', SliderValueState>) {
+  const ctx = useSlider('Value')
   const valueState = (): SliderValueState => {
     const s = ctx.state()
     const formattedValues = s.values.map((v) => ctx.formatValue(v))
     return {
       ...s,
       formattedValues,
-      text: formattedValues.join(" – "),
+      text: formattedValues.join(' – '),
     }
   }
 
-  const resolvedProps: PartProps<"output", SliderValueState> =
-    props.children !== undefined
-      ? props
-      : { ...props, children: (s: SliderValueState) => s.text }
+  const resolvedProps: PartProps<'output', SliderValueState> =
+    props.children !== undefined ? props : { ...props, children: (s: SliderValueState) => s.text }
 
-  return renderPart("output", resolvedProps, valueState, {
+  return renderPart('output', resolvedProps, valueState, {
     attrs: () => ({
-      "aria-live": "off",
+      'aria-live': 'off',
     }),
   })
 }

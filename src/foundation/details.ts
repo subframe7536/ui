@@ -1,11 +1,11 @@
 export type ChangeSource =
-  | "mouse"
-  | "touch"
-  | "pen"
-  | "keyboard"
-  | "virtual"
-  | "programmatic"
-  | "agent"
+  | 'mouse'
+  | 'touch'
+  | 'pen'
+  | 'keyboard'
+  | 'virtual'
+  | 'programmatic'
+  | 'agent'
 
 export type ChangeDetails<
   Reason extends string = string,
@@ -41,35 +41,43 @@ export function currentSource(): ChangeSource | undefined {
 }
 
 export function inferSource(event?: Event, explicit?: ChangeSource): ChangeSource {
-  if (explicit) return explicit
-  if (activeSource) return activeSource
-  if (!event) return "programmatic"
-  if (typeof PointerEvent !== "undefined" && event instanceof PointerEvent) {
-    if (event.pointerType === "touch") return "touch"
-    if (event.pointerType === "pen") return "pen"
-    if (event.pointerType === "mouse") return "mouse"
-    return "virtual"
+  if (explicit) {
+    return explicit
   }
-  if (typeof KeyboardEvent !== "undefined" && event instanceof KeyboardEvent) {
-    return "keyboard"
+  if (activeSource) {
+    return activeSource
   }
-  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent) {
-    return "touch"
+  if (!event) {
+    return 'programmatic'
   }
-  if (typeof MouseEvent !== "undefined" && event instanceof MouseEvent) {
-    return event.detail === 0 ? "virtual" : "mouse"
+  if (typeof PointerEvent !== 'undefined' && event instanceof PointerEvent) {
+    if (event.pointerType === 'touch') {
+      return 'touch'
+    }
+    if (event.pointerType === 'pen') {
+      return 'pen'
+    }
+    if (event.pointerType === 'mouse') {
+      return 'mouse'
+    }
+    return 'virtual'
   }
-  return "programmatic"
+  if (typeof KeyboardEvent !== 'undefined' && event instanceof KeyboardEvent) {
+    return 'keyboard'
+  }
+  if (typeof TouchEvent !== 'undefined' && event instanceof TouchEvent) {
+    return 'touch'
+  }
+  if (typeof MouseEvent !== 'undefined' && event instanceof MouseEvent) {
+    return event.detail === 0 ? 'virtual' : 'mouse'
+  }
+  return 'programmatic'
 }
 
 export function createChangeDetails<
   Reason extends string,
   E extends Event | undefined = Event | undefined,
->(
-  reason: Reason,
-  event?: E,
-  source?: ChangeSource
-): ChangeDetails<Reason, E> {
+>(reason: Reason, event?: E, source?: ChangeSource): ChangeDetails<Reason, E> {
   let isCanceled = false
   return {
     reason,

@@ -3,18 +3,18 @@
   "version": "0.1.0",
   "description": "SolidJS 2 native UI SDK — API-compatible with @ui-sdk/solid, built directly on Solid 2 signals without a framework-agnostic kernel.",
   "keywords": [
-    "solid",
-    "solid-js",
-    "solid-2",
-    "ui",
-    "ui-sdk",
-    "headless",
-    "unstyled",
-    "accessibility",
     "a11y",
+    "accessibility",
+    "agents",
     "aria",
     "components",
-    "agents"
+    "headless",
+    "solid",
+    "solid-2",
+    "solid-js",
+    "ui",
+    "ui-sdk",
+    "unstyled"
   ],
   "homepage": "https://github.com/subframe7536/ui#readme",
   "bugs": {
@@ -348,10 +348,6 @@
   "dependencies": {
     "@floating-ui/dom": "^1.8.0"
   },
-  "peerDependencies": {
-    "@solidjs/web": "^2.0.3",
-    "solid-js": "^2.0.3"
-  },
   "devDependencies": {
     "@solidjs/vite-plugin": "^3.0.1",
     "@solidjs/web": "^2.0.3",
@@ -366,6 +362,10 @@
     "tsrs": "0.25.0-ts7.1.0-beta",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "peerDependencies": {
+    "@solidjs/web": "^2.0.3",
+    "solid-js": "^2.0.3"
   },
   "packageManager": "pnpm@12.18.0"
 }

@@ -1,33 +1,33 @@
-import type { JSX } from "@solidjs/web"
-import { createContext, createSignal, useContext } from "solid-js"
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, useContext } from 'solid-js'
 
 export type PreferencesProps = {
   prefix?: string
-  storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
+  storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
   children?: JSX.Element
 }
 
 type PreferencesContextValue = {
   prefix: string
-  storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null
+  storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null
 }
 
 const PreferencesContext = createContext<PreferencesContextValue>({
-  prefix: "ui-pref:",
-  storage: typeof localStorage !== "undefined" ? localStorage : null,
+  prefix: 'ui-pref:',
+  storage: typeof localStorage !== 'undefined' ? localStorage : null,
 })
 
 export function Preferences(props: PreferencesProps) {
   const value = (): PreferencesContextValue => ({
-    prefix: props.prefix ?? "ui-pref:",
-    storage: props.storage ?? (typeof localStorage !== "undefined" ? localStorage : null),
+    prefix: props.prefix ?? 'ui-pref:',
+    storage: props.storage ?? (typeof localStorage !== 'undefined' ? localStorage : null),
   })
   return <PreferencesContext value={value()}>{props.children}</PreferencesContext>
 }
 
 export function usePreference<T>(
   key: string,
-  defaultValue: T
+  defaultValue: T,
 ): [get: () => T, set: (next: T) => void, reset: () => void] {
   const ctx = useContext(PreferencesContext)
   const fullKey = `${ctx.prefix}${key}`
@@ -35,7 +35,9 @@ export function usePreference<T>(
   const readInitial = (): T => {
     try {
       const raw = ctx.storage?.getItem(fullKey)
-      if (raw === null || raw === undefined) return defaultValue
+      if (raw === null || raw === undefined) {
+        return defaultValue
+      }
       return JSON.parse(raw) as T
     } catch {
       return defaultValue

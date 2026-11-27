@@ -1,13 +1,12 @@
-import { withSource } from "./foundation/details"
+import { withSource } from './foundation/details'
 import {
   accessibleLabelOf,
   addChangeListener,
   confirmMessageOf,
   getRegisteredComponents,
   isHiddenFromAgent,
-  type ObservedChange,
-  type RegisteredComponent,
-} from "./foundation/registry"
+} from './foundation/registry'
+import type { ObservedChange, RegisteredComponent } from './foundation/registry'
 
 export type AgentComponent = {
   ref: string
@@ -15,17 +14,17 @@ export type AgentComponent = {
   label?: string
   row?: string
   [state: string]: unknown
-  items?: { value: string; label: string }[]
+  items?: Array<{ value: string; label: string }>
   more?: number
-  text?: string[]
-  buttons?: string[]
+  text?: Array<string>
+  buttons?: Array<string>
   pending?: boolean
   error?: string
   section?: string
   confirm?: string
   offPage?: boolean
   source?: string
-  actions: string[]
+  actions: Array<string>
 }
 
 export type AgentChange = {
@@ -38,7 +37,7 @@ export type AgentChange = {
 export type AgentStep = {
   ref: string
   action: string
-  args?: unknown[]
+  args?: Array<unknown>
 }
 
 export type AgentAction = {
@@ -46,7 +45,7 @@ export type AgentAction = {
   component: string
   label?: string
   action: string
-  args: unknown[]
+  args: Array<unknown>
   confirm?: string
 }
 
@@ -54,7 +53,9 @@ type Allow = (action: AgentAction) => boolean | Promise<boolean>
 
 function toAgentComponent(entry: RegisteredComponent): AgentComponent | null {
   const els = entry.getElements().filter((el): el is HTMLElement => el != null)
-  if (isHiddenFromAgent(els)) return null
+  if (isHiddenFromAgent(els)) {
+    return null
+  }
   const label = entry.getLabel?.() ?? accessibleLabelOf(els)
   const disabled = entry.getDisabled?.() ?? false
   const confirm = confirmMessageOf(els)
@@ -79,53 +80,68 @@ function toAgentComponent(entry: RegisteredComponent): AgentComponent | null {
 function resolveComponent(refOrLabel: string): RegisteredComponent | undefined {
   const all = getRegisteredComponents()
   const byRef = all.find((item) => item.ref === refOrLabel)
-  if (byRef) return byRef
+  if (byRef) {
+    return byRef
+  }
 
   const normalized = refOrLabel.trim().toLowerCase()
   const byLabel = all.find((item) => {
     const els = item.getElements().filter((el): el is HTMLElement => el != null)
-    if (isHiddenFromAgent(els)) return false
+    if (isHiddenFromAgent(els)) {
+      return false
+    }
     const label = (item.getLabel?.() ?? accessibleLabelOf(els))?.trim().toLowerCase()
     return label === normalized
   })
-  if (byLabel) return byLabel
+  if (byLabel) {
+    return byLabel
+  }
 
   return all.find((item) => item.component.toLowerCase() === normalized)
 }
 
 const allowMap = new WeakMap<
   object,
-  (input: { steps: AgentStep[] }, allow?: Allow) => Promise<{
+  (
+    input: { steps: Array<AgentStep> },
+    allow?: Allow,
+  ) => Promise<{
     ok: boolean
-    changes: AgentChange[]
-    components: AgentComponent[]
+    changes: Array<AgentChange>
+    components: Array<AgentComponent>
     error?: string
   }>
 >()
 
-export function createAgent(options: { within?: Element | (() => Element | null | undefined) } = {}) {
+export function createAgent(
+  options: { within?: Element | (() => Element | null | undefined) } = {},
+) {
   const inScope = (entry: RegisteredComponent): boolean => {
-    if (!options.within) return true
-    const root = typeof options.within === "function" ? options.within() : options.within
-    if (!root) return false
-    return entry
-      .getElements()
-      .some((el) => el != null && root.contains(el))
+    if (!options.within) {
+      return true
+    }
+    const root = typeof options.within === 'function' ? options.within() : options.within
+    if (!root) {
+      return false
+    }
+    return entry.getElements().some((el) => el != null && root.contains(el))
   }
 
-  const snapshot = (): AgentComponent[] =>
+  const snapshot = (): Array<AgentComponent> =>
     getRegisteredComponents()
       .filter(inScope)
       .map(toAgentComponent)
       .filter((item): item is AgentComponent => item !== null)
 
-  const query = (params: {
-    text?: string
-    within?: string
-    kind?: string
-    closed?: boolean
-    from?: number
-  } = {}): AgentComponent[] => {
+  const query = (
+    params: {
+      text?: string
+      within?: string
+      kind?: string
+      closed?: boolean
+      from?: number
+    } = {},
+  ): Array<AgentComponent> => {
     let list = snapshot()
     if (params.kind) {
       const k = params.kind.toLowerCase()
@@ -137,15 +153,13 @@ export function createAgent(options: { within?: Element | (() => Element | null 
         (item) =>
           item.label?.toLowerCase().includes(needle) ||
           item.text?.some((t) => t.toLowerCase().includes(needle)) ||
-          item.items?.some((i) => i.label.toLowerCase().includes(needle))
+          item.items?.some((i) => i.label.toLowerCase().includes(needle)),
       )
     }
     if (params.within) {
       const needle = params.within.toLowerCase()
       list = list.filter(
-        (item) =>
-          item.ref.toLowerCase() === needle ||
-          item.label?.toLowerCase() === needle
+        (item) => item.ref.toLowerCase() === needle || item.label?.toLowerCase() === needle,
       )
     }
     if (params.from && params.from > 0) {
@@ -154,8 +168,8 @@ export function createAgent(options: { within?: Element | (() => Element | null 
     return list
   }
 
-  const runAct = async (input: { steps: AgentStep[] }, allow?: Allow) => {
-    const changes: AgentChange[] = []
+  const runAct = async (input: { steps: Array<AgentStep> }, allow?: Allow) => {
+    const changes: Array<AgentChange> = []
     const stop = addChangeListener((change) => {
       changes.push({
         component: change.component,
@@ -200,7 +214,7 @@ export function createAgent(options: { within?: Element | (() => Element | null 
           }
         }
 
-        if (step.action === "expect") {
+        if (step.action === 'expect') {
           const state = target.getState()
           const expected = args[0]
           const matched = Object.values(state).some((v) => Object.is(v, expected))
@@ -216,7 +230,7 @@ export function createAgent(options: { within?: Element | (() => Element | null 
         }
 
         const handler = target.actions[step.action]
-        if (typeof handler !== "function") {
+        if (typeof handler !== 'function') {
           return {
             ok: false,
             changes,
@@ -225,7 +239,7 @@ export function createAgent(options: { within?: Element | (() => Element | null 
           }
         }
 
-        await withSource("agent", () => handler(...args))
+        await withSource('agent', () => handler(...args))
       }
 
       return {
@@ -241,7 +255,7 @@ export function createAgent(options: { within?: Element | (() => Element | null 
   const agent = {
     snapshot,
     query,
-    act: (input: { steps: AgentStep[] }) => runAct(input),
+    act: (input: { steps: Array<AgentStep> }) => runAct(input),
   }
 
   allowMap.set(agent, runAct)
@@ -250,57 +264,58 @@ export function createAgent(options: { within?: Element | (() => Element | null 
 
 export const agentTools = [
   {
-    name: "act",
+    name: 'act',
     description:
-      "Runs steps in order on live UI components by ref, label, or component kind and returns all state changes.",
+      'Runs steps in order on live UI components by ref, label, or component kind and returns all state changes.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
         steps: {
-          type: "array",
+          type: 'array',
           items: {
-            type: "object",
+            type: 'object',
             properties: {
-              ref: { type: "string" },
-              action: { type: "string" },
-              args: { type: "array", items: {} },
+              ref: { type: 'string' },
+              action: { type: 'string' },
+              args: { type: 'array', items: {} },
             },
-            required: ["ref", "action"],
+            required: ['ref', 'action'],
             additionalProperties: false,
           },
         },
       },
-      required: ["steps"],
+      required: ['steps'],
       additionalProperties: false,
     },
   },
   {
-    name: "query",
-    description: "Finds mounted components by text, kind, or within a specific component.",
+    name: 'query',
+    description: 'Finds mounted components by text, kind, or within a specific component.',
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        text: { type: "string" },
-        within: { type: "string" },
-        kind: { type: "string" },
-        closed: { type: "boolean" },
-        from: { type: "integer" },
+        text: { type: 'string' },
+        within: { type: 'string' },
+        kind: { type: 'string' },
+        closed: { type: 'boolean' },
+        from: { type: 'integer' },
       },
     },
   },
   {
-    name: "snapshot",
-    description: "Lists currently mounted UI components with their refs, labels, states, and actions.",
-    inputSchema: { type: "object", properties: {} },
+    name: 'snapshot',
+    description:
+      'Lists currently mounted UI components with their refs, labels, states, and actions.',
+    inputSchema: { type: 'object', properties: {} },
   },
 ] as const
 
 export function registerTools(
   agent: ReturnType<typeof createAgent>,
-  { allow }: { allow: Allow }
+  { allow }: { allow: Allow },
 ): () => void {
-  if (typeof allow !== "function") {
-    throw new Error("registerTools needs an `allow` that decides each step.")
+  if (typeof allow !== 'function') {
+    throw new TypeError('registerTools needs an `allow` that decides each step.')
   }
   const context = (
     globalThis.document as
@@ -321,17 +336,21 @@ export function registerTools(
         {
           ...tool,
           annotations: {
-            readOnlyHint: tool.name === "snapshot",
+            readOnlyHint: tool.name === 'snapshot',
             untrustedContentHint: true,
-            consequentialHint: tool.name === "act",
+            consequentialHint: tool.name === 'act',
           },
           execute: (input: any) => {
-            if (tool.name === "snapshot") return agent.snapshot()
-            if (tool.name === "query") return agent.query(input)
+            if (tool.name === 'snapshot') {
+              return agent.snapshot()
+            }
+            if (tool.name === 'query') {
+              return agent.query(input)
+            }
             return runWithAllow ? runWithAllow(input, allow) : agent.act(input)
           },
         },
-        { signal: controller.signal }
+        { signal: controller.signal },
       )
       .catch(() => {})
   }

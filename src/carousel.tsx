@@ -6,28 +6,27 @@ import {
   omit,
   onCleanup,
   useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from 'solid-js'
 
-export type CarouselOrientation = "horizontal" | "vertical"
-export type CarouselAlign = "start" | "center" | "end"
-export type CarouselSlidesPerPage = number | "auto"
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type CarouselOrientation = 'horizontal' | 'vertical'
+export type CarouselAlign = 'start' | 'center' | 'end'
+export type CarouselSlidesPerPage = number | 'auto'
 export type CarouselPageChangeReason =
-  | "next"
-  | "previous"
-  | "indicator"
-  | "autoplay"
-  | "keyboard"
-  | "programmatic"
-export type CarouselPlayingChangeReason = "toggle" | "hover" | "focus" | "programmatic"
+  | 'next'
+  | 'previous'
+  | 'indicator'
+  | 'autoplay'
+  | 'keyboard'
+  | 'programmatic'
+export type CarouselPlayingChangeReason = 'toggle' | 'hover' | 'focus' | 'programmatic'
 export type CarouselPageOptions = ChangeOptions<CarouselPageChangeReason>
 export type CarouselPlayingOptions = ChangeOptions<CarouselPlayingChangeReason>
 
@@ -54,10 +53,7 @@ export type CarouselOptions = {
   onPageChange?: (page: number, details: ChangeDetails<CarouselPageChangeReason>) => void
   playing?: boolean
   defaultPlaying?: boolean
-  onPlayingChange?: (
-    playing: boolean,
-    details: ChangeDetails<CarouselPlayingChangeReason>
-  ) => void
+  onPlayingChange?: (playing: boolean, details: ChangeDetails<CarouselPlayingChangeReason>) => void
   slideCount?: number
   slidesPerPage?: CarouselSlidesPerPage
   orientation?: CarouselOrientation
@@ -102,12 +98,14 @@ const CarouselContext = createContext<CarouselContextValue | null>(null)
 
 function useCarousel(part: string): CarouselContextValue {
   const ctx = useContext(CarouselContext)
-  if (!ctx) throw new Error(`<Carousel${part}> must be used inside <Carousel>.`)
+  if (!ctx) {
+    throw new Error(`<Carousel${part}> must be used inside <Carousel>.`)
+  }
   return ctx
 }
 
 export function Carousel(
-  props: CarouselOptions & Omit<PartProps<"div", CarouselState>, keyof CarouselOptions>
+  props: CarouselOptions & Omit<PartProps<'div', CarouselState>, keyof CarouselOptions>,
 ) {
   const id = `ui-carousel-${createUniqueId()}`
   const [page, setRawPage] = createControlledSignal<number>({
@@ -123,7 +121,7 @@ export function Carousel(
   let slideSeq = 0
 
   const pageCount = () => Math.max(1, props.slideCount ?? registeredCount())
-  const orientation = (): CarouselOrientation => props.orientation ?? "horizontal"
+  const orientation = (): CarouselOrientation => props.orientation ?? 'horizontal'
   const loop = () => !!props.loop
 
   const currentPage = () => Math.min(pageCount() - 1, Math.max(0, page()))
@@ -149,37 +147,47 @@ export function Carousel(
     } else {
       target = Math.min(total - 1, Math.max(0, next))
     }
-    if (target === currentPage()) return
+    if (target === currentPage()) {
+      return
+    }
     const details = createChangeDetails(reason, event)
     props.onPageChange?.(target, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawPage(target)
   }
 
   const setPlaying = (next: boolean, reason: CarouselPlayingChangeReason, event?: Event) => {
-    if (playing() === next) return
+    if (playing() === next) {
+      return
+    }
     const details = createChangeDetails(reason, event)
     props.onPlayingChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawPlaying(next)
   }
 
   createEffect(
     () => [playing(), props.autoplayInterval ?? 4000] as const,
     ([isPlaying, interval]) => {
-      if (!isPlaying) return
-      const timer = setInterval(() => goTo(currentPage() + 1, "autoplay"), interval)
+      if (!isPlaying) {
+        return
+      }
+      const timer = setInterval(() => goTo(currentPage() + 1, 'autoplay'), interval)
       onCleanup(() => clearInterval(timer))
-    }
+    },
   )
 
   const api: CarouselApi = {
-    goTo: (p, opts) => goTo(p, opts?.reason ?? "programmatic", opts?.event),
-    next: () => goTo(currentPage() + 1, "next"),
-    previous: () => goTo(currentPage() - 1, "previous"),
-    play: () => setPlaying(true, "programmatic"),
-    pause: () => setPlaying(false, "programmatic"),
-    togglePlaying: () => setPlaying(!playing(), "toggle"),
+    goTo: (p, opts) => goTo(p, opts?.reason ?? 'programmatic', opts?.event),
+    next: () => goTo(currentPage() + 1, 'next'),
+    previous: () => goTo(currentPage() - 1, 'previous'),
+    play: () => setPlaying(true, 'programmatic'),
+    pause: () => setPlaying(false, 'programmatic'),
+    togglePlaying: () => setPlaying(!playing(), 'toggle'),
     getPage: currentPage,
     isPlaying: playing,
   }
@@ -187,7 +195,7 @@ export function Carousel(
   useController(() => props.controller, api)
 
   registerComponent({
-    component: "carousel",
+    component: 'carousel',
     getElements: () => [rootEl],
     getState: () => ({ page: currentPage(), pageCount: pageCount(), playing: playing() }),
     actions: {
@@ -208,44 +216,44 @@ export function Carousel(
 
   const rest = omit(
     props,
-    "page",
-    "defaultPage",
-    "onPageChange",
-    "playing",
-    "defaultPlaying",
-    "onPlayingChange",
-    "slideCount",
-    "slidesPerPage",
-    "orientation",
-    "align",
-    "loop",
-    "autoplayInterval",
-    "controller",
-    "debug"
+    'page',
+    'defaultPage',
+    'onPageChange',
+    'playing',
+    'defaultPlaying',
+    'onPlayingChange',
+    'slideCount',
+    'slidesPerPage',
+    'orientation',
+    'align',
+    'loop',
+    'autoplayInterval',
+    'controller',
+    'debug',
   )
 
   return (
     <CarouselContext value={{ id, state, goTo, setPlaying, registerSlide }}>
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => ({
           id,
-          role: "region",
-          "aria-roledescription": "carousel",
-          "data-orientation": orientation(),
-          "data-playing": playing() ? "" : undefined,
+          role: 'region',
+          'aria-roledescription': 'carousel',
+          'data-orientation': orientation(),
+          'data-playing': playing() ? '' : undefined,
         }),
         handlers: {
           onKeyDown: (e: KeyboardEvent) => {
-            const horiz = orientation() === "horizontal"
-            if ((horiz && e.key === "ArrowRight") || (!horiz && e.key === "ArrowDown")) {
+            const horiz = orientation() === 'horizontal'
+            if ((horiz && e.key === 'ArrowRight') || (!horiz && e.key === 'ArrowDown')) {
               e.preventDefault()
-              goTo(currentPage() + 1, "keyboard", e)
-            } else if ((horiz && e.key === "ArrowLeft") || (!horiz && e.key === "ArrowUp")) {
+              goTo(currentPage() + 1, 'keyboard', e)
+            } else if ((horiz && e.key === 'ArrowLeft') || (!horiz && e.key === 'ArrowUp')) {
               e.preventDefault()
-              goTo(currentPage() - 1, "keyboard", e)
+              goTo(currentPage() - 1, 'keyboard', e)
             }
           },
         },
@@ -254,65 +262,67 @@ export function Carousel(
   )
 }
 
-export function CarouselViewport(props: PartProps<"div", CarouselViewportState>) {
-  const ctx = useCarousel("Viewport")
-  return renderPart("div", props, ctx.state, {
-    style: () => ({ overflow: "hidden" }),
+export function CarouselViewport(props: PartProps<'div', CarouselViewportState>) {
+  const ctx = useCarousel('Viewport')
+  return renderPart('div', props, ctx.state, {
+    style: () => ({ overflow: 'hidden' }),
   })
 }
 
-export function CarouselContent(props: PartProps<"div", CarouselContentState>) {
-  const ctx = useCarousel("Content")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ "data-orientation": ctx.state().orientation }),
+export function CarouselContent(props: PartProps<'div', CarouselContentState>) {
+  const ctx = useCarousel('Content')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ 'data-orientation': ctx.state().orientation }),
     style: () => ({
-      display: "flex",
-      "flex-direction": ctx.state().orientation === "vertical" ? "column" : "row",
+      display: 'flex',
+      'flex-direction': ctx.state().orientation === 'vertical' ? 'column' : 'row',
       transform:
-        ctx.state().orientation === "vertical"
+        ctx.state().orientation === 'vertical'
           ? `translateY(-${ctx.state().page * 100}%)`
           : `translateX(-${ctx.state().page * 100}%)`,
     }),
   })
 }
 
-export function CarouselItem(props: PartProps<"div", CarouselItemState>) {
-  const ctx = useCarousel("Item")
+export function CarouselItem(props: PartProps<'div', CarouselItemState>) {
+  const ctx = useCarousel('Item')
   const reg = ctx.registerSlide()
   onCleanup(() => reg.cleanup())
   const itemState = (): CarouselItemState => ({
     index: reg.index,
     active: ctx.state().page === reg.index,
   })
-  return renderPart("div", props, itemState, {
+  return renderPart('div', props, itemState, {
     attrs: () => ({
-      role: "group",
-      "aria-roledescription": "slide",
-      "data-active": itemState().active ? "" : undefined,
-      "data-index": reg.index,
+      role: 'group',
+      'aria-roledescription': 'slide',
+      'data-active': itemState().active ? '' : undefined,
+      'data-index': reg.index,
     }),
   })
 }
 
 export function CarouselPrevious(
   props: CarouselControlProps &
-    Omit<PartProps<"button", CarouselPreviousState>, keyof CarouselControlProps | "type">
+    Omit<PartProps<'button', CarouselPreviousState>, keyof CarouselControlProps | 'type'>,
 ) {
-  const ctx = useCarousel("Previous")
+  const ctx = useCarousel('Previous')
   const stepState = (): CarouselPreviousState => ({
     ...ctx.state(),
     disabled: !!props.disabled || !ctx.state().canPrevious,
   })
-  const rest = omit(props, "disabled")
-  return renderPart("button", rest, stepState, {
+  const rest = omit(props, 'disabled')
+  return renderPart('button', rest, stepState, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: stepState().disabled,
-      "aria-label": "Previous slide",
+      'aria-label': 'Previous slide',
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (!stepState().disabled) ctx.goTo(ctx.state().page - 1, "previous", e)
+        if (!stepState().disabled) {
+          ctx.goTo(ctx.state().page - 1, 'previous', e)
+        }
       },
     },
   })
@@ -320,74 +330,78 @@ export function CarouselPrevious(
 
 export function CarouselNext(
   props: CarouselControlProps &
-    Omit<PartProps<"button", CarouselNextState>, keyof CarouselControlProps | "type">
+    Omit<PartProps<'button', CarouselNextState>, keyof CarouselControlProps | 'type'>,
 ) {
-  const ctx = useCarousel("Next")
+  const ctx = useCarousel('Next')
   const stepState = (): CarouselNextState => ({
     ...ctx.state(),
     disabled: !!props.disabled || !ctx.state().canNext,
   })
-  const rest = omit(props, "disabled")
-  return renderPart("button", rest, stepState, {
+  const rest = omit(props, 'disabled')
+  return renderPart('button', rest, stepState, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: stepState().disabled,
-      "aria-label": "Next slide",
+      'aria-label': 'Next slide',
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (!stepState().disabled) ctx.goTo(ctx.state().page + 1, "next", e)
+        if (!stepState().disabled) {
+          ctx.goTo(ctx.state().page + 1, 'next', e)
+        }
       },
     },
   })
 }
 
 export function CarouselPlayToggle(
-  props: Omit<PartProps<"button", CarouselPlayToggleState>, "type">
+  props: Omit<PartProps<'button', CarouselPlayToggleState>, 'type'>,
 ) {
-  const ctx = useCarousel("PlayToggle")
-  return renderPart("button", props, ctx.state, {
+  const ctx = useCarousel('PlayToggle')
+  return renderPart('button', props, ctx.state, {
     attrs: () => ({
-      type: "button",
-      "aria-pressed": ctx.state().playing ? "true" : "false",
-      "aria-label": ctx.state().playing ? "Pause autoplay" : "Start autoplay",
+      type: 'button',
+      'aria-pressed': ctx.state().playing ? 'true' : 'false',
+      'aria-label': ctx.state().playing ? 'Pause autoplay' : 'Start autoplay',
     }),
     handlers: {
-      onClick: (e: MouseEvent) => ctx.setPlaying(!ctx.state().playing, "toggle", e),
+      onClick: (e: MouseEvent) => ctx.setPlaying(!ctx.state().playing, 'toggle', e),
     },
   })
 }
 
-export function CarouselIndicatorGroup(props: PartProps<"div", CarouselIndicatorGroupState>) {
-  const ctx = useCarousel("IndicatorGroup")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ role: "tablist" }),
+export function CarouselIndicatorGroup(props: PartProps<'div', CarouselIndicatorGroupState>) {
+  const ctx = useCarousel('IndicatorGroup')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ role: 'tablist' }),
   })
 }
 
 export function CarouselIndicator(
   props: CarouselIndicatorProps &
-    Omit<PartProps<"button", CarouselIndicatorState>, keyof CarouselIndicatorProps | "type">
+    Omit<PartProps<'button', CarouselIndicatorState>, keyof CarouselIndicatorProps | 'type'>,
 ) {
-  const ctx = useCarousel("Indicator")
+  const ctx = useCarousel('Indicator')
   const indState = (): CarouselIndicatorState => ({
     index: props.index,
     current: ctx.state().page === props.index,
     disabled: !!props.disabled,
   })
-  const rest = omit(props, "index", "disabled")
-  return renderPart("button", rest, indState, {
+  const rest = omit(props, 'index', 'disabled')
+  return renderPart('button', rest, indState, {
     attrs: () => ({
-      type: "button",
-      role: "tab",
+      type: 'button',
+      role: 'tab',
       disabled: indState().disabled,
-      "aria-selected": indState().current ? "true" : "false",
-      "aria-label": `Slide ${props.index + 1}`,
-      "data-current": indState().current ? "" : undefined,
+      'aria-selected': indState().current ? 'true' : 'false',
+      'aria-label': `Slide ${props.index + 1}`,
+      'data-current': indState().current ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (!indState().disabled) ctx.goTo(props.index, "indicator", e)
+        if (!indState().disabled) {
+          ctx.goTo(props.index, 'indicator', e)
+        }
       },
     },
   })

@@ -1,17 +1,16 @@
-import { createContext, createSignal, omit, useContext } from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import type { InputValueChangeReason } from "./input"
+import { createContext, createSignal, omit, useContext } from 'solid-js'
 
-export type PasswordInputVisibleChangeReason = "trigger-press" | "imperative"
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import type { InputValueChangeReason } from './input'
+
+export type PasswordInputVisibleChangeReason = 'trigger-press' | 'imperative'
 
 export type PasswordInputApi = {
   setValue: (value: string, options?: ChangeOptions<InputValueChangeReason>) => void
@@ -35,7 +34,7 @@ export type PasswordInputOptions = {
   defaultVisible?: boolean
   onVisibleChange?: (
     visible: boolean,
-    details: ChangeDetails<PasswordInputVisibleChangeReason>
+    details: ChangeDetails<PasswordInputVisibleChangeReason>,
   ) => void
   disabled?: boolean
   readOnly?: boolean
@@ -66,13 +65,15 @@ const PasswordInputContext = createContext<PasswordContextValue | null>(null)
 
 function usePasswordContext(part: string): PasswordContextValue {
   const ctx = useContext(PasswordInputContext)
-  if (!ctx) throw new Error(`<PasswordInput${part}> must be used inside <PasswordInput>.`)
+  if (!ctx) {
+    throw new Error(`<PasswordInput${part}> must be used inside <PasswordInput>.`)
+  }
   return ctx
 }
 
 export function PasswordInput(
   props: PasswordInputOptions &
-    Omit<PartProps<"div", PasswordInputState>, "defaultValue" | "onChange">
+    Omit<PartProps<'div', PasswordInputState>, 'defaultValue' | 'onChange'>,
 ) {
   const field = useFieldControl()
   let rootEl: HTMLElement | undefined
@@ -81,7 +82,7 @@ export function PasswordInput(
 
   const [value, setValue] = createControlledSignal<string>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? "",
+    defaultValue: () => props.defaultValue ?? '',
   })
   const [visible, setVisible] = createControlledSignal<boolean>({
     value: () => props.visible,
@@ -96,18 +97,22 @@ export function PasswordInput(
     next: string,
     reason: InputValueChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = value()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setValue(next)
     reg.emit({
-      key: "value",
-      previous: "[redacted]",
-      value: "[redacted]",
+      key: 'value',
+      previous: '[redacted]',
+      value: '[redacted]',
       reason: details.reason,
       source: details.source,
     })
@@ -117,22 +122,26 @@ export function PasswordInput(
     next: boolean,
     reason: PasswordInputVisibleChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = visible()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onVisibleChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setVisible(next)
   }
 
   const api: PasswordInputApi = {
     setValue: (next, opts) =>
-      applyValue(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applyValue(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     setVisible: (next, opts) =>
-      applyVisible(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
-    toggleVisible: () => applyVisible(!visible(), "imperative"),
+      applyVisible(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
+    toggleVisible: () => applyVisible(!visible(), 'imperative'),
     getValue: value,
     isVisible: visible,
   }
@@ -140,12 +149,12 @@ export function PasswordInput(
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "password-input",
+    component: 'password-input',
     getElements: () => [inputEl, rootEl],
-    getState: () => ({ value: value() ? "[redacted]" : "", visible: visible() }),
+    getState: () => ({ value: value() ? '[redacted]' : '', visible: visible() }),
     getDisabled: () => isDisabled() || isReadOnly(),
     actions: {
-      setValue: (next) => api.setValue(String(next ?? "")),
+      setValue: (next) => api.setValue(String(next ?? '')),
       toggleVisible: () => api.toggleVisible(),
     },
   })
@@ -161,18 +170,18 @@ export function PasswordInput(
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "visible",
-    "defaultVisible",
-    "onVisibleChange",
-    "disabled",
-    "readOnly",
-    "required",
-    "invalid",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'visible',
+    'defaultVisible',
+    'onVisibleChange',
+    'disabled',
+    'readOnly',
+    'required',
+    'invalid',
+    'controller',
+    'debug',
   )
 
   return (
@@ -180,24 +189,24 @@ export function PasswordInput(
       value={{
         state,
         applyValue,
-        toggleVisible: (event) => applyVisible(!visible(), "trigger-press", event),
+        toggleVisible: (event) => applyVisible(!visible(), 'trigger-press', event),
         setFocused,
         setInputEl: (el) => {
           inputEl = el
         },
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
         },
         attrs: () => {
           const s = state()
           return {
-            "data-visible": s.visible ? "" : undefined,
-            "data-focused": s.focused ? "" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
+            'data-visible': s.visible ? '' : undefined,
+            'data-focused': s.focused ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
           }
         },
       })}
@@ -206,28 +215,28 @@ export function PasswordInput(
 }
 
 export function PasswordInputControl(
-  props: Omit<PartProps<"input", PasswordInputState>, "type" | "value">
+  props: Omit<PartProps<'input', PasswordInputState>, 'type' | 'value'>,
 ) {
-  const ctx = usePasswordContext("Control")
+  const ctx = usePasswordContext('Control')
   const field = useFieldControl()
-  return renderPart("input", props, ctx.state, {
+  return renderPart('input', props, ctx.state, {
     ref: ctx.setInputEl,
     attrs: () => {
       const s = ctx.state()
       return {
         id: props.id ?? field?.controlId,
         name: props.name ?? field?.name(),
-        type: s.visible ? "text" : "password",
+        type: s.visible ? 'text' : 'password',
         value: s.value,
         disabled: s.disabled || undefined,
         readonly: s.readOnly || undefined,
-        "aria-invalid": s.invalid ? "true" : undefined,
-        "aria-describedby": field?.describedBy(),
+        'aria-invalid': s.invalid ? 'true' : undefined,
+        'aria-describedby': field?.describedBy(),
       }
     },
     handlers: {
       onInput: (event: Event) => {
-        ctx.applyValue((event.currentTarget as HTMLInputElement).value, "input-change", event)
+        ctx.applyValue((event.currentTarget as HTMLInputElement).value, 'input-change', event)
       },
       onFocus: () => ctx.setFocused(true),
       onBlur: () => ctx.setFocused(false),
@@ -235,19 +244,17 @@ export function PasswordInputControl(
   })
 }
 
-export function PasswordInputToggle(
-  props: Omit<PartProps<"button", PasswordInputState>, "type">
-) {
-  const ctx = usePasswordContext("Toggle")
-  return renderPart("button", props, ctx.state, {
+export function PasswordInputToggle(props: Omit<PartProps<'button', PasswordInputState>, 'type'>) {
+  const ctx = usePasswordContext('Toggle')
+  return renderPart('button', props, ctx.state, {
     attrs: () => {
       const s = ctx.state()
       return {
-        type: "button",
-        "aria-pressed": s.visible ? "true" : "false",
-        "aria-label": s.visible ? "Hide password" : "Show password",
+        type: 'button',
+        'aria-pressed': s.visible ? 'true' : 'false',
+        'aria-label': s.visible ? 'Hide password' : 'Show password',
         disabled: s.disabled || undefined,
-        "data-visible": s.visible ? "" : undefined,
+        'data-visible': s.visible ? '' : undefined,
       }
     },
     handlers: {

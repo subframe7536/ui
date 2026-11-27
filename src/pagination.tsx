@@ -1,26 +1,20 @@
-import {
-  createContext,
-  createUniqueId,
-  omit,
-  useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type PaginationPageChangeReason =
-  | "page"
-  | "previous"
-  | "next"
-  | "first"
-  | "last"
-  | "programmatic"
+  | 'page'
+  | 'previous'
+  | 'next'
+  | 'first'
+  | 'last'
+  | 'programmatic'
 
 export type PaginationChangeOptions = ChangeOptions<PaginationPageChangeReason>
 
@@ -32,18 +26,20 @@ export type PaginationRangeOptions = {
 }
 
 export type PaginationRangeItem =
-  | { type: "page"; page: number; current: boolean }
-  | { type: "ellipsis"; key: "start-ellipsis" | "end-ellipsis" }
+  | { type: 'page'; page: number; current: boolean }
+  | { type: 'ellipsis'; key: 'start-ellipsis' | 'end-ellipsis' }
 
-export function paginationRange(options: PaginationRangeOptions): PaginationRangeItem[] {
+export function paginationRange(options: PaginationRangeOptions): Array<PaginationRangeItem> {
   const count = Math.max(1, Math.floor(options.count))
   const page = Math.min(count, Math.max(1, Math.floor(options.page)))
   const siblingCount = Math.max(0, Math.floor(options.siblingCount ?? 1))
   const boundaryCount = Math.max(0, Math.floor(options.boundaryCount ?? 1))
 
-  const range = (start: number, end: number): number[] => {
-    const out: number[] = []
-    for (let i = start; i <= end; i++) out.push(i)
+  const range = (start: number, end: number): Array<number> => {
+    const out: Array<number> = []
+    for (let i = start; i <= end; i++) {
+      out.push(i)
+    }
     return out
   }
 
@@ -52,33 +48,39 @@ export function paginationRange(options: PaginationRangeOptions): PaginationRang
 
   const siblingsStart = Math.max(
     Math.min(page - siblingCount, count - boundaryCount - siblingCount * 2 - 1),
-    boundaryCount + 2
+    boundaryCount + 2,
   )
   const siblingsEnd = Math.min(
     Math.max(page + siblingCount, boundaryCount + siblingCount * 2 + 2),
-    (endPages[0] ?? count + 1) - 2
+    (endPages[0] ?? count + 1) - 2,
   )
 
-  const result: PaginationRangeItem[] = []
-  const pushPage = (p: number) => result.push({ type: "page", page: p, current: p === page })
+  const result: Array<PaginationRangeItem> = []
+  const pushPage = (p: number) => result.push({ type: 'page', page: p, current: p === page })
 
-  for (const p of startPages) pushPage(p)
+  for (const p of startPages) {
+    pushPage(p)
+  }
 
   if (siblingsStart > boundaryCount + 2) {
-    result.push({ type: "ellipsis", key: "start-ellipsis" })
+    result.push({ type: 'ellipsis', key: 'start-ellipsis' })
   } else if (boundaryCount + 1 < count - boundaryCount) {
     pushPage(boundaryCount + 1)
   }
 
-  for (const p of range(siblingsStart, siblingsEnd)) pushPage(p)
+  for (const p of range(siblingsStart, siblingsEnd)) {
+    pushPage(p)
+  }
 
   if (siblingsEnd < count - boundaryCount - 1) {
-    result.push({ type: "ellipsis", key: "end-ellipsis" })
+    result.push({ type: 'ellipsis', key: 'end-ellipsis' })
   } else if (count - boundaryCount > boundaryCount) {
     pushPage(count - boundaryCount)
   }
 
-  for (const p of endPages) pushPage(p)
+  for (const p of endPages) {
+    pushPage(p)
+  }
 
   return result
 }
@@ -102,10 +104,7 @@ export type PaginationOptions = {
   page?: number
   defaultPage?: number
   count: number
-  onPageChange?: (
-    page: number,
-    details: ChangeDetails<PaginationPageChangeReason>
-  ) => void
+  onPageChange?: (page: number, details: ChangeDetails<PaginationPageChangeReason>) => void
   siblingCount?: number
   boundaryCount?: number
   disabled?: boolean
@@ -119,7 +118,7 @@ export type PaginationState = {
   canPrevious: boolean
   canNext: boolean
   disabled: boolean
-  range: PaginationRangeItem[]
+  range: Array<PaginationRangeItem>
 }
 
 export type PaginationPrimitive = PaginationState
@@ -141,12 +140,14 @@ const PaginationContext = createContext<PaginationContextValue | null>(null)
 
 function usePagination(part: string): PaginationContextValue {
   const ctx = useContext(PaginationContext)
-  if (!ctx) throw new Error(`<Pagination${part}> must be used inside <Pagination>.`)
+  if (!ctx) {
+    throw new Error(`<Pagination${part}> must be used inside <Pagination>.`)
+  }
   return ctx
 }
 
 export function Pagination(
-  props: PaginationOptions & Omit<PartProps<"nav", PaginationState>, keyof PaginationOptions>
+  props: PaginationOptions & Omit<PartProps<'nav', PaginationState>, keyof PaginationOptions>,
 ) {
   const id = `ui-pagination-${createUniqueId()}`
   const count = () => Math.max(1, Math.floor(props.count))
@@ -185,21 +186,27 @@ export function Pagination(
         previous: unknown
         value: unknown
         reason: string
-        source: ChangeDetails["source"]
+        source: ChangeDetails['source']
       }) => void)
     | undefined
 
   const goTo = (next: number, reason: PaginationPageChangeReason, event?: Event) => {
-    if (disabled()) return
+    if (disabled()) {
+      return
+    }
     const prev = currentPage()
     const clamped = Math.min(count(), Math.max(1, Math.floor(next)))
-    if (clamped === prev) return
+    if (clamped === prev) {
+      return
+    }
     const details = createChangeDetails(reason, event)
     props.onPageChange?.(clamped, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawPage(clamped)
     emitChange?.({
-      key: "page",
+      key: 'page',
       previous: prev,
       value: clamped,
       reason,
@@ -208,18 +215,18 @@ export function Pagination(
   }
 
   const api: PaginationApi = {
-    setPage: (p, opts) => goTo(p, opts?.reason ?? "programmatic", opts?.event),
-    next: () => goTo(currentPage() + 1, "next"),
-    previous: () => goTo(currentPage() - 1, "previous"),
-    first: () => goTo(1, "first"),
-    last: () => goTo(count(), "last"),
+    setPage: (p, opts) => goTo(p, opts?.reason ?? 'programmatic', opts?.event),
+    next: () => goTo(currentPage() + 1, 'next'),
+    previous: () => goTo(currentPage() - 1, 'previous'),
+    first: () => goTo(1, 'first'),
+    last: () => goTo(count(), 'last'),
     getPage: currentPage,
   }
 
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "pagination",
+    component: 'pagination',
     getElements: () => [rootEl],
     getState: () => ({ page: currentPage(), count: count(), disabled: disabled() }),
     getDisabled: disabled,
@@ -233,48 +240,48 @@ export function Pagination(
 
   const rest = omit(
     props,
-    "page",
-    "defaultPage",
-    "count",
-    "onPageChange",
-    "siblingCount",
-    "boundaryCount",
-    "disabled",
-    "controller",
-    "debug"
+    'page',
+    'defaultPage',
+    'count',
+    'onPageChange',
+    'siblingCount',
+    'boundaryCount',
+    'disabled',
+    'controller',
+    'debug',
   )
 
   return (
     <PaginationContext value={{ id, state, goTo }}>
-      {renderPart("nav", rest, state, {
+      {renderPart('nav', rest, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => ({
           id,
-          "aria-label": props["aria-label"] ?? "Pagination",
-          "data-disabled": disabled() ? "" : undefined,
+          'aria-label': props['aria-label'] ?? 'Pagination',
+          'data-disabled': disabled() ? '' : undefined,
         }),
       })}
     </PaginationContext>
   )
 }
 
-export function PaginationList(props: PartProps<"ul", PaginationState>) {
-  const ctx = usePagination("List")
-  return renderPart("ul", props, ctx.state)
+export function PaginationList(props: PartProps<'ul', PaginationState>) {
+  const ctx = usePagination('List')
+  return renderPart('ul', props, ctx.state)
 }
 
-export function PaginationItem(props: PartProps<"li", PaginationState>) {
-  const ctx = usePagination("Item")
-  return renderPart("li", props, ctx.state)
+export function PaginationItem(props: PartProps<'li', PaginationState>) {
+  const ctx = usePagination('Item')
+  return renderPart('li', props, ctx.state)
 }
 
 export function PaginationLink(
   props: PaginationLinkProps &
-    Omit<PartProps<"button", PaginationLinkState>, keyof PaginationLinkProps | "type">
+    Omit<PartProps<'button', PaginationLinkState>, keyof PaginationLinkProps | 'type'>,
 ) {
-  const ctx = usePagination("Link")
+  const ctx = usePagination('Link')
   const linkState = (): PaginationLinkState => {
     const s = ctx.state()
     return {
@@ -283,126 +290,128 @@ export function PaginationLink(
       disabled: s.disabled || !!props.disabled,
     }
   }
-  const rest = omit(props, "page", "disabled")
-  const resolvedProps: PartProps<"button", PaginationLinkState> =
+  const rest = omit(props, 'page', 'disabled')
+  const resolvedProps: PartProps<'button', PaginationLinkState> =
     props.children !== undefined ? rest : { ...rest, children: () => String(props.page) }
 
-  return renderPart("button", resolvedProps, linkState, {
+  return renderPart('button', resolvedProps, linkState, {
     attrs: () => {
       const s = linkState()
       return {
-        type: "button",
+        type: 'button',
         disabled: s.disabled,
-        "aria-current": s.current ? "page" : undefined,
-        "data-current": s.current ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
+        'aria-current': s.current ? 'page' : undefined,
+        'data-current': s.current ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
       }
     },
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (!linkState().disabled) ctx.goTo(props.page, "page", e)
+        if (!linkState().disabled) {
+          ctx.goTo(props.page, 'page', e)
+        }
       },
     },
   })
 }
 
-export function PaginationPrevious(
-  props: Omit<PartProps<"button", PaginationStepState>, "type">
-) {
-  const ctx = usePagination("Previous")
+export function PaginationPrevious(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
+  const ctx = usePagination('Previous')
   const stepState = (): PaginationStepState => {
     const s = ctx.state()
     return { ...s, disabled: !s.canPrevious }
   }
-  return renderPart("button", props, stepState, {
+  return renderPart('button', props, stepState, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: stepState().disabled,
-      "aria-label": "Previous page",
-      "data-disabled": stepState().disabled ? "" : undefined,
+      'aria-label': 'Previous page',
+      'data-disabled': stepState().disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (ctx.state().canPrevious) ctx.goTo(ctx.state().page - 1, "previous", e)
+        if (ctx.state().canPrevious) {
+          ctx.goTo(ctx.state().page - 1, 'previous', e)
+        }
       },
     },
   })
 }
 
-export function PaginationNext(
-  props: Omit<PartProps<"button", PaginationStepState>, "type">
-) {
-  const ctx = usePagination("Next")
+export function PaginationNext(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
+  const ctx = usePagination('Next')
   const stepState = (): PaginationStepState => {
     const s = ctx.state()
     return { ...s, disabled: !s.canNext }
   }
-  return renderPart("button", props, stepState, {
+  return renderPart('button', props, stepState, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: stepState().disabled,
-      "aria-label": "Next page",
-      "data-disabled": stepState().disabled ? "" : undefined,
+      'aria-label': 'Next page',
+      'data-disabled': stepState().disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (ctx.state().canNext) ctx.goTo(ctx.state().page + 1, "next", e)
+        if (ctx.state().canNext) {
+          ctx.goTo(ctx.state().page + 1, 'next', e)
+        }
       },
     },
   })
 }
 
-export function PaginationFirst(
-  props: Omit<PartProps<"button", PaginationStepState>, "type">
-) {
-  const ctx = usePagination("First")
+export function PaginationFirst(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
+  const ctx = usePagination('First')
   const stepState = (): PaginationStepState => {
     const s = ctx.state()
     return { ...s, disabled: !s.canPrevious }
   }
-  return renderPart("button", props, stepState, {
+  return renderPart('button', props, stepState, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: stepState().disabled,
-      "aria-label": "First page",
-      "data-disabled": stepState().disabled ? "" : undefined,
+      'aria-label': 'First page',
+      'data-disabled': stepState().disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (ctx.state().canPrevious) ctx.goTo(1, "first", e)
+        if (ctx.state().canPrevious) {
+          ctx.goTo(1, 'first', e)
+        }
       },
     },
   })
 }
 
-export function PaginationLast(
-  props: Omit<PartProps<"button", PaginationStepState>, "type">
-) {
-  const ctx = usePagination("Last")
+export function PaginationLast(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
+  const ctx = usePagination('Last')
   const stepState = (): PaginationStepState => {
     const s = ctx.state()
     return { ...s, disabled: !s.canNext }
   }
-  return renderPart("button", props, stepState, {
+  return renderPart('button', props, stepState, {
     attrs: () => ({
-      type: "button",
+      type: 'button',
       disabled: stepState().disabled,
-      "aria-label": "Last page",
-      "data-disabled": stepState().disabled ? "" : undefined,
+      'aria-label': 'Last page',
+      'data-disabled': stepState().disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
-        if (ctx.state().canNext) ctx.goTo(ctx.state().count, "last", e)
+        if (ctx.state().canNext) {
+          ctx.goTo(ctx.state().count, 'last', e)
+        }
       },
     },
   })
 }
 
-export function PaginationEllipsis(props: PartProps<"span", PaginationState>) {
-  const ctx = usePagination("Ellipsis")
-  const resolvedProps: PartProps<"span", PaginationState> =
-    props.children !== undefined ? props : { ...props, children: "…" }
-  return renderPart("span", resolvedProps, ctx.state, {
-    attrs: () => ({ "aria-hidden": true }),
+export function PaginationEllipsis(props: PartProps<'span', PaginationState>) {
+  const ctx = usePagination('Ellipsis')
+  const resolvedProps: PartProps<'span', PaginationState> =
+    props.children !== undefined ? props : { ...props, children: '…' }
+  return renderPart('span', resolvedProps, ctx.state, {
+    attrs: () => ({ 'aria-hidden': true }),
   })
 }

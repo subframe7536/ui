@@ -6,29 +6,21 @@ import {
   omit,
   Show,
   useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import {
-  navigateRoving,
-  type Direction,
-  type Orientation,
-} from "./foundation/focus"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { navigateRoving } from './foundation/focus'
+import type { Direction, Orientation } from './foundation/focus'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type TabsOrientation = Orientation
 export type TabsDirection = Direction
-export type TabsValueChangeReason =
-  | "item-press"
-  | "list-navigation"
-  | "find-in-page"
-  | "imperative"
+export type TabsValueChangeReason = 'item-press' | 'list-navigation' | 'find-in-page' | 'imperative'
 
 export type TabsChangeOptions = ChangeOptions<TabsValueChangeReason>
 
@@ -41,20 +33,15 @@ export function createTabsController<T extends string = string>() {
   return createController<TabsApi<T>>()
 }
 
-export type TabsController<T extends string = string> = ReturnType<
-  typeof createTabsController<T>
->
+export type TabsController<T extends string = string> = ReturnType<typeof createTabsController<T>>
 
 export type TabsOptions<T extends string = string> = {
   value?: T
   defaultValue?: T
-  onValueChange?: (
-    value: T,
-    details: ChangeDetails<TabsValueChangeReason>
-  ) => void
+  onValueChange?: (value: T, details: ChangeDetails<TabsValueChangeReason>) => void
   orientation?: TabsOrientation
   direction?: TabsDirection
-  activationMode?: "automatic" | "manual"
+  activationMode?: 'automatic' | 'manual'
   loop?: boolean
   disabled?: boolean
   controller?: TabsController<T>
@@ -112,7 +99,7 @@ type TabsContextValue = {
   value: () => string | undefined
   orientation: () => TabsOrientation
   direction: () => TabsDirection
-  activationMode: () => "automatic" | "manual"
+  activationMode: () => 'automatic' | 'manual'
   loop: () => boolean
   disabled: () => boolean
   select: (value: string, reason: TabsValueChangeReason, event?: Event) => void
@@ -129,18 +116,19 @@ const TabsContext = createContext<TabsContextValue | null>(null)
 const TabStateContext = createContext<() => TabsTabState>(() => ({
   selected: false,
   disabled: false,
-  orientation: "horizontal",
+  orientation: 'horizontal',
 }))
 
 function useTabs(part: string): TabsContextValue {
   const ctx = useContext(TabsContext)
-  if (!ctx) throw new Error(`<Tabs${part}> must be used inside <Tabs>.`)
+  if (!ctx) {
+    throw new Error(`<Tabs${part}> must be used inside <Tabs>.`)
+  }
   return ctx
 }
 
 export function Tabs<T extends string = string>(
-  props: TabsOptions<T> &
-    Omit<PartProps<"div", TabsState<T>>, "defaultValue" | "onChange">
+  props: TabsOptions<T> & Omit<PartProps<'div', TabsState<T>>, 'defaultValue' | 'onChange'>,
 ) {
   const baseId = `ui-tabs-${createUniqueId()}`
   let rootEl: HTMLElement | undefined
@@ -153,26 +141,32 @@ export function Tabs<T extends string = string>(
     defaultValue: () => props.defaultValue,
   })
 
-  const orientation = () => props.orientation ?? "horizontal"
-  const direction = () => props.direction ?? "ltr"
-  const activationMode = () => props.activationMode ?? "automatic"
+  const orientation = () => props.orientation ?? 'horizontal'
+  const direction = () => props.direction ?? 'ltr'
+  const activationMode = () => props.activationMode ?? 'automatic'
   const isDisabled = () => !!props.disabled
 
   const applyValue = (
     next: T,
     reason: TabsValueChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
-    if (isDisabled() && reason !== "imperative") return
+    if (isDisabled() && reason !== 'imperative') {
+      return
+    }
     const prev = value()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setValue(next)
     reg.emit({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -182,14 +176,14 @@ export function Tabs<T extends string = string>(
 
   const api: TabsApi<T> = {
     setValue: (next, opts) =>
-      applyValue(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applyValue(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     getValue: value,
   }
 
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "tabs",
+    component: 'tabs',
     getElements: () => [rootEl],
     getState: () => ({ value: value() }),
     getItems: () =>
@@ -210,16 +204,16 @@ export function Tabs<T extends string = string>(
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "orientation",
-    "direction",
-    "activationMode",
-    "loop",
-    "disabled",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'orientation',
+    'direction',
+    'activationMode',
+    'loop',
+    'disabled',
+    'controller',
+    'debug',
   )
 
   return (
@@ -249,28 +243,28 @@ export function Tabs<T extends string = string>(
         setHoveredValue,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
         },
         attrs: () => ({
-          "data-orientation": orientation(),
-          "data-disabled": isDisabled() ? "" : undefined,
+          'data-orientation': orientation(),
+          'data-disabled': isDisabled() ? '' : undefined,
         }),
       })}
     </TabsContext>
   )
 }
 
-export function TabsList(props: PartProps<"div", TabsListState>) {
-  const tabs = useTabs("List")
+export function TabsList(props: PartProps<'div', TabsListState>) {
+  const tabs = useTabs('List')
   const state = (): TabsListState => ({ orientation: tabs.orientation() })
-  return renderPart("div", props, state, {
+  return renderPart('div', props, state, {
     ref: tabs.setListEl,
     attrs: () => ({
-      role: "tablist",
-      "aria-orientation": tabs.orientation(),
-      "data-orientation": tabs.orientation(),
+      role: 'tablist',
+      'aria-orientation': tabs.orientation(),
+      'data-orientation': tabs.orientation(),
     }),
     handlers: {
       onPointerLeave: () => tabs.setHoveredValue(undefined),
@@ -279,9 +273,9 @@ export function TabsList(props: PartProps<"div", TabsListState>) {
 }
 
 export function TabsTab<T extends string = string>(
-  props: TabsTabProps<T> & Omit<PartProps<"button", TabsTabState>, "value" | "type">
+  props: TabsTabProps<T> & Omit<PartProps<'button', TabsTabState>, 'value' | 'type'>,
 ) {
-  const tabs = useTabs("Tab")
+  const tabs = useTabs('Tab')
   let tabEl: HTMLElement | undefined
 
   const state = (): TabsTabState => ({
@@ -290,41 +284,49 @@ export function TabsTab<T extends string = string>(
     orientation: tabs.orientation(),
   })
 
-  const rest = omit(props, "value", "disabled")
+  const rest = omit(props, 'value', 'disabled')
 
   return (
     <TabStateContext value={state}>
-      {renderPart("button", rest, state, {
+      {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => {
           tabEl = el
-          if (el) tabs.registerTab(props.value, el)
+          if (el) {
+            tabs.registerTab(props.value, el)
+          }
         },
         attrs: () => {
           const s = state()
           return {
-            type: "button",
-            role: "tab",
+            type: 'button',
+            role: 'tab',
             id: props.id ?? `${tabs.baseId}-tab-${props.value}`,
-            "aria-selected": s.selected ? "true" : "false",
-            "aria-controls": `${tabs.baseId}-panel-${props.value}`,
+            'aria-selected': s.selected ? 'true' : 'false',
+            'aria-controls': `${tabs.baseId}-panel-${props.value}`,
             tabindex: s.selected ? 0 : -1,
             disabled: s.disabled || undefined,
-            "data-selected": s.selected ? "" : undefined,
-            "data-state": s.selected ? "active" : "inactive",
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-orientation": s.orientation,
+            'data-selected': s.selected ? '' : undefined,
+            'data-state': s.selected ? 'active' : 'inactive',
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-orientation': s.orientation,
           }
         },
         handlers: {
           onClick: (event: MouseEvent) => {
-            if (state().disabled) return
-            tabs.select(props.value, "item-press", event)
+            if (state().disabled) {
+              return
+            }
+            tabs.select(props.value, 'item-press', event)
           },
           onPointerEnter: () => {
-            if (!state().disabled) tabs.setHoveredValue(props.value)
+            if (!state().disabled) {
+              tabs.setHoveredValue(props.value)
+            }
           },
           onKeyDown: (event: KeyboardEvent) => {
-            if (!tabEl) return
+            if (!tabEl) {
+              return
+            }
             const entries = tabs.getTabs()
             const target = navigateRoving(
               event,
@@ -334,12 +336,12 @@ export function TabsTab<T extends string = string>(
                 orientation: tabs.orientation(),
                 direction: tabs.direction(),
                 loop: tabs.loop(),
-              }
+              },
             )
-            if (target && tabs.activationMode() === "automatic") {
+            if (target && tabs.activationMode() === 'automatic') {
               const matched = entries.find((e) => e.el === target)
               if (matched) {
-                tabs.select(matched.value, "list-navigation", event)
+                tabs.select(matched.value, 'list-navigation', event)
               }
             }
           },
@@ -350,46 +352,50 @@ export function TabsTab<T extends string = string>(
 }
 
 export function TabsTabIcon(
-  props: TabsTabIconProps & Omit<PartProps<"span", TabsTabIconState>, "mirror">
+  props: TabsTabIconProps & Omit<PartProps<'span', TabsTabIconState>, 'mirror'>,
 ) {
   const state = useContext(TabStateContext)
-  const rest = omit(props, "mirror")
-  return renderPart("span", rest, state, {
+  const rest = omit(props, 'mirror')
+  return renderPart('span', rest, state, {
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-mirror": props.mirror ? "" : undefined,
+      'aria-hidden': 'true',
+      'data-mirror': props.mirror ? '' : undefined,
     }),
   })
 }
 
 export function TabsIndicator(
-  props: TabsIndicatorProps & Omit<PartProps<"span", TabsIndicatorState>, "followHover">
+  props: TabsIndicatorProps & Omit<PartProps<'span', TabsIndicatorState>, 'followHover'>,
 ) {
-  const tabs = useTabs("Indicator")
+  const tabs = useTabs('Indicator')
   const [vars, setVars] = createSignal<Record<string, string>>({})
 
   createEffect(
-    () => (props.followHover ? tabs.hoveredValue() ?? tabs.value() : tabs.value()),
+    () => (props.followHover ? (tabs.hoveredValue() ?? tabs.value()) : tabs.value()),
     (active) => {
-      if (!active) return
+      if (!active) {
+        return
+      }
       const tabEl = tabs.getTabElement(active)
-      if (!tabEl) return
+      if (!tabEl) {
+        return
+      }
       setVars({
-        "--active-tab-left": `${tabEl.offsetLeft}px`,
-        "--active-tab-top": `${tabEl.offsetTop}px`,
-        "--active-tab-width": `${tabEl.offsetWidth}px`,
-        "--active-tab-height": `${tabEl.offsetHeight}px`,
+        '--active-tab-left': `${tabEl.offsetLeft}px`,
+        '--active-tab-top': `${tabEl.offsetTop}px`,
+        '--active-tab-width': `${tabEl.offsetWidth}px`,
+        '--active-tab-height': `${tabEl.offsetHeight}px`,
       })
-    }
+    },
   )
 
   const state = (): TabsIndicatorState => ({ orientation: tabs.orientation() })
-  const rest = omit(props, "followHover")
+  const rest = omit(props, 'followHover')
 
-  return renderPart("span", rest, state, {
+  return renderPart('span', rest, state, {
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-orientation": tabs.orientation(),
+      'aria-hidden': 'true',
+      'data-orientation': tabs.orientation(),
     }),
     style: vars,
   })
@@ -397,39 +403,34 @@ export function TabsIndicator(
 
 export function TabsPanel<T extends string = string>(
   props: TabsPanelProps<T> &
-    Omit<PartProps<"div", TabsPanelState>, "value" | "keepMounted" | "hiddenUntilFound">
+    Omit<PartProps<'div', TabsPanelState>, 'value' | 'keepMounted' | 'hiddenUntilFound'>,
 ) {
-  const tabs = useTabs("Panel")
+  const tabs = useTabs('Panel')
   const state = (): TabsPanelState => ({
     selected: tabs.value() === props.value,
     orientation: tabs.orientation(),
   })
-  const rest = omit(props, "value", "keepMounted", "hiddenUntilFound")
-  const shouldRender = () =>
-    state().selected || !!props.keepMounted || !!props.hiddenUntilFound
+  const rest = omit(props, 'value', 'keepMounted', 'hiddenUntilFound')
+  const shouldRender = () => state().selected || !!props.keepMounted || !!props.hiddenUntilFound
 
   return (
     <Show when={shouldRender()}>
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         attrs: () => {
           const s = state()
           return {
-            role: "tabpanel",
+            role: 'tabpanel',
             id: props.id ?? `${tabs.baseId}-panel-${props.value}`,
-            "aria-labelledby": `${tabs.baseId}-tab-${props.value}`,
+            'aria-labelledby': `${tabs.baseId}-tab-${props.value}`,
             tabindex: s.selected ? 0 : -1,
-            hidden: s.selected
-              ? undefined
-              : props.hiddenUntilFound
-                ? ("until-found" as unknown as boolean)
-                : true,
-            "data-selected": s.selected ? "" : undefined,
-            "data-state": s.selected ? "active" : "inactive",
-            "data-orientation": s.orientation,
+            hidden: s.selected ? undefined : props.hiddenUntilFound ? 'until-found' : true,
+            'data-selected': s.selected ? '' : undefined,
+            'data-state': s.selected ? 'active' : 'inactive',
+            'data-orientation': s.orientation,
           }
         },
         handlers: {
-          onBeforeMatch: (event: Event) => tabs.select(props.value, "find-in-page", event),
+          onBeforeMatch: (event: Event) => tabs.select(props.value, 'find-in-page', event),
         },
       })}
     </Show>

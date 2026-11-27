@@ -1,5 +1,5 @@
-import type { JSX } from "@solidjs/web"
-import { createSignal, For } from "solid-js"
+import type { JSX } from '@solidjs/web'
+import { createSignal, For } from 'solid-js'
 
 export type OverlayEntry<Result = unknown> = {
   id: string
@@ -8,9 +8,9 @@ export type OverlayEntry<Result = unknown> = {
 }
 
 export type Overlays = {
-  entries: () => OverlayEntry[]
+  entries: () => Array<OverlayEntry>
   open: <Result = unknown>(
-    render: (close: (result?: Result) => void) => JSX.Element
+    render: (close: (result?: Result) => void) => JSX.Element,
   ) => Promise<Result | undefined>
   close: (id: string, result?: unknown) => void
   closeAll: () => void
@@ -19,24 +19,26 @@ export type Overlays = {
 let overlayCounter = 1
 
 export function createOverlays(): Overlays {
-  const [entries, setEntries] = createSignal<OverlayEntry[]>([])
+  const [entries, setEntries] = createSignal<Array<OverlayEntry>>([])
 
   const close = (id: string, result?: unknown) => {
     const current = entries()
     const target = current.find((e) => e.id === id)
-    if (!target) return
+    if (!target) {
+      return
+    }
     setEntries(current.filter((e) => e.id !== id))
     target.resolve(result)
   }
 
-  const open = <Result = unknown>(
-    render: (closeFn: (result?: Result) => void) => JSX.Element
+  const open = <Result = unknown,>(
+    render: (closeFn: (result?: Result) => void) => JSX.Element,
   ): Promise<Result | undefined> => {
     const id = `ui-overlay-${overlayCounter++}`
     return new Promise<Result | undefined>((resolve) => {
       const entry: OverlayEntry = {
         id,
-        render: (c) => render(c as (result?: Result) => void),
+        render: (c) => render(c),
         resolve: (res) => resolve(res as Result | undefined),
       }
       setEntries((prev) => [...prev, entry])

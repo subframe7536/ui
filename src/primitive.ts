@@ -6,7 +6,7 @@ export {
   type PartInternalProps,
   type PartProps,
   type RenderProp,
-} from "./foundation/render"
+} from './foundation/render'
 export {
   attachController,
   createController,
@@ -15,13 +15,13 @@ export {
   useController,
   useControllerEntry,
   useControllerTarget,
-} from "./foundation/controller"
+} from './foundation/controller'
 export {
   createChangeDetails,
   withSource,
   type ChangeDetails,
   type ChangeOptions,
   type ChangeSource,
-} from "./foundation/details"
-export { createControlledSignal } from "./foundation/state"
-export { registerComponent, type RegisteredComponent } from "./foundation/registry"
+} from './foundation/details'
+export { createControlledSignal } from './foundation/state'
+export { registerComponent, type RegisteredComponent } from './foundation/registry'

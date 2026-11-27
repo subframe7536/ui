@@ -1,7 +1,9 @@
-import { createContext, createUniqueId, omit, useContext } from "solid-js"
-import { renderPart, type PartProps } from "./foundation/render"
+import { createContext, createUniqueId, omit, useContext } from 'solid-js'
 
-export type ProgressStatus = "indeterminate" | "progressing" | "complete"
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+
+export type ProgressStatus = 'indeterminate' | 'progressing' | 'complete'
 export type NumberFormat = Intl.NumberFormatOptions
 
 export type GaugeLabelDetails = {
@@ -40,12 +42,14 @@ const ProgressContext = createContext<ProgressContextValue | null>(null)
 
 function useProgress(part: string): ProgressContextValue {
   const ctx = useContext(ProgressContext)
-  if (!ctx) throw new Error(`<Progress${part}> must be used inside <Progress>.`)
+  if (!ctx) {
+    throw new Error(`<Progress${part}> must be used inside <Progress>.`)
+  }
   return ctx
 }
 
 export function Progress(
-  props: ProgressOptions & Omit<PartProps<"div", ProgressState>, keyof ProgressOptions>
+  props: ProgressOptions & Omit<PartProps<'div', ProgressState>, keyof ProgressOptions>,
 ) {
   const labelId = `ui-progress-label-${createUniqueId()}`
   const min = () => props.min ?? 0
@@ -56,7 +60,7 @@ export function Progress(
     const hi = max()
     const val = props.value ?? null
     if (val === null || Number.isNaN(val)) {
-      return { value: null, min: lo, max: hi, percent: null, status: "indeterminate" }
+      return { value: null, min: lo, max: hi, percent: null, status: 'indeterminate' }
     }
     const clamped = Math.min(hi, Math.max(lo, val))
     const pct = hi > lo ? ((clamped - lo) / (hi - lo)) * 100 : 0
@@ -65,7 +69,7 @@ export function Progress(
       min: lo,
       max: hi,
       percent: pct,
-      status: clamped >= hi ? "complete" : "progressing",
+      status: clamped >= hi ? 'complete' : 'progressing',
     }
   }
 
@@ -79,29 +83,31 @@ export function Progress(
         percent: s.percent,
       })
     }
-    if (s.percent === null) return ""
-    return new Intl.NumberFormat(undefined, props.format ?? { style: "percent" }).format(
-      s.percent / 100
+    if (s.percent === null) {
+      return ''
+    }
+    return new Intl.NumberFormat(undefined, props.format ?? { style: 'percent' }).format(
+      s.percent / 100,
     )
   }
 
-  const rest = omit(props, "value", "min", "max", "format", "getValueLabel", "debug")
+  const rest = omit(props, 'value', 'min', 'max', 'format', 'getValueLabel', 'debug')
 
   return (
     <ProgressContext value={{ state, labelId, formattedValue }}>
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         attrs: () => {
           const s = state()
           return {
-            role: "progressbar",
-            "aria-valuemin": s.min,
-            "aria-valuemax": s.max,
-            "aria-valuenow": s.value ?? undefined,
-            "aria-valuetext": formattedValue() || undefined,
-            "aria-labelledby": labelId,
-            "data-status": s.status,
-            "data-indeterminate": s.status === "indeterminate" ? "" : undefined,
-            "data-complete": s.status === "complete" ? "" : undefined,
+            role: 'progressbar',
+            'aria-valuemin': s.min,
+            'aria-valuemax': s.max,
+            'aria-valuenow': s.value ?? undefined,
+            'aria-valuetext': formattedValue() || undefined,
+            'aria-labelledby': labelId,
+            'data-status': s.status,
+            'data-indeterminate': s.status === 'indeterminate' ? '' : undefined,
+            'data-complete': s.status === 'complete' ? '' : undefined,
           }
         },
       })}
@@ -109,17 +115,17 @@ export function Progress(
   )
 }
 
-export function ProgressTrack(props: PartProps<"div", ProgressState>) {
-  const ctx = useProgress("Track")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ "data-status": ctx.state().status }),
+export function ProgressTrack(props: PartProps<'div', ProgressState>) {
+  const ctx = useProgress('Track')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ 'data-status': ctx.state().status }),
   })
 }
 
-export function ProgressIndicator(props: PartProps<"div", ProgressState>) {
-  const ctx = useProgress("Indicator")
-  return renderPart("div", props, ctx.state, {
-    attrs: () => ({ "data-status": ctx.state().status }),
+export function ProgressIndicator(props: PartProps<'div', ProgressState>) {
+  const ctx = useProgress('Indicator')
+  return renderPart('div', props, ctx.state, {
+    attrs: () => ({ 'data-status': ctx.state().status }),
     style: () => {
       const pct = ctx.state().percent
       return pct === null ? undefined : { width: `${pct}%` }
@@ -127,18 +133,18 @@ export function ProgressIndicator(props: PartProps<"div", ProgressState>) {
   })
 }
 
-export function ProgressLabel(props: PartProps<"span", ProgressState>) {
-  const ctx = useProgress("Label")
-  return renderPart("span", props, ctx.state, {
+export function ProgressLabel(props: PartProps<'span', ProgressState>) {
+  const ctx = useProgress('Label')
+  return renderPart('span', props, ctx.state, {
     attrs: () => ({ id: props.id ?? ctx.labelId }),
   })
 }
 
-export function ProgressValue(props: PartProps<"span", ProgressValueState>) {
-  const ctx = useProgress("Value")
+export function ProgressValue(props: PartProps<'span', ProgressValueState>) {
+  const ctx = useProgress('Value')
   const state = (): ProgressValueState => ({ ...ctx.state(), text: ctx.formattedValue() })
   return renderPart(
-    "span",
+    'span',
     {
       ...props,
       get children() {
@@ -147,7 +153,7 @@ export function ProgressValue(props: PartProps<"span", ProgressValueState>) {
     },
     state,
     {
-      attrs: () => ({ "aria-hidden": "true" }),
-    }
+      attrs: () => ({ 'aria-hidden': 'true' }),
+    },
   )
 }

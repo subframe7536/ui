@@ -1,11 +1,13 @@
-import { createContext, createUniqueId, omit, useContext } from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import { createContext, createUniqueId, omit, useContext } from 'solid-js'
 
-export type TimelineOrientation = "vertical" | "horizontal"
-export type TimelineStatus = "complete" | "current" | "upcoming"
+import { createController, useController } from './foundation/controller'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type TimelineOrientation = 'vertical' | 'horizontal'
+export type TimelineStatus = 'complete' | 'current' | 'upcoming'
 
 export type TimelineApi = {
   setActiveIndex: (index: number) => void
@@ -55,18 +57,22 @@ const TimelineItemContext = createContext<(() => TimelineItemState) | null>(null
 
 function useTimeline(part: string): TimelineContextValue {
   const ctx = useContext(TimelineContext)
-  if (!ctx) throw new Error(`<Timeline${part}> must be used inside <Timeline>.`)
+  if (!ctx) {
+    throw new Error(`<Timeline${part}> must be used inside <Timeline>.`)
+  }
   return ctx
 }
 
 function useTimelineItem(part: string): () => TimelineItemState {
   const ctx = useContext(TimelineItemContext)
-  if (!ctx) throw new Error(`<Timeline${part}> must be used inside <TimelineItem>.`)
+  if (!ctx) {
+    throw new Error(`<Timeline${part}> must be used inside <TimelineItem>.`)
+  }
   return ctx
 }
 
 export function Timeline(
-  props: TimelineOptions & Omit<PartProps<"ol", TimelineState>, keyof TimelineOptions>
+  props: TimelineOptions & Omit<PartProps<'ol', TimelineState>, keyof TimelineOptions>,
 ) {
   const id = `ui-timeline-${createUniqueId()}`
   const [activeIndex, setRawActiveIndex] = createControlledSignal<number>({
@@ -76,7 +82,7 @@ export function Timeline(
   let rootEl: HTMLElement | null = null
   let seq = 0
 
-  const orientation = (): TimelineOrientation => props.orientation ?? "vertical"
+  const orientation = (): TimelineOrientation => props.orientation ?? 'vertical'
   const state = (): TimelineState => ({
     orientation: orientation(),
     activeIndex: activeIndex(),
@@ -93,7 +99,7 @@ export function Timeline(
   useController(() => props.controller, api)
 
   registerComponent({
-    component: "timeline",
+    component: 'timeline',
     getElements: () => [rootEl],
     getState: () => ({ orientation: orientation(), activeIndex: activeIndex() }),
     actions: {
@@ -103,23 +109,23 @@ export function Timeline(
 
   const rest = omit(
     props,
-    "orientation",
-    "activeIndex",
-    "defaultActiveIndex",
-    "onActiveIndexChange",
-    "controller",
-    "debug"
+    'orientation',
+    'activeIndex',
+    'defaultActiveIndex',
+    'onActiveIndexChange',
+    'controller',
+    'debug',
   )
 
   return (
     <TimelineContext value={{ state, nextIndex: () => seq++ }}>
-      {renderPart("ol", rest, state, {
+      {renderPart('ol', rest, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => ({
           id,
-          "data-orientation": orientation(),
+          'data-orientation': orientation(),
         }),
       })}
     </TimelineContext>
@@ -127,10 +133,9 @@ export function Timeline(
 }
 
 export function TimelineItem(
-  props: TimelineItemProps &
-    Omit<PartProps<"li", TimelineItemState>, keyof TimelineItemProps>
+  props: TimelineItemProps & Omit<PartProps<'li', TimelineItemState>, keyof TimelineItemProps>,
 ) {
-  const ctx = useTimeline("Item")
+  const ctx = useTimeline('Item')
   const index = props.index ?? ctx.nextIndex()
 
   const itemState = (): TimelineItemState => {
@@ -138,58 +143,58 @@ export function TimelineItem(
     const derivedStatus: TimelineStatus =
       props.status ??
       (s.activeIndex < 0
-        ? "complete"
+        ? 'complete'
         : index < s.activeIndex
-          ? "complete"
+          ? 'complete'
           : index === s.activeIndex
-            ? "current"
-            : "upcoming")
+            ? 'current'
+            : 'upcoming')
     return {
       index,
       status: derivedStatus,
       orientation: s.orientation,
     }
   }
-  const rest = omit(props, "index", "status")
+  const rest = omit(props, 'index', 'status')
 
   return (
     <TimelineItemContext value={itemState}>
-      {renderPart("li", rest, itemState, {
+      {renderPart('li', rest, itemState, {
         attrs: () => ({
-          "aria-current": itemState().status === "current" ? "step" : undefined,
-          "data-status": itemState().status,
-          "data-orientation": itemState().orientation,
+          'aria-current': itemState().status === 'current' ? 'step' : undefined,
+          'data-status': itemState().status,
+          'data-orientation': itemState().orientation,
         }),
       })}
     </TimelineItemContext>
   )
 }
 
-export function TimelineMarker(props: PartProps<"span", TimelineMarkerState>) {
-  const state = useTimelineItem("Marker")
-  return renderPart("span", props, state, {
-    attrs: () => ({ "aria-hidden": true, "data-status": state().status }),
+export function TimelineMarker(props: PartProps<'span', TimelineMarkerState>) {
+  const state = useTimelineItem('Marker')
+  return renderPart('span', props, state, {
+    attrs: () => ({ 'aria-hidden': true, 'data-status': state().status }),
   })
 }
 
-export function TimelineConnector(props: PartProps<"span", TimelineConnectorState>) {
-  const state = useTimelineItem("Connector")
-  return renderPart("span", props, state, {
-    attrs: () => ({ "aria-hidden": true, "data-status": state().status }),
+export function TimelineConnector(props: PartProps<'span', TimelineConnectorState>) {
+  const state = useTimelineItem('Connector')
+  return renderPart('span', props, state, {
+    attrs: () => ({ 'aria-hidden': true, 'data-status': state().status }),
   })
 }
 
-export function TimelineTitle(props: PartProps<"div", TimelineTitleState>) {
-  const state = useTimelineItem("Title")
-  return renderPart("div", props, state)
+export function TimelineTitle(props: PartProps<'div', TimelineTitleState>) {
+  const state = useTimelineItem('Title')
+  return renderPart('div', props, state)
 }
 
-export function TimelineDescription(props: PartProps<"p", TimelineDescriptionState>) {
-  const state = useTimelineItem("Description")
-  return renderPart("p", props, state)
+export function TimelineDescription(props: PartProps<'p', TimelineDescriptionState>) {
+  const state = useTimelineItem('Description')
+  return renderPart('p', props, state)
 }
 
-export function TimelineTime(props: PartProps<"time", TimelineTimeState>) {
-  const state = useTimelineItem("Time")
-  return renderPart("time", props, state)
+export function TimelineTime(props: PartProps<'time', TimelineTimeState>) {
+  const state = useTimelineItem('Time')
+  return renderPart('time', props, state)
 }

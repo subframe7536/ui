@@ -9,6 +9,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 ## Phase 1 — Foundation, Agent/Observe & Core Primitives (Implemented)
 
 ### Foundation & Page Layer
+
 - [x] `primitive` — `PartProps`, `RenderProp`, `renderPart`, `composeRefs`, `composeHandlers`, `createControlledSignal`, `createController`, `useControllerEntry`, `useControllerTarget`
 - [x] `foundation/focus` — roving tabindex (`navigateRoving`), focus trap & restore (`useFocusManagement`)
 - [x] `foundation/dismissal` — Escape key, outside click, layered dismiss stack (`useDismissLayer`)
@@ -18,6 +19,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `agent` — `createAgent`, `agentTools`, `registerTools`, `AgentComponent`, `AgentStep`, `AgentAction`, `AgentChange`
 
 ### Batch 1 Components (11 modules)
+
 - [x] `Separator` (`./separator`)
 - [x] `Label` (`./label`)
 - [x] `Button` (`./button`)
@@ -31,6 +33,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Popover` (`./popover`)
 
 ## Phase 2 — Overlays, Menus & Selection (10 modules — Implemented)
+
 - [x] `Tooltip` (`./tooltip`)
 - [x] `HoverCard` (`./hover-card`)
 - [x] `Drawer` (`./drawer`)
@@ -43,6 +46,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Toolbar` (`./toolbar`)
 
 ## Phase 3 — Form Controls, Inputs & Progress/Meter (15 modules — Implemented)
+
 - [x] `Field` & `FieldSet` (`./field`)
 - [x] `Checkbox` & `CheckboxGroup` (`./checkbox`)
 - [x] `Radio` & `RadioGroup` (`./radio`)
@@ -60,6 +64,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Meter` (`./meter`)
 
 ## Phase 4 — Lists, Combobox & Data Selection (7 modules — Implemented)
+
 - [x] `Listbox` (`./listbox`)
 - [x] `Select` (`./select`)
 - [x] `Combobox` (`./combobox`)
@@ -69,6 +74,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Pagination` (`./pagination`)
 
 ## Phase 5 — Specialized & Rich Interactive Components (13 modules — Implemented)
+
 - [x] `Avatar` (`./avatar`)
 - [x] `Carousel` (`./carousel`)
 - [x] `Resizable` (`./resizable`)

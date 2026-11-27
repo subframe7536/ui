@@ -1,16 +1,16 @@
-import { createContext, omit, useContext } from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { navigateRoving, type Orientation } from "./foundation/focus"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import { createContext, omit, useContext } from 'solid-js'
 
-export type TogglePressedChangeReason = "press" | "imperative"
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { navigateRoving } from './foundation/focus'
+import type { Orientation } from './foundation/focus'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type TogglePressedChangeReason = 'press' | 'imperative'
 export type ToggleChangeOptions = ChangeOptions<TogglePressedChangeReason>
 
 export type ToggleApi = {
@@ -28,10 +28,7 @@ export type ToggleController = ReturnType<typeof createToggleController>
 export type ToggleOptions = {
   pressed?: boolean
   defaultPressed?: boolean
-  onPressedChange?: (
-    pressed: boolean,
-    details: ChangeDetails<TogglePressedChangeReason>
-  ) => void
+  onPressedChange?: (pressed: boolean, details: ChangeDetails<TogglePressedChangeReason>) => void
   value?: string
   disabled?: boolean
   focusableWhenDisabled?: boolean
@@ -54,11 +51,14 @@ export type ToggleIconState = {
 }
 
 export type ToggleGroupOrientation = Orientation
-export type ToggleGroupValueChangeReason = "press" | "imperative"
+export type ToggleGroupValueChangeReason = 'press' | 'imperative'
 
 export type ToggleGroupApi<T extends string = string> = {
-  setValue: (value: T | T[] | undefined, options?: ChangeOptions<ToggleGroupValueChangeReason>) => void
-  getValue: () => T | T[] | undefined
+  setValue: (
+    value: T | Array<T> | undefined,
+    options?: ChangeOptions<ToggleGroupValueChangeReason>,
+  ) => void
+  getValue: () => T | Array<T> | undefined
 }
 
 export function createToggleGroupController<T extends string = string>() {
@@ -70,11 +70,11 @@ export type ToggleGroupController<T extends string = string> = ReturnType<
 >
 
 export type ToggleGroupOptions<T extends string = string> = {
-  value?: T | T[]
-  defaultValue?: T | T[]
+  value?: T | Array<T>
+  defaultValue?: T | Array<T>
   onValueChange?: (
-    value: T | T[] | undefined,
-    details: ChangeDetails<ToggleGroupValueChangeReason>
+    value: T | Array<T> | undefined,
+    details: ChangeDetails<ToggleGroupValueChangeReason>,
   ) => void
   multiple?: boolean
   deselectable?: boolean
@@ -86,7 +86,7 @@ export type ToggleGroupOptions<T extends string = string> = {
 }
 
 export type ToggleGroupState<T extends string = string> = {
-  value: T | T[] | undefined
+  value: T | Array<T> | undefined
   multiple: boolean
   disabled: boolean
   orientation: ToggleGroupOrientation
@@ -100,7 +100,7 @@ type GroupContextValue = {
   loop: () => boolean
   registerItem: (el: HTMLElement) => void
   unregisterItem: (el: HTMLElement) => void
-  getItems: () => HTMLElement[]
+  getItems: () => Array<HTMLElement>
 }
 
 const ToggleGroupContext = createContext<GroupContextValue | null>(null)
@@ -112,9 +112,9 @@ const ToggleContext = createContext<() => ToggleState>(() => ({
 export function Toggle(
   props: ToggleOptions &
     Omit<
-      PartProps<"button", ToggleState>,
-      "value" | "defaultValue" | "type" | "onChange" | "onSelect"
-    >
+      PartProps<'button', ToggleState>,
+      'value' | 'defaultValue' | 'type' | 'onChange' | 'onSelect'
+    >,
 ) {
   const group = useContext(ToggleGroupContext)
   let rootEl: HTMLElement | undefined
@@ -132,17 +132,23 @@ export function Toggle(
     next: boolean,
     reason: TogglePressedChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
-    if (isDisabled()) return
+    if (isDisabled()) {
+      return
+    }
     const prev = isPressed()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onPressedChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setOwnPressed(next)
     reg.emit({
-      key: "pressed",
+      key: 'pressed',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -152,16 +158,16 @@ export function Toggle(
 
   const api: ToggleApi = {
     setPressed: (next, options) =>
-      applyPressed(next, options?.reason ?? "imperative", options?.event, options?.source),
+      applyPressed(next, options?.reason ?? 'imperative', options?.event, options?.source),
     toggle: (options) =>
-      applyPressed(!isPressed(), options?.reason ?? "imperative", options?.event, options?.source),
+      applyPressed(!isPressed(), options?.reason ?? 'imperative', options?.event, options?.source),
     isPressed,
   }
 
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "toggle",
+    component: 'toggle',
     getElements: () => [rootEl],
     getState: () => ({ pressed: isPressed() }),
     getDisabled: isDisabled,
@@ -178,48 +184,54 @@ export function Toggle(
 
   const rest = omit(
     props,
-    "pressed",
-    "defaultPressed",
-    "onPressedChange",
-    "value",
-    "disabled",
-    "focusableWhenDisabled",
-    "controller",
-    "debug"
+    'pressed',
+    'defaultPressed',
+    'onPressedChange',
+    'value',
+    'disabled',
+    'focusableWhenDisabled',
+    'controller',
+    'debug',
   )
 
   return (
     <ToggleContext value={state}>
-      {renderPart("button", rest, state, {
+      {renderPart('button', rest, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
-          if (group && el) group.registerItem(el)
+          if (group && el) {
+            group.registerItem(el)
+          }
         },
         attrs: () => {
           const pressed = isPressed()
           const disabled = isDisabled()
           const focusableDisabled = disabled && (props.focusableWhenDisabled || !!group)
           return {
-            type: "button",
-            "aria-pressed": pressed ? "true" : "false",
+            type: 'button',
+            'aria-pressed': pressed ? 'true' : 'false',
             disabled: disabled && !focusableDisabled ? true : undefined,
-            "aria-disabled": focusableDisabled ? "true" : undefined,
-            "data-pressed": pressed ? "" : undefined,
-            "data-state": pressed ? "on" : "off",
-            "data-disabled": disabled ? "" : undefined,
+            'aria-disabled': focusableDisabled ? 'true' : undefined,
+            'data-pressed': pressed ? '' : undefined,
+            'data-state': pressed ? 'on' : 'off',
+            'data-disabled': disabled ? '' : undefined,
           }
         },
         handlers: {
           onClick: (event: MouseEvent) => {
-            if (isDisabled()) return
+            if (isDisabled()) {
+              return
+            }
             if (group && props.value !== undefined) {
               group.toggleItem(props.value, event)
             } else {
-              applyPressed(!isPressed(), "press", event)
+              applyPressed(!isPressed(), 'press', event)
             }
           },
           onKeyDown: (event: KeyboardEvent) => {
-            if (!group || !rootEl) return
+            if (!group || !rootEl) {
+              return
+            }
             navigateRoving(event, group.getItems(), rootEl, {
               orientation: group.orientation(),
               loop: group.loop(),
@@ -232,49 +244,48 @@ export function Toggle(
 }
 
 export function ToggleIcon(
-  props: ToggleIconProps & Omit<PartProps<"span", ToggleIconState>, "mirror">
+  props: ToggleIconProps & Omit<PartProps<'span', ToggleIconState>, 'mirror'>,
 ) {
   const state = useContext(ToggleContext)
-  const rest = omit(props, "mirror")
-  return renderPart("span", rest, state, {
+  const rest = omit(props, 'mirror')
+  return renderPart('span', rest, state, {
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-mirror": props.mirror ? "" : undefined,
+      'aria-hidden': 'true',
+      'data-mirror': props.mirror ? '' : undefined,
     }),
   })
 }
 
 export function ToggleGroup<T extends string = string>(
   props: ToggleGroupOptions<T> &
-    Omit<
-      PartProps<"div", ToggleGroupState<T>>,
-      "defaultValue" | "onChange" | "onSelect"
-    >
+    Omit<PartProps<'div', ToggleGroupState<T>>, 'defaultValue' | 'onChange' | 'onSelect'>,
 ) {
   let rootEl: HTMLElement | undefined
   const items = new Set<HTMLElement>()
 
-  const [value, setValue] = createControlledSignal<T | T[] | undefined>({
+  const [value, setValue] = createControlledSignal<T | Array<T> | undefined>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? (props.multiple ? ([] as T[]) : undefined),
+    defaultValue: () => props.defaultValue ?? (props.multiple ? ([] as Array<T>) : undefined),
   })
 
-  const orientation = () => props.orientation ?? "horizontal"
+  const orientation = () => props.orientation ?? 'horizontal'
   const isDisabled = () => !!props.disabled
 
   const applyValue = (
-    next: T | T[] | undefined,
+    next: T | Array<T> | undefined,
     reason: ToggleGroupValueChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = value()
     const details = createChangeDetails(reason, event, source)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setValue(next)
     reg.emit({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -284,48 +295,56 @@ export function ToggleGroup<T extends string = string>(
 
   const isPressed = (itemValue: string) => {
     const current = value()
-    if (Array.isArray(current)) return current.includes(itemValue as T)
+    if (Array.isArray(current)) {
+      return current.includes(itemValue as T)
+    }
     return current === itemValue
   }
 
   const toggleItem = (itemValue: string, event?: Event) => {
-    if (isDisabled()) return
+    if (isDisabled()) {
+      return
+    }
     const current = value()
     if (props.multiple) {
       const list = Array.isArray(current) ? [...current] : current ? [current] : []
       const idx = list.indexOf(itemValue as T)
       if (idx >= 0) {
-        if (props.deselectable === false && list.length === 1) return
+        if (props.deselectable === false && list.length === 1) {
+          return
+        }
         list.splice(idx, 1)
       } else {
         list.push(itemValue as T)
       }
-      applyValue(list, "press", event)
+      applyValue(list, 'press', event)
     } else {
       if (current === itemValue) {
-        if (props.deselectable === false) return
-        applyValue(undefined, "press", event)
+        if (props.deselectable === false) {
+          return
+        }
+        applyValue(undefined, 'press', event)
       } else {
-        applyValue(itemValue as T, "press", event)
+        applyValue(itemValue as T, 'press', event)
       }
     }
   }
 
   const api: ToggleGroupApi<T> = {
     setValue: (next, options) =>
-      applyValue(next, options?.reason ?? "imperative", options?.event, options?.source),
+      applyValue(next, options?.reason ?? 'imperative', options?.event, options?.source),
     getValue: value,
   }
 
   useController(() => props.controller, api)
 
   const reg = registerComponent({
-    component: "toggle-group",
+    component: 'toggle-group',
     getElements: () => [rootEl],
     getState: () => ({ value: value(), multiple: !!props.multiple }),
     getDisabled: isDisabled,
     actions: {
-      setValue: (next) => api.setValue(next as T | T[] | undefined),
+      setValue: (next) => api.setValue(next as T | Array<T> | undefined),
     },
   })
 
@@ -338,16 +357,16 @@ export function ToggleGroup<T extends string = string>(
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "multiple",
-    "deselectable",
-    "disabled",
-    "orientation",
-    "loop",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'multiple',
+    'deselectable',
+    'disabled',
+    'orientation',
+    'loop',
+    'controller',
+    'debug',
   )
 
   return (
@@ -363,14 +382,14 @@ export function ToggleGroup<T extends string = string>(
         getItems: () => Array.from(items).filter((el) => el.isConnected),
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
         },
         attrs: () => ({
-          role: "group",
-          "data-orientation": orientation(),
-          "data-disabled": isDisabled() ? "" : undefined,
+          role: 'group',
+          'data-orientation': orientation(),
+          'data-disabled': isDisabled() ? '' : undefined,
         }),
       })}
     </ToggleGroupContext>

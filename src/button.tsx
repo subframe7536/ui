@@ -1,16 +1,19 @@
-import type { JSX } from "@solidjs/web"
-import { createSignal, omit } from "solid-js"
-import { runAction, type ActionDetails } from "./foundation/action"
-import { inferSource } from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { callHandler, renderPart, type PartProps } from "./foundation/render"
+import type { JSX } from '@solidjs/web'
+import { createSignal, omit } from 'solid-js'
+
+import { runAction } from './foundation/action'
+import type { ActionDetails } from './foundation/action'
+import { inferSource } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { callHandler, renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
 
 export type ButtonActionDetails = ActionDetails
 
 export type ButtonOptions = {
   disabled?: boolean
   focusableWhenDisabled?: boolean
-  type?: "button" | "submit" | "reset"
+  type?: 'button' | 'submit' | 'reset'
   pendingAnnouncement?: string
   debug?: boolean
 }
@@ -30,15 +33,13 @@ export type ButtonApi = {
 type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLElement, MouseEvent>>[0]
 
 type ButtonClickHandlers = {
-  handler(event: ButtonClickEvent, details: ButtonActionDetails): unknown
-  bound(data: any, event: ButtonClickEvent, details: ButtonActionDetails): unknown
+  handler: (event: ButtonClickEvent, details: ButtonActionDetails) => unknown
+  bound: (data: any, event: ButtonClickEvent, details: ButtonActionDetails) => unknown
 }
 
-export type ButtonProps = Omit<PartProps<"button", ButtonState>, "type" | "onClick"> &
+export type ButtonProps = Omit<PartProps<'button', ButtonState>, 'type' | 'onClick'> &
   ButtonOptions & {
-    onClick?:
-      | ButtonClickHandlers["handler"]
-      | { 0: ButtonClickHandlers["bound"]; 1: any }
+    onClick?: ButtonClickHandlers['handler'] | { 0: ButtonClickHandlers['bound']; 1: any }
   }
 
 export function Button(props: ButtonProps) {
@@ -58,22 +59,20 @@ export function Button(props: ButtonProps) {
       event.preventDefault()
       return
     }
-    if (!props.onClick) return
+    if (!props.onClick) {
+      return
+    }
     setError(undefined)
     const source = inferSource(event)
-    runAction(
-      (details) => callHandler(props.onClick, event, details),
-      source,
-      {
-        pending: setPending,
-        done: () => {},
-        failed: setError,
-      }
-    )
+    runAction((details) => callHandler(props.onClick, event, details), source, {
+      pending: setPending,
+      done: () => {},
+      failed: setError,
+    })
   }
 
   registerComponent({
-    component: "button",
+    component: 'button',
     getElements: () => [rootEl],
     getState: () => ({
       ...(pending() ? { pending: true } : {}),
@@ -82,8 +81,10 @@ export function Button(props: ButtonProps) {
     getDisabled: () => isDisabled() || pending(),
     actions: {
       press: () => {
-        if (isDisabled() || pending()) return
-        const synthetic = new MouseEvent("click", { bubbles: true, cancelable: true })
+        if (isDisabled() || pending()) {
+          return
+        }
+        const synthetic = new MouseEvent('click', { bubbles: true, cancelable: true })
         executePress(synthetic)
       },
     },
@@ -91,15 +92,15 @@ export function Button(props: ButtonProps) {
 
   const rest = omit(
     props,
-    "disabled",
-    "focusableWhenDisabled",
-    "type",
-    "pendingAnnouncement",
-    "debug",
-    "onClick"
+    'disabled',
+    'focusableWhenDisabled',
+    'type',
+    'pendingAnnouncement',
+    'debug',
+    'onClick',
   )
 
-  return renderPart("button", rest, state, {
+  return renderPart('button', rest, state, {
     ref: (el: HTMLElement) => {
       rootEl = el
     },
@@ -109,12 +110,12 @@ export function Button(props: ButtonProps) {
       const nativeDisabled = disabled && !props.focusableWhenDisabled && !isPending
       const ariaDisabled = (disabled && props.focusableWhenDisabled) || isPending
       return {
-        type: props.type ?? "button",
+        type: props.type ?? 'button',
         disabled: nativeDisabled || undefined,
-        "aria-disabled": ariaDisabled ? "true" : undefined,
-        "aria-busy": isPending ? "true" : undefined,
-        "data-disabled": disabled ? "" : undefined,
-        "data-pending": isPending ? "" : undefined,
+        'aria-disabled': ariaDisabled ? 'true' : undefined,
+        'aria-busy': isPending ? 'true' : undefined,
+        'data-disabled': disabled ? '' : undefined,
+        'data-pending': isPending ? '' : undefined,
       }
     },
     handlers: {

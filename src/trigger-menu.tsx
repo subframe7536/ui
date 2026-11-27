@@ -1,45 +1,33 @@
-import { Portal, type JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { useDismissLayer } from "./foundation/dismissal"
-import { navigateRoving } from "./foundation/focus"
-import {
-  usePopupPosition,
-  type Align,
-  type PortalProps,
-  type PositionProps,
-  type Side,
-} from "./foundation/popup"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import { Portal } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { useDismissLayer } from './foundation/dismissal'
+import { navigateRoving } from './foundation/focus'
+import { usePopupPosition } from './foundation/popup'
+import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
 
 export type TriggerMenuOpenChangeReason =
-  | "input-change"
-  | "item-press"
-  | "escape-key"
-  | "outside-press"
-  | "imperative"
+  | 'input-change'
+  | 'item-press'
+  | 'escape-key'
+  | 'outside-press'
+  | 'imperative'
 
-export type TriggerMenuQueryChangeReason = "input-change" | "imperative"
-export type TriggerMenuDismissReason = "escape-key" | "outside-press"
+export type TriggerMenuQueryChangeReason = 'input-change' | 'imperative'
+export type TriggerMenuDismissReason = 'escape-key' | 'outside-press'
 export type TriggerMenuChangeOptions = ChangeOptions<TriggerMenuOpenChangeReason>
 
 export type TextRange = { start: number; end: number }
 export type TextRect = { top: number; left: number; width: number; height: number }
-export type TriggerBoundary = "word" | "whitespace" | "any"
+export type TriggerBoundary = 'word' | 'whitespace' | 'any'
 export type TriggerAfter = string | RegExp
 export type TriggerArgument = { query: string; range: TextRange }
 export type TriggerMatch = { trigger: string; query: string; range: TextRange }
@@ -64,16 +52,16 @@ export function textFieldAdapter(el: HTMLInputElement | HTMLTextAreaElement): Te
       el.value = `${before}${text}${after}`
       const pos = before.length + text.length
       el.setSelectionRange(pos, pos)
-      el.dispatchEvent(new Event("input", { bubbles: true }))
+      el.dispatchEvent(new Event('input', { bubbles: true }))
     },
   }
 }
 
 export type TriggerMenuDataItem = { id?: string; value: string; label: string; disabled?: boolean }
-export type TriggerMenuDataGroup = { label: string; items: TriggerMenuDataItem[] }
+export type TriggerMenuDataGroup = { label: string; items: Array<TriggerMenuDataItem> }
 export type TriggerMenuData = Array<TriggerMenuDataItem | TriggerMenuDataGroup>
 export type ListItem = TriggerMenuDataItem
-export type ListSeparator = { type: "separator" }
+export type ListSeparator = { type: 'separator' }
 export type ListFilter = (item: TriggerMenuDataItem, query: string) => boolean
 export type TriggerItemsLoader = (match: TriggerMatch) => TriggerMenuData | Promise<TriggerMenuData>
 
@@ -107,7 +95,7 @@ export function createTriggerMenuController() {
 export type TriggerMenuController = ReturnType<typeof createTriggerMenuController>
 
 export type TriggerMenuOptions = PortalProps & {
-  triggers?: string[] | TriggerDefinition[]
+  triggers?: Array<string> | Array<TriggerDefinition>
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<TriggerMenuOpenChangeReason>) => void
@@ -121,7 +109,8 @@ export type TriggerMenuOptions = PortalProps & {
 
 export type TriggerMenuProps = TriggerMenuOptions & { children?: JSX.Element }
 export type TriggerMenuInputState = { open: boolean; query: string }
-export type TriggerMenuContentProps = PortalProps & PositionProps & { keepMounted?: boolean; inline?: boolean }
+export type TriggerMenuContentProps = PortalProps &
+  PositionProps & { keepMounted?: boolean; inline?: boolean }
 export type TriggerMenuContentState = { open: boolean; side: Side; align: Align; query: string }
 export type TriggerMenuItemProps = { value: string; disabled?: boolean }
 export type TriggerMenuItemState = { disabled: boolean }
@@ -145,25 +134,37 @@ type TriggerMenuContextValue = {
   contentEl: () => HTMLElement | undefined
   setContentEl: (el: HTMLElement) => void
   registerItem: (el: HTMLElement) => void
-  getItems: () => HTMLElement[]
+  getItems: () => Array<HTMLElement>
 }
 
 const TriggerMenuContext = createContext<TriggerMenuContextValue | null>(null)
 
 function useTriggerMenu(part: string): TriggerMenuContextValue {
   const ctx = useContext(TriggerMenuContext)
-  if (!ctx) throw new Error(`<TriggerMenu${part}> must be used inside <TriggerMenu>.`)
+  if (!ctx) {
+    throw new Error(`<TriggerMenu${part}> must be used inside <TriggerMenu>.`)
+  }
   return ctx
 }
 
-function findTriggerMatch(text: string, caret: number, triggers: string[]): TriggerMatch | null {
+function findTriggerMatch(
+  text: string,
+  caret: number,
+  triggers: Array<string>,
+): TriggerMatch | null {
   const before = text.slice(0, caret)
   for (const trigger of triggers) {
     const idx = before.lastIndexOf(trigger)
-    if (idx < 0) continue
-    if (idx > 0 && !/\s/.test(before[idx - 1] ?? "")) continue
+    if (idx < 0) {
+      continue
+    }
+    if (idx > 0 && !/\s/.test(before[idx - 1] ?? '')) {
+      continue
+    }
     const query = before.slice(idx + trigger.length)
-    if (/\s/.test(query)) continue
+    if (/\s/.test(query)) {
+      continue
+    }
     return { trigger, query, range: { start: idx, end: caret } }
   }
   return null
@@ -179,33 +180,39 @@ export function TriggerMenu(props: TriggerMenuProps) {
   })
   const [query, setQuery] = createControlledSignal<string>({
     value: () => props.query,
-    defaultValue: () => props.defaultQuery ?? "",
+    defaultValue: () => props.defaultQuery ?? '',
   })
   const [match, setMatch] = createSignal<TriggerMatch | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | HTMLTextAreaElement | undefined>(
-    undefined
+    undefined,
   )
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
 
-  const triggerChars = (): string[] => {
-    if (!props.triggers || props.triggers.length === 0) return ["@", "/"]
-    return props.triggers.map((t) => (typeof t === "string" ? t : t.trigger))
+  const triggerChars = (): Array<string> => {
+    if (!props.triggers || props.triggers.length === 0) {
+      return ['@', '/']
+    }
+    return props.triggers.map((t) => (typeof t === 'string' ? t : t.trigger))
   }
 
   const applyOpen = (
     next: boolean,
     reason: TriggerMenuOpenChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = open()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onOpenChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setOpen(next)
     reg.emit({
-      key: "open",
+      key: 'open',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -215,10 +222,14 @@ export function TriggerMenu(props: TriggerMenuProps) {
 
   const applyQuery = (next: string, reason: TriggerMenuQueryChangeReason, event?: Event) => {
     const prev = query()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event)
     props.onQueryChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setQuery(next)
   }
 
@@ -227,10 +238,10 @@ export function TriggerMenu(props: TriggerMenuProps) {
     const found = findTriggerMatch(el.value, caret, triggerChars())
     setMatch(found)
     if (found) {
-      applyQuery(found.query, "input-change", event)
-      applyOpen(true, "input-change", event)
+      applyQuery(found.query, 'input-change', event)
+      applyOpen(true, 'input-change', event)
     } else {
-      applyOpen(false, "input-change", event)
+      applyOpen(false, 'input-change', event)
     }
   }
 
@@ -241,16 +252,16 @@ export function TriggerMenu(props: TriggerMenuProps) {
       textFieldAdapter(el).replace(currentMatch.range, `${value} `)
     }
     props.onSelect?.({ value, match: currentMatch })
-    applyOpen(false, "item-press", event)
+    applyOpen(false, 'item-press', event)
   }
 
   const api: TriggerMenuApi = {
-    open: (opts) => applyOpen(true, opts?.reason ?? "imperative", opts?.event, opts?.source),
-    close: (opts) => applyOpen(false, opts?.reason ?? "imperative", opts?.event, opts?.source),
+    open: (opts) => applyOpen(true, opts?.reason ?? 'imperative', opts?.event, opts?.source),
+    close: (opts) => applyOpen(false, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     setOpen: (next, opts) =>
-      applyOpen(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+      applyOpen(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
     isOpen: open,
-    setQuery: (q) => applyQuery(q, "imperative"),
+    setQuery: (q) => applyQuery(q, 'imperative'),
     getQuery: query,
   }
 
@@ -265,13 +276,13 @@ export function TriggerMenu(props: TriggerMenuProps) {
   })
 
   const reg = registerComponent({
-    component: "trigger-menu",
+    component: 'trigger-menu',
     getElements: () => [inputEl(), contentEl()],
     getState: () => ({ open: open(), query: query() }),
     actions: {
       open: () => api.open(),
       close: () => api.close(),
-      setQuery: (q) => api.setQuery(String(q ?? "")),
+      setQuery: (q) => api.setQuery(String(q ?? '')),
     },
   })
 
@@ -299,17 +310,17 @@ export function TriggerMenu(props: TriggerMenuProps) {
   )
 }
 
-export function TriggerMenuInput(props: PartProps<"input", TriggerMenuInputState>) {
-  const ctx = useTriggerMenu("Input")
+export function TriggerMenuInput(props: PartProps<'input', TriggerMenuInputState>) {
+  const ctx = useTriggerMenu('Input')
   const state = (): TriggerMenuInputState => ({ open: ctx.open(), query: ctx.query() })
 
-  return renderPart("input", props, state, {
+  return renderPart('input', props, state, {
     ref: (el: HTMLInputElement) => ctx.setInputEl(el),
     attrs: () => ({
-      role: "combobox",
-      "aria-expanded": ctx.open() ? "true" : "false",
-      "aria-controls": ctx.contentId,
-      "aria-autocomplete": "list",
+      role: 'combobox',
+      'aria-expanded': ctx.open() ? 'true' : 'false',
+      'aria-controls': ctx.contentId,
+      'aria-autocomplete': 'list',
     }),
     handlers: {
       onInput: (event: Event) => {
@@ -317,8 +328,10 @@ export function TriggerMenuInput(props: PartProps<"input", TriggerMenuInputState
         ctx.handleInputChange(el, event)
       },
       onKeyDown: (event: KeyboardEvent) => {
-        if (!ctx.open()) return
-        if (event.key === "ArrowDown") {
+        if (!ctx.open()) {
+          return
+        }
+        if (event.key === 'ArrowDown') {
           event.preventDefault()
           ctx.getItems()[0]?.focus()
         }
@@ -329,29 +342,29 @@ export function TriggerMenuInput(props: PartProps<"input", TriggerMenuInputState
 
 export function TriggerMenuContent(
   props: TriggerMenuContentProps &
-    Omit<PartProps<"div", TriggerMenuContentState>, keyof TriggerMenuContentProps>
+    Omit<PartProps<'div', TriggerMenuContentState>, keyof TriggerMenuContentProps>,
 ) {
-  const ctx = useTriggerMenu("Content")
+  const ctx = useTriggerMenu('Content')
   const rest = omit(
     props,
-    "container",
-    "side",
-    "align",
-    "sideOffset",
-    "alignOffset",
-    "collisionPadding",
-    "arrowPadding",
-    "anchor",
-    "keepMounted",
-    "inline"
+    'container',
+    'side',
+    'align',
+    'sideOffset',
+    'alignOffset',
+    'collisionPadding',
+    'arrowPadding',
+    'anchor',
+    'keepMounted',
+    'inline',
   )
 
   const pos = usePopupPosition({
     open: ctx.open,
     reference: () => props.anchor ?? ctx.inputEl(),
     floating: ctx.contentEl,
-    side: () => props.side ?? "bottom",
-    align: () => props.align ?? "start",
+    side: () => props.side ?? 'bottom',
+    align: () => props.align ?? 'start',
     sideOffset: () => props.sideOffset ?? 4,
     alignOffset: () => props.alignOffset,
     collisionPadding: () => props.collisionPadding,
@@ -366,15 +379,15 @@ export function TriggerMenuContent(
   })
 
   const renderSurface = () =>
-    renderPart("div", rest, state, {
+    renderPart('div', rest, state, {
       ref: ctx.setContentEl,
       attrs: () => ({
         id: props.id ?? ctx.contentId,
         hidden: ctx.open() ? undefined : true,
-        "data-open": ctx.open() ? "" : undefined,
-        "data-state": ctx.open() ? "open" : "closed",
-        "data-side": pos.side(),
-        "data-align": pos.align(),
+        'data-open': ctx.open() ? '' : undefined,
+        'data-state': ctx.open() ? 'open' : 'closed',
+        'data-side': pos.side(),
+        'data-align': pos.align(),
       }),
       style: pos.style,
     })
@@ -382,100 +395,105 @@ export function TriggerMenuContent(
   return (
     <Show when={ctx.open() || !!props.keepMounted}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={(props.container ?? ctx.container()) ?? undefined}>
-          {renderSurface()}
-        </Portal>
+        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
       </Show>
     </Show>
   )
 }
 
-export function TriggerMenuList(props: PartProps<"div", {}>) {
-  return renderPart("div", props, () => ({}), {
-    attrs: () => ({ role: "listbox" }),
+export function TriggerMenuList(props: PartProps<'div'>) {
+  return renderPart('div', props, () => ({}), {
+    attrs: () => ({ role: 'listbox' }),
   })
 }
 
-export function TriggerMenuItems(props: PartProps<"div", {}>) {
-  return renderPart("div", props, () => ({}))
+export function TriggerMenuItems(props: PartProps<'div'>) {
+  return renderPart('div', props, () => ({}))
 }
 
 export function TriggerMenuItem(
   props: TriggerMenuItemProps &
-    Omit<PartProps<"div", TriggerMenuItemState>, keyof TriggerMenuItemProps>
+    Omit<PartProps<'div', TriggerMenuItemState>, keyof TriggerMenuItemProps>,
 ) {
-  const ctx = useTriggerMenu("Item")
+  const ctx = useTriggerMenu('Item')
   let elRef: HTMLElement | undefined
   const state = (): TriggerMenuItemState => ({ disabled: !!props.disabled })
-  const rest = omit(props, "value", "disabled")
+  const rest = omit(props, 'value', 'disabled')
 
-  return renderPart("div", rest, state, {
+  return renderPart('div', rest, state, {
     ref: (el: HTMLElement) => {
       elRef = el
-      if (el) ctx.registerItem(el)
+      if (el) {
+        ctx.registerItem(el)
+      }
     },
     attrs: () => ({
-      role: "option",
+      role: 'option',
       tabindex: props.disabled ? undefined : -1,
-      "aria-disabled": props.disabled ? "true" : undefined,
-      "data-disabled": props.disabled ? "" : undefined,
+      'aria-disabled': props.disabled ? 'true' : undefined,
+      'data-disabled': props.disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (event: MouseEvent) => {
-        if (props.disabled) return
+        if (props.disabled) {
+          return
+        }
         ctx.selectItem(props.value, event)
       },
       onKeyDown: (event: KeyboardEvent) => {
-        if (!elRef) return
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault()
-          if (!props.disabled) ctx.selectItem(props.value, event)
+        if (!elRef) {
           return
         }
-        navigateRoving(event, ctx.getItems(), elRef, { orientation: "vertical", loop: true })
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          if (!props.disabled) {
+            ctx.selectItem(props.value, event)
+          }
+          return
+        }
+        navigateRoving(event, ctx.getItems(), elRef, { orientation: 'vertical', loop: true })
       },
     },
   })
 }
 
 export function TriggerMenuItemIcon(
-  props: TriggerMenuItemIconProps &
-    Omit<PartProps<"span", TriggerMenuItemIconState>, "mirror">
+  props: TriggerMenuItemIconProps & Omit<PartProps<'span', TriggerMenuItemIconState>, 'mirror'>,
 ) {
-  const rest = omit(props, "mirror")
-  return renderPart("span", rest, () => ({ disabled: false }), {
+  const rest = omit(props, 'mirror')
+  return renderPart('span', rest, () => ({ disabled: false }), {
     attrs: () => ({
-      "aria-hidden": "true",
-      "data-mirror": props.mirror ? "" : undefined,
+      'aria-hidden': 'true',
+      'data-mirror': props.mirror ? '' : undefined,
     }),
   })
 }
 
-export function TriggerMenuGroup(props: PartProps<"div", {}>) {
-  return renderPart("div", props, () => ({}), { attrs: () => ({ role: "group" }) })
+export function TriggerMenuGroup(props: PartProps<'div'>) {
+  return renderPart('div', props, () => ({}), { attrs: () => ({ role: 'group' }) })
 }
 
-export function TriggerMenuGroupLabel(props: PartProps<"div", {}>) {
-  return renderPart("div", props, () => ({}), { attrs: () => ({ role: "presentation" }) })
+export function TriggerMenuGroupLabel(props: PartProps<'div'>) {
+  return renderPart('div', props, () => ({}), { attrs: () => ({ role: 'presentation' }) })
 }
 
-export function TriggerMenuSeparator(props: PartProps<"div", {}>) {
-  return renderPart("div", props, () => ({}), { attrs: () => ({ role: "separator" }) })
+export function TriggerMenuSeparator(props: PartProps<'div'>) {
+  return renderPart('div', props, () => ({}), { attrs: () => ({ role: 'separator' }) })
 }
 
-export function TriggerMenuEmpty(props: PartProps<"div", TriggerMenuEmptyState>) {
-  const ctx = useTriggerMenu("Empty")
-  return renderPart("div", props, () => ({ query: ctx.query() }))
+export function TriggerMenuEmpty(props: PartProps<'div', TriggerMenuEmptyState>) {
+  const ctx = useTriggerMenu('Empty')
+  return renderPart('div', props, () => ({ query: ctx.query() }))
 }
 
-export function TriggerMenuHint(props: PartProps<"div", TriggerMenuHintState>) {
-  const ctx = useTriggerMenu("Hint")
-  return renderPart("div", props, () => ({ open: ctx.open() }))
+export function TriggerMenuHint(props: PartProps<'div', TriggerMenuHintState>) {
+  const ctx = useTriggerMenu('Hint')
+  return renderPart('div', props, () => ({ open: ctx.open() }))
 }
 
-export function TriggerMenuStatus(props: PartProps<"div", TriggerMenuStatusState>) {
-  const ctx = useTriggerMenu("Status")
-  return renderPart("div", props, () => ({ open: ctx.open(), query: ctx.query() }), {
-    attrs: () => ({ role: "status", "aria-live": "polite" }),
+export function TriggerMenuStatus(props: PartProps<'div', TriggerMenuStatusState>) {
+  const ctx = useTriggerMenu('Status')
+  return renderPart('div', props, () => ({ open: ctx.open(), query: ctx.query() }), {
+    attrs: () => ({ role: 'status', 'aria-live': 'polite' }),
   })
 }

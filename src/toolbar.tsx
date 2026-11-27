@@ -1,8 +1,11 @@
-import { createContext, omit, useContext } from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import { navigateRoving, type Orientation } from "./foundation/focus"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
+import { createContext, omit, useContext } from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { navigateRoving } from './foundation/focus'
+import type { Orientation } from './foundation/focus'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
 
 export type ToolbarOrientation = Orientation
 
@@ -50,24 +53,26 @@ type ToolbarContextValue = {
   loop: () => boolean
   disabled: () => boolean
   registerItem: (el: HTMLElement) => void
-  getItems: () => HTMLElement[]
+  getItems: () => Array<HTMLElement>
 }
 
 const ToolbarContext = createContext<ToolbarContextValue | null>(null)
 
 function useToolbar(part: string): ToolbarContextValue {
   const ctx = useContext(ToolbarContext)
-  if (!ctx) throw new Error(`<Toolbar${part}> must be used inside <Toolbar>.`)
+  if (!ctx) {
+    throw new Error(`<Toolbar${part}> must be used inside <Toolbar>.`)
+  }
   return ctx
 }
 
 export function Toolbar(
-  props: ToolbarOptions & Omit<PartProps<"div", ToolbarState>, keyof ToolbarOptions>
+  props: ToolbarOptions & Omit<PartProps<'div', ToolbarState>, keyof ToolbarOptions>,
 ) {
   let rootEl: HTMLElement | undefined
   const items = new Set<HTMLElement>()
 
-  const orientation = (): ToolbarOrientation => props.orientation ?? "horizontal"
+  const orientation = (): ToolbarOrientation => props.orientation ?? 'horizontal'
   const isDisabled = () => !!props.disabled
   const getItems = () => Array.from(items).filter((el) => el.isConnected)
 
@@ -79,7 +84,7 @@ export function Toolbar(
   useController(() => props.controller, api)
 
   registerComponent({
-    component: "toolbar",
+    component: 'toolbar',
     getElements: () => [rootEl],
     getState: () => ({ orientation: orientation() }),
     getDisabled: isDisabled,
@@ -94,7 +99,7 @@ export function Toolbar(
     disabled: isDisabled(),
   })
 
-  const rest = omit(props, "orientation", "loop", "disabled", "controller", "debug")
+  const rest = omit(props, 'orientation', 'loop', 'disabled', 'controller', 'debug')
 
   return (
     <ToolbarContext
@@ -106,15 +111,15 @@ export function Toolbar(
         getItems,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
         },
         attrs: () => ({
-          role: "toolbar",
-          "aria-orientation": orientation(),
-          "data-orientation": orientation(),
-          "data-disabled": isDisabled() ? "" : undefined,
+          role: 'toolbar',
+          'aria-orientation': orientation(),
+          'data-orientation': orientation(),
+          'data-disabled': isDisabled() ? '' : undefined,
         }),
       })}
     </ToolbarContext>
@@ -123,33 +128,37 @@ export function Toolbar(
 
 export function ToolbarButton(
   props: ToolbarButtonProps &
-    Omit<PartProps<"button", ToolbarButtonState>, keyof ToolbarButtonProps | "type">
+    Omit<PartProps<'button', ToolbarButtonState>, keyof ToolbarButtonProps | 'type'>,
 ) {
-  const toolbar = useToolbar("Button")
+  const toolbar = useToolbar('Button')
   let elRef: HTMLElement | undefined
   const state = (): ToolbarButtonState => ({
     disabled: !!props.disabled || toolbar.disabled(),
   })
-  const rest = omit(props, "disabled", "focusableWhenDisabled")
+  const rest = omit(props, 'disabled', 'focusableWhenDisabled')
 
-  return renderPart("button", rest, state, {
+  return renderPart('button', rest, state, {
     ref: (el: HTMLElement) => {
       elRef = el
-      if (el) toolbar.registerItem(el)
+      if (el) {
+        toolbar.registerItem(el)
+      }
     },
     attrs: () => {
       const disabled = state().disabled
       const focusable = disabled && !!props.focusableWhenDisabled
       return {
-        type: "button",
+        type: 'button',
         disabled: disabled && !focusable ? true : undefined,
-        "aria-disabled": focusable ? "true" : undefined,
-        "data-disabled": disabled ? "" : undefined,
+        'aria-disabled': focusable ? 'true' : undefined,
+        'data-disabled': disabled ? '' : undefined,
       }
     },
     handlers: {
       onKeyDown: (event: KeyboardEvent) => {
-        if (!elRef) return
+        if (!elRef) {
+          return
+        }
         navigateRoving(event, toolbar.getItems(), elRef, {
           orientation: toolbar.orientation(),
           loop: toolbar.loop(),
@@ -159,23 +168,27 @@ export function ToolbarButton(
   })
 }
 
-export function ToolbarLink(props: PartProps<"a", ToolbarLinkState>) {
-  const toolbar = useToolbar("Link")
+export function ToolbarLink(props: PartProps<'a', ToolbarLinkState>) {
+  const toolbar = useToolbar('Link')
   let elRef: HTMLElement | undefined
   const state = (): ToolbarLinkState => ({ disabled: toolbar.disabled() })
 
-  return renderPart("a", props, state, {
+  return renderPart('a', props, state, {
     ref: (el: HTMLElement) => {
       elRef = el
-      if (el) toolbar.registerItem(el)
+      if (el) {
+        toolbar.registerItem(el)
+      }
     },
     attrs: () => ({
-      "aria-disabled": state().disabled ? "true" : undefined,
-      "data-disabled": state().disabled ? "" : undefined,
+      'aria-disabled': state().disabled ? 'true' : undefined,
+      'data-disabled': state().disabled ? '' : undefined,
     }),
     handlers: {
       onKeyDown: (event: KeyboardEvent) => {
-        if (!elRef) return
+        if (!elRef) {
+          return
+        }
         navigateRoving(event, toolbar.getItems(), elRef, {
           orientation: toolbar.orientation(),
           loop: toolbar.loop(),
@@ -186,53 +199,55 @@ export function ToolbarLink(props: PartProps<"a", ToolbarLinkState>) {
 }
 
 export function ToolbarInput(
-  props: ToolbarInputProps & Omit<PartProps<"input", ToolbarInputState>, "disabled">
+  props: ToolbarInputProps & Omit<PartProps<'input', ToolbarInputState>, 'disabled'>,
 ) {
-  const toolbar = useToolbar("Input")
+  const toolbar = useToolbar('Input')
   const state = (): ToolbarInputState => ({
     disabled: !!props.disabled || toolbar.disabled(),
   })
-  const rest = omit(props, "disabled")
-  return renderPart("input", rest, state, {
+  const rest = omit(props, 'disabled')
+  return renderPart('input', rest, state, {
     ref: (el: HTMLElement) => {
-      if (el) toolbar.registerItem(el)
+      if (el) {
+        toolbar.registerItem(el)
+      }
     },
     attrs: () => ({
       disabled: state().disabled || undefined,
-      "data-disabled": state().disabled ? "" : undefined,
+      'data-disabled': state().disabled ? '' : undefined,
     }),
   })
 }
 
 export function ToolbarGroup(
-  props: ToolbarGroupProps & Omit<PartProps<"div", ToolbarGroupState>, "disabled">
+  props: ToolbarGroupProps & Omit<PartProps<'div', ToolbarGroupState>, 'disabled'>,
 ) {
-  const toolbar = useToolbar("Group")
+  const toolbar = useToolbar('Group')
   const state = (): ToolbarGroupState => ({
     disabled: !!props.disabled || toolbar.disabled(),
     orientation: toolbar.orientation(),
   })
-  const rest = omit(props, "disabled")
-  return renderPart("div", rest, state, {
+  const rest = omit(props, 'disabled')
+  return renderPart('div', rest, state, {
     attrs: () => ({
-      role: "group",
-      "data-orientation": toolbar.orientation(),
-      "data-disabled": state().disabled ? "" : undefined,
+      role: 'group',
+      'data-orientation': toolbar.orientation(),
+      'data-disabled': state().disabled ? '' : undefined,
     }),
   })
 }
 
-export function ToolbarSeparator(props: PartProps<"div", ToolbarSeparatorState>) {
-  const toolbar = useToolbar("Separator")
+export function ToolbarSeparator(props: PartProps<'div', ToolbarSeparatorState>) {
+  const toolbar = useToolbar('Separator')
   const orientation = (): ToolbarOrientation =>
-    toolbar.orientation() === "horizontal" ? "vertical" : "horizontal"
+    toolbar.orientation() === 'horizontal' ? 'vertical' : 'horizontal'
   const state = (): ToolbarSeparatorState => ({ orientation: orientation() })
 
-  return renderPart("div", props, state, {
+  return renderPart('div', props, state, {
     attrs: () => ({
-      role: "separator",
-      "aria-orientation": orientation(),
-      "data-orientation": orientation(),
+      role: 'separator',
+      'aria-orientation': orientation(),
+      'data-orientation': orientation(),
     }),
   })
 }

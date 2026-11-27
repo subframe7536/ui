@@ -14,7 +14,7 @@ if (typeof document !== 'undefined') {
   document.head.append(style)
 }
 
-if (typeof globalThis.ResizeObserver === 'undefined') {
+if (globalThis.ResizeObserver === undefined) {
   globalThis.ResizeObserver = class ResizeObserver {
     observe() {}
     unobserve() {}

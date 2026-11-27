@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web"
+import type { JSX } from '@solidjs/web'
 import {
   createContext,
   createEffect,
@@ -8,76 +8,75 @@ import {
   omit,
   onCleanup,
   useContext,
-} from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+} from 'solid-js'
 
-export type FileLike = Pick<File, "name" | "size" | "type"> & {
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type FileLike = Pick<File, 'name' | 'size' | 'type'> & {
   lastModified?: number
   webkitRelativePath?: string
 }
 
 export type FileRejectionReason =
-  | "type"
-  | "too-large"
-  | "too-small"
-  | "too-many"
-  | "duplicate"
-  | "custom"
+  | 'type'
+  | 'too-large'
+  | 'too-small'
+  | 'too-many'
+  | 'duplicate'
+  | 'custom'
 
 export type FileRejection = {
   file: File
-  reasons: FileRejectionReason[]
+  reasons: Array<FileRejectionReason>
 }
 
 export type FileRules = {
-  accept?: string | string[]
+  accept?: string | Array<string>
   maxSize?: number
   minSize?: number
   maxFiles?: number
   allowDuplicates?: boolean
-  validate?: (file: File) => FileRejectionReason[] | null | undefined
+  validate?: (file: File) => Array<FileRejectionReason> | null | undefined
 }
 
 export type FileInputValueChangeReason =
-  | "input"
-  | "drop"
-  | "paste"
-  | "remove"
-  | "clear"
-  | "programmatic"
+  | 'input'
+  | 'drop'
+  | 'paste'
+  | 'remove'
+  | 'clear'
+  | 'programmatic'
 
 export type FileInputChangeOptions = ChangeOptions<FileInputValueChangeReason>
 
 export type FileInputValueChangeDetails = ChangeDetails<FileInputValueChangeReason> & {
-  accepted: File[]
-  rejected: FileRejection[]
+  accepted: Array<File>
+  rejected: Array<FileRejection>
 }
 
 export type FileInputChange = {
-  files: File[]
-  accepted: File[]
-  rejected: FileRejection[]
+  files: Array<File>
+  accepted: Array<File>
+  rejected: Array<FileRejection>
 }
 
-export type FileInputDropzoneTarget = "self" | "window"
-export type FileInputPasteTarget = "self" | "window" | false
+export type FileInputDropzoneTarget = 'self' | 'window'
+export type FileInputPasteTarget = 'self' | 'window' | false
 
 export type FileInputApi = {
-  setFiles: (files: File[], options?: FileInputChangeOptions) => void
-  addFiles: (files: File[] | FileList, options?: FileInputChangeOptions) => FileInputChange
+  setFiles: (files: Array<File>, options?: FileInputChangeOptions) => void
+  addFiles: (files: Array<File> | FileList, options?: FileInputChangeOptions) => FileInputChange
   removeFile: (file: File) => void
   clear: () => void
   open: () => void
-  getFiles: () => File[]
+  getFiles: () => Array<File>
 }
 
 export function createFileInputController() {
@@ -87,10 +86,10 @@ export function createFileInputController() {
 export type FileInputController = ReturnType<typeof createFileInputController>
 
 export type FileInputOptions = FileRules & {
-  value?: File[]
-  defaultValue?: File[]
-  onValueChange?: (files: File[], details: FileInputValueChangeDetails) => void
-  onReject?: (rejections: FileRejection[]) => void
+  value?: Array<File>
+  defaultValue?: Array<File>
+  onValueChange?: (files: Array<File>, details: FileInputValueChangeDetails) => void
+  onReject?: (rejections: Array<FileRejection>) => void
   multiple?: boolean
   directory?: boolean
   disabled?: boolean
@@ -104,7 +103,7 @@ export type FileInputOptions = FileRules & {
 }
 
 export type FileInputState = {
-  files: File[]
+  files: Array<File>
   count: number
   empty: boolean
   dragging: boolean
@@ -143,12 +142,14 @@ export type FileInputItemState = {
 export type FileInputItemRemoveState = FileInputItemState
 
 export function formatFileSize(bytes: number, decimals = 1): string {
-  if (bytes <= 0) return "0 B"
+  if (bytes <= 0) {
+    return '0 B'
+  }
   const k = 1024
-  const units = ["B", "KB", "MB", "GB", "TB"]
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), units.length - 1)
-  const val = bytes / Math.pow(k, i)
-  return `${i === 0 ? Math.round(val) : val.toFixed(decimals)} ${units[i] ?? "B"}`
+  const val = bytes / k ** i
+  return `${i === 0 ? Math.round(val) : val.toFixed(decimals)} ${units[i] ?? 'B'}`
 }
 
 export function relativePath(file: FileLike): string {
@@ -161,18 +162,28 @@ function fileIdentity(file: FileLike): string {
   return `${relativePath(file)}:${file.size}:${file.lastModified ?? 0}`
 }
 
-function matchesAccept(file: File, accept: string | string[] | undefined): boolean {
-  if (!accept) return true
-  const list = (Array.isArray(accept) ? accept : accept.split(","))
+function matchesAccept(file: File, accept: string | Array<string> | undefined): boolean {
+  if (!accept) {
+    return true
+  }
+  const list = (Array.isArray(accept) ? accept : accept.split(','))
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
-  if (list.length === 0) return true
+  if (list.length === 0) {
+    return true
+  }
   const name = file.name.toLowerCase()
   const mime = file.type.toLowerCase()
   return list.some((rule) => {
-    if (rule === "*" || rule === "*/*") return true
-    if (rule.startsWith(".")) return name.endsWith(rule)
-    if (rule.endsWith("/*")) return mime.startsWith(rule.slice(0, -1))
+    if (rule === '*' || rule === '*/*') {
+      return true
+    }
+    if (rule.startsWith('.')) {
+      return name.endsWith(rule)
+    }
+    if (rule.endsWith('/*')) {
+      return mime.startsWith(rule.slice(0, -1))
+    }
     return mime === rule
   })
 }
@@ -191,7 +202,9 @@ const FileItemContext = createContext<(() => File) | null>(null)
 
 function useFileInput(part: string): FileInputContextValue {
   const ctx = useContext(FileInputContext)
-  if (!ctx) throw new Error(`<FileInput${part}> must be used inside <FileInput>.`)
+  if (!ctx) {
+    throw new Error(`<FileInput${part}> must be used inside <FileInput>.`)
+  }
   return ctx
 }
 
@@ -200,7 +213,9 @@ function useItemFile(part: string, own: () => File | undefined): () => File {
   return () => {
     const file = own() ?? listed?.()
     if (!file) {
-      throw new Error(`<FileInput${part}> must receive a file prop or be used inside <FileInputList>.`)
+      throw new Error(
+        `<FileInput${part}> must receive a file prop or be used inside <FileInputList>.`,
+      )
     }
     return file
   }
@@ -208,12 +223,12 @@ function useItemFile(part: string, own: () => File | undefined): () => File {
 
 export function FileInput(
   props: FileInputOptions &
-    Omit<PartProps<"div", FileInputState>, keyof FileInputOptions | "defaultValue" | "onChange">
+    Omit<PartProps<'div', FileInputState>, keyof FileInputOptions | 'defaultValue' | 'onChange'>,
 ) {
   const field = useFieldControl()
   const id = field?.controlId ?? `ui-file-input-${createUniqueId()}`
 
-  const [files, setRawFiles] = createControlledSignal<File[]>({
+  const [files, setRawFiles] = createControlledSignal<Array<File>>({
     value: () => props.value,
     defaultValue: () => props.defaultValue ?? [],
   })
@@ -243,11 +258,11 @@ export function FileInput(
   }
 
   const commitChange = (
-    nextFiles: File[],
-    accepted: File[],
-    rejected: FileRejection[],
+    nextFiles: Array<File>,
+    accepted: Array<File>,
+    rejected: Array<FileRejection>,
     reason: FileInputValueChangeReason,
-    event?: Event
+    event?: Event,
   ) => {
     const base = createChangeDetails(reason, event)
     const details: FileInputValueChangeDetails = {
@@ -259,14 +274,16 @@ export function FileInput(
       props.onReject?.(rejected)
     }
     props.onValueChange?.(nextFiles, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawFiles(nextFiles)
     field?.setDirty(true)
   }
 
   const addFiles = (
-    incoming: File[] | FileList,
-    options?: FileInputChangeOptions
+    incoming: Array<File> | FileList,
+    options?: FileInputChangeOptions,
   ): FileInputChange => {
     const arr = Array.from(incoming)
     if (disabled() || readOnly()) {
@@ -274,19 +291,29 @@ export function FileInput(
     }
     const existing = multiple() ? [...files()] : []
     const seen = new Set(existing.map(fileIdentity))
-    const accepted: File[] = []
-    const rejected: FileRejection[] = []
+    const accepted: Array<File> = []
+    const rejected: Array<FileRejection> = []
 
     for (const file of arr) {
-      const reasons: FileRejectionReason[] = []
-      if (!matchesAccept(file, props.accept)) reasons.push("type")
-      if (props.maxSize !== undefined && file.size > props.maxSize) reasons.push("too-large")
-      if (props.minSize !== undefined && file.size < props.minSize) reasons.push("too-small")
-      if (!props.allowDuplicates && seen.has(fileIdentity(file))) reasons.push("duplicate")
+      const reasons: Array<FileRejectionReason> = []
+      if (!matchesAccept(file, props.accept)) {
+        reasons.push('type')
+      }
+      if (props.maxSize !== undefined && file.size > props.maxSize) {
+        reasons.push('too-large')
+      }
+      if (props.minSize !== undefined && file.size < props.minSize) {
+        reasons.push('too-small')
+      }
+      if (!props.allowDuplicates && seen.has(fileIdentity(file))) {
+        reasons.push('duplicate')
+      }
       const custom = props.validate?.(file)
-      if (custom && custom.length > 0) reasons.push(...custom)
+      if (custom && custom.length > 0) {
+        reasons.push(...custom)
+      }
       if (props.maxFiles !== undefined && existing.length + accepted.length >= props.maxFiles) {
-        reasons.push("too-many")
+        reasons.push('too-many')
       }
 
       if (reasons.length > 0) {
@@ -298,26 +325,32 @@ export function FileInput(
     }
 
     const nextFiles = multiple() ? [...existing, ...accepted] : accepted.slice(0, 1)
-    commitChange(nextFiles, accepted, rejected, options?.reason ?? "input", options?.event)
+    commitChange(nextFiles, accepted, rejected, options?.reason ?? 'input', options?.event)
     return { files: nextFiles, accepted, rejected }
   }
 
   const api: FileInputApi = {
     setFiles: (next, options) => {
-      commitChange(next, next, [], options?.reason ?? "programmatic", options?.event)
+      commitChange(next, next, [], options?.reason ?? 'programmatic', options?.event)
     },
     addFiles,
     removeFile: (target) => {
-      if (disabled() || readOnly()) return
+      if (disabled() || readOnly()) {
+        return
+      }
       const next = files().filter((f: File) => f !== target)
-      commitChange(next, [], [], "remove")
+      commitChange(next, [], [], 'remove')
     },
     clear: () => {
-      if (disabled() || readOnly()) return
-      commitChange([], [], [], "clear")
+      if (disabled() || readOnly()) {
+        return
+      }
+      commitChange([], [], [], 'clear')
     },
     open: () => {
-      if (disabled() || readOnly()) return
+      if (disabled() || readOnly()) {
+        return
+      }
       inputEl?.click()
     },
     getFiles: () => files(),
@@ -326,7 +359,7 @@ export function FileInput(
   useController(() => props.controller, api)
 
   registerComponent({
-    component: "file-input",
+    component: 'file-input',
     getElements: () => [rootEl, inputEl],
     getState: () => ({ count: files().length, empty: files().length === 0, disabled: disabled() }),
     getDisabled: disabled,
@@ -335,34 +368,33 @@ export function FileInput(
     },
   })
 
-  const acceptAttr = () =>
-    Array.isArray(props.accept) ? props.accept.join(",") : props.accept
+  const acceptAttr = () => (Array.isArray(props.accept) ? props.accept.join(',') : props.accept)
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "onReject",
-    "accept",
-    "maxSize",
-    "minSize",
-    "maxFiles",
-    "allowDuplicates",
-    "validate",
-    "multiple",
-    "directory",
-    "disabled",
-    "readOnly",
-    "required",
-    "invalid",
-    "name",
-    "form",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'onReject',
+    'accept',
+    'maxSize',
+    'minSize',
+    'maxFiles',
+    'allowDuplicates',
+    'validate',
+    'multiple',
+    'directory',
+    'disabled',
+    'readOnly',
+    'required',
+    'invalid',
+    'name',
+    'form',
+    'controller',
+    'debug',
   )
 
-  const combinedProps: PartProps<"div", FileInputState> = {
+  const combinedProps: PartProps<'div', FileInputState> = {
     ...rest,
     children: (s: FileInputState) => (
       <>
@@ -380,16 +412,16 @@ export function FileInput(
           required={!!props.required || !!field?.required()}
           aria-hidden="true"
           tabindex={-1}
-          style={{ display: "none" }}
+          style={{ display: 'none' }}
           onChange={(e) => {
             const list = e.currentTarget.files
             if (list && list.length > 0) {
-              addFiles(list, { reason: "input", event: e })
+              addFiles(list, { reason: 'input', event: e })
             }
-            e.currentTarget.value = ""
+            e.currentTarget.value = ''
           }}
         />
-        {typeof props.children === "function" ? props.children(s) : props.children}
+        {typeof props.children === 'function' ? props.children(s) : props.children}
       </>
     ),
   }
@@ -405,18 +437,18 @@ export function FileInput(
         field,
       }}
     >
-      {renderPart("div", combinedProps, state, {
+      {renderPart('div', combinedProps, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => {
           const s = state()
           return {
-            "data-empty": s.empty ? "" : undefined,
-            "data-dragging": s.dragging ? "" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-readonly": s.readOnly ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
+            'data-empty': s.empty ? '' : undefined,
+            'data-dragging': s.dragging ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-readonly': s.readOnly ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
           }
         },
       })}
@@ -425,55 +457,62 @@ export function FileInput(
 }
 
 export function FileInputDropzone(
-  props: FileInputDropzoneProps & Omit<PartProps<"div", FileInputDropzoneState>, keyof FileInputDropzoneProps>
+  props: FileInputDropzoneProps &
+    Omit<PartProps<'div', FileInputDropzoneState>, keyof FileInputDropzoneProps>,
 ) {
-  const ctx = useFileInput("Dropzone")
-  const rest = omit(props, "target", "paste")
+  const ctx = useFileInput('Dropzone')
+  const rest = omit(props, 'target', 'paste')
 
   createEffect(
     () => props.paste,
     (pasteTarget) => {
-      if (pasteTarget !== "window") return
+      if (pasteTarget !== 'window') {
+        return
+      }
       const onPaste = (e: ClipboardEvent) => {
         const files = e.clipboardData?.files
         if (files && files.length > 0) {
-          ctx.api.addFiles(files, { reason: "paste", event: e })
+          ctx.api.addFiles(files, { reason: 'paste', event: e })
         }
       }
-      window.addEventListener("paste", onPaste)
-      onCleanup(() => window.removeEventListener("paste", onPaste))
-    }
+      window.addEventListener('paste', onPaste)
+      onCleanup(() => window.removeEventListener('paste', onPaste))
+    },
   )
 
-  return renderPart("div", rest, ctx.state, {
+  return renderPart('div', rest, ctx.state, {
     attrs: () => {
       const s = ctx.state()
       return {
-        role: "button",
+        role: 'button',
         tabindex: s.disabled ? -1 : 0,
-        "aria-disabled": s.disabled ? "true" : undefined,
-        "aria-labelledby": ctx.field?.labelId,
-        "aria-describedby": ctx.field?.describedBy(),
-        "data-dragging": s.dragging ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
-        "data-empty": s.empty ? "" : undefined,
+        'aria-disabled': s.disabled ? 'true' : undefined,
+        'aria-labelledby': ctx.field?.labelId,
+        'aria-describedby': ctx.field?.describedBy(),
+        'data-dragging': s.dragging ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-empty': s.empty ? '' : undefined,
       }
     },
     handlers: {
       onClick: () => ctx.openPicker(),
       onKeyDown: (e: KeyboardEvent) => {
-        if (e.key === "Enter" || e.key === " ") {
+        if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           ctx.openPicker()
         }
       },
       onDragEnter: (e: DragEvent) => {
         e.preventDefault()
-        if (!ctx.state().disabled && !ctx.state().readOnly) ctx.setDragging(true)
+        if (!ctx.state().disabled && !ctx.state().readOnly) {
+          ctx.setDragging(true)
+        }
       },
       onDragOver: (e: DragEvent) => {
         e.preventDefault()
-        if (!ctx.state().disabled && !ctx.state().readOnly) ctx.setDragging(true)
+        if (!ctx.state().disabled && !ctx.state().readOnly) {
+          ctx.setDragging(true)
+        }
       },
       onDragLeave: (e: DragEvent) => {
         e.preventDefault()
@@ -484,14 +523,16 @@ export function FileInputDropzone(
         ctx.setDragging(false)
         const files = e.dataTransfer?.files
         if (files && files.length > 0) {
-          ctx.api.addFiles(files, { reason: "drop", event: e })
+          ctx.api.addFiles(files, { reason: 'drop', event: e })
         }
       },
       onPaste: (e: ClipboardEvent) => {
-        if (props.paste === false) return
+        if (props.paste === false) {
+          return
+        }
         const files = e.clipboardData?.files
         if (files && files.length > 0) {
-          ctx.api.addFiles(files, { reason: "paste", event: e })
+          ctx.api.addFiles(files, { reason: 'paste', event: e })
         }
       },
     },
@@ -499,18 +540,19 @@ export function FileInputDropzone(
 }
 
 export function FileInputTrigger(
-  props: FileInputTriggerProps & Omit<PartProps<"button", FileInputState>, keyof FileInputTriggerProps>
+  props: FileInputTriggerProps &
+    Omit<PartProps<'button', FileInputState>, keyof FileInputTriggerProps>,
 ) {
-  const ctx = useFileInput("Trigger")
-  const rest = omit(props, "disabled")
-  return renderPart("button", rest, ctx.state, {
+  const ctx = useFileInput('Trigger')
+  const rest = omit(props, 'disabled')
+  return renderPart('button', rest, ctx.state, {
     attrs: () => {
       const s = ctx.state()
       const isDisabled = !!props.disabled || s.disabled || s.readOnly || !s.canAddMore
       return {
-        type: "button",
+        type: 'button',
         disabled: isDisabled,
-        "data-disabled": isDisabled ? "" : undefined,
+        'data-disabled': isDisabled ? '' : undefined,
       }
     },
     handlers: {
@@ -520,40 +562,38 @@ export function FileInputTrigger(
 }
 
 export function FileInputList(
-  props: Omit<PartProps<"ul", FileInputState>, "children"> & {
+  props: Omit<PartProps<'ul', FileInputState>, 'children'> & {
     children?: JSX.Element | ((file: File, index: () => number) => JSX.Element)
-  }
+  },
 ) {
-  const ctx = useFileInput("List")
-  const rest = omit(props, "children")
-  const combinedProps: PartProps<"ul", FileInputState> = {
+  const ctx = useFileInput('List')
+  const rest = omit(props, 'children')
+  const combinedProps: PartProps<'ul', FileInputState> = {
     ...rest,
     children: (
       <For each={ctx.state().files}>
         {(file, index) => (
           <FileItemContext value={() => file}>
-            {typeof props.children === "function"
-              ? props.children(file, index)
-              : props.children}
+            {typeof props.children === 'function' ? props.children(file, index) : props.children}
           </FileItemContext>
         )}
       </For>
     ),
   }
 
-  return renderPart("ul", combinedProps, ctx.state, {
+  return renderPart('ul', combinedProps, ctx.state, {
     attrs: () => ({
-      role: "list",
-      "data-empty": ctx.state().empty ? "" : undefined,
+      role: 'list',
+      'data-empty': ctx.state().empty ? '' : undefined,
     }),
   })
 }
 
 export function FileInputItem(
-  props: FileInputItemProps & Omit<PartProps<"li", FileInputItemState>, keyof FileInputItemProps>
+  props: FileInputItemProps & Omit<PartProps<'li', FileInputItemState>, keyof FileInputItemProps>,
 ) {
-  const ctx = useFileInput("Item")
-  const getFile = useItemFile("Item", () => props.file)
+  const ctx = useFileInput('Item')
+  const getFile = useItemFile('Item', () => props.file)
   const itemState = (): FileInputItemState => {
     const f = getFile()
     return {
@@ -565,13 +605,13 @@ export function FileInputItem(
       disabled: ctx.state().disabled,
     }
   }
-  const rest = omit(props, "file")
+  const rest = omit(props, 'file')
 
   return (
     <FileItemContext value={getFile}>
-      {renderPart("li", rest, itemState, {
+      {renderPart('li', rest, itemState, {
         attrs: () => ({
-          "data-disabled": itemState().disabled ? "" : undefined,
+          'data-disabled': itemState().disabled ? '' : undefined,
         }),
       })}
     </FileItemContext>
@@ -579,10 +619,11 @@ export function FileInputItem(
 }
 
 export function FileInputItemRemove(
-  props: FileInputItemProps & Omit<PartProps<"button", FileInputItemRemoveState>, keyof FileInputItemProps>
+  props: FileInputItemProps &
+    Omit<PartProps<'button', FileInputItemRemoveState>, keyof FileInputItemProps>,
 ) {
-  const ctx = useFileInput("ItemRemove")
-  const getFile = useItemFile("ItemRemove", () => props.file)
+  const ctx = useFileInput('ItemRemove')
+  const getFile = useItemFile('ItemRemove', () => props.file)
   const itemState = (): FileInputItemRemoveState => {
     const f = getFile()
     return {
@@ -594,16 +635,16 @@ export function FileInputItemRemove(
       disabled: ctx.state().disabled || ctx.state().readOnly,
     }
   }
-  const rest = omit(props, "file")
+  const rest = omit(props, 'file')
 
-  return renderPart("button", rest, itemState, {
+  return renderPart('button', rest, itemState, {
     attrs: () => {
       const s = itemState()
       return {
-        type: "button",
+        type: 'button',
         disabled: s.disabled,
-        "aria-label": `Remove ${s.name}`,
-        "data-disabled": s.disabled ? "" : undefined,
+        'aria-label': `Remove ${s.name}`,
+        'data-disabled': s.disabled ? '' : undefined,
       }
     },
     handlers: {

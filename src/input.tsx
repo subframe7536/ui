@@ -1,16 +1,15 @@
-import { createContext, createSignal, omit, Show, useContext } from "solid-js"
-import { useFieldControl } from "./field"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
+import { createContext, createSignal, omit, Show, useContext } from 'solid-js'
 
-export type InputValueChangeReason = "input-change" | "clear-press" | "imperative" | "reset"
+import { useFieldControl } from './field'
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+
+export type InputValueChangeReason = 'input-change' | 'clear-press' | 'imperative' | 'reset'
 
 export type InputApi = {
   setValue: (value: string, options?: ChangeOptions<InputValueChangeReason>) => void
@@ -48,7 +47,10 @@ export type InputState = {
 }
 
 export type InputProps = InputOptions &
-  Omit<PartProps<"input", InputState>, "value" | "defaultValue" | "disabled" | "readOnly" | "required">
+  Omit<
+    PartProps<'input', InputState>,
+    'value' | 'defaultValue' | 'disabled' | 'readOnly' | 'required'
+  >
 
 export type InputGroupOptions = { disabled?: boolean }
 export type InputGroupState = {
@@ -69,8 +71,8 @@ export type TextareaState = InputState
 
 export type TextareaProps = TextareaOptions &
   Omit<
-    PartProps<"textarea", TextareaState>,
-    "value" | "defaultValue" | "disabled" | "readOnly" | "required" | "onSubmit"
+    PartProps<'textarea', TextareaState>,
+    'value' | 'defaultValue' | 'disabled' | 'readOnly' | 'required' | 'onSubmit'
   >
 
 type InputGroupContextValue = {
@@ -90,7 +92,7 @@ type InputGroupContextValue = {
 const InputGroupContext = createContext<InputGroupContextValue | null>(null)
 
 export function InputGroup(
-  props: InputGroupOptions & Omit<PartProps<"div", InputGroupState>, keyof InputGroupOptions>
+  props: InputGroupOptions & Omit<PartProps<'div', InputGroupState>, keyof InputGroupOptions>,
 ) {
   const field = useFieldControl()
   let bound:
@@ -104,18 +106,18 @@ export function InputGroup(
 
   const disabled = () => !!props.disabled || (field?.disabled() ?? false)
   const state = (): InputGroupState => ({
-    empty: (bound?.getValue() ?? "").length === 0,
+    empty: (bound?.getValue() ?? '').length === 0,
     focused: bound?.isFocused() ?? false,
     disabled: disabled(),
     invalid: bound?.isInvalid() ?? field?.invalid() ?? false,
   })
 
-  const rest = omit(props, "disabled")
+  const rest = omit(props, 'disabled')
 
   return (
     <InputGroupContext
       value={{
-        value: () => bound?.getValue() ?? "",
+        value: () => bound?.getValue() ?? '',
         focused: () => bound?.isFocused() ?? false,
         disabled,
         invalid: () => bound?.isInvalid() ?? field?.invalid() ?? false,
@@ -125,14 +127,14 @@ export function InputGroup(
         },
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         attrs: () => {
           const s = state()
           return {
-            "data-empty": s.empty ? "" : undefined,
-            "data-focused": s.focused ? "" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
+            'data-empty': s.empty ? '' : undefined,
+            'data-focused': s.focused ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
           }
         },
       })}
@@ -148,10 +150,11 @@ export function Input(props: InputProps) {
 
   const [value, setValue] = createControlledSignal<string>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? "",
+    defaultValue: () => props.defaultValue ?? '',
   })
 
-  const isDisabled = () => !!props.disabled || (group?.disabled() ?? false) || (field?.disabled() ?? false)
+  const isDisabled = () =>
+    !!props.disabled || (group?.disabled() ?? false) || (field?.disabled() ?? false)
   const isReadOnly = () => !!props.readOnly || (field?.readOnly() ?? false)
   const isRequired = () => !!props.required || (field?.required() ?? false)
   const isInvalid = () => !!props.invalid || (field?.invalid() ?? false)
@@ -160,17 +163,21 @@ export function Input(props: InputProps) {
     next: string,
     reason: InputValueChangeReason,
     event?: Event,
-    source?: ChangeOptions["source"]
+    source?: ChangeOptions['source'],
   ) => {
     const prev = value()
-    if (prev === next) return
+    if (prev === next) {
+      return
+    }
     const details = createChangeDetails(reason, event, source)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setValue(next)
     field?.setDirty(true)
     reg.emit({
-      key: "value",
+      key: 'value',
       previous: prev,
       value: next,
       reason: details.reason,
@@ -180,9 +187,8 @@ export function Input(props: InputProps) {
 
   const api: InputApi = {
     setValue: (next, opts) =>
-      applyValue(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
-    clear: (opts) =>
-      applyValue("", opts?.reason ?? "clear-press", opts?.event, opts?.source),
+      applyValue(next, opts?.reason ?? 'imperative', opts?.event, opts?.source),
+    clear: (opts) => applyValue('', opts?.reason ?? 'clear-press', opts?.event, opts?.source),
     focus: () => inputEl?.focus(),
     getValue: value,
   }
@@ -194,18 +200,18 @@ export function Input(props: InputProps) {
     isFocused: focused,
     isInvalid,
     clear: (event) => {
-      applyValue("", "clear-press", event)
+      applyValue('', 'clear-press', event)
       inputEl?.focus()
     },
   })
 
   const reg = registerComponent({
-    component: "input",
+    component: 'input',
     getElements: () => [inputEl],
     getState: () => ({ value: value(), required: isRequired() }),
     getDisabled: () => isDisabled() || isReadOnly(),
     actions: {
-      setValue: (next) => api.setValue(String(next ?? "")),
+      setValue: (next) => api.setValue(String(next ?? '')),
       clear: () => api.clear(),
     },
   })
@@ -222,18 +228,18 @@ export function Input(props: InputProps) {
 
   const rest = omit(
     props,
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "disabled",
-    "readOnly",
-    "required",
-    "invalid",
-    "controller",
-    "debug"
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'disabled',
+    'readOnly',
+    'required',
+    'invalid',
+    'controller',
+    'debug',
   )
 
-  return renderPart("input", rest, state, {
+  return renderPart('input', rest, state, {
     ref: (el: HTMLInputElement) => {
       inputEl = el
     },
@@ -246,18 +252,18 @@ export function Input(props: InputProps) {
         disabled: s.disabled || undefined,
         readonly: s.readOnly || undefined,
         required: s.required || undefined,
-        "aria-invalid": s.invalid ? "true" : undefined,
-        "aria-describedby": field?.describedBy(),
-        "data-empty": s.empty ? "" : undefined,
-        "data-focused": s.focused ? "" : undefined,
-        "data-disabled": s.disabled ? "" : undefined,
-        "data-invalid": s.invalid ? "" : undefined,
+        'aria-invalid': s.invalid ? 'true' : undefined,
+        'aria-describedby': field?.describedBy(),
+        'data-empty': s.empty ? '' : undefined,
+        'data-focused': s.focused ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-invalid': s.invalid ? '' : undefined,
       }
     },
     handlers: {
       onInput: (event: Event) => {
         const target = event.currentTarget as HTMLInputElement
-        applyValue(target.value, "input-change", event)
+        applyValue(target.value, 'input-change', event)
       },
       onFocus: () => setFocused(true),
       onBlur: () => {
@@ -268,9 +274,11 @@ export function Input(props: InputProps) {
   })
 }
 
-export function InputClear(props: Omit<PartProps<"button", InputGroupState>, "type">) {
+export function InputClear(props: Omit<PartProps<'button', InputGroupState>, 'type'>) {
   const group = useContext(InputGroupContext)
-  if (!group) throw new Error("<InputClear> must be used inside <InputGroup>.")
+  if (!group) {
+    throw new Error('<InputClear> must be used inside <InputGroup>.')
+  }
   const state = (): InputGroupState => ({
     empty: group.value().length === 0,
     focused: group.focused(),
@@ -279,10 +287,10 @@ export function InputClear(props: Omit<PartProps<"button", InputGroupState>, "ty
   })
   return (
     <Show when={!state().empty}>
-      {renderPart("button", props, state, {
+      {renderPart('button', props, state, {
         attrs: () => ({
-          type: "button",
-          "aria-label": "Clear",
+          type: 'button',
+          'aria-label': 'Clear',
           disabled: group.disabled() || undefined,
         }),
         handlers: {

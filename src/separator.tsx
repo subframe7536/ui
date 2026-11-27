@@ -1,7 +1,9 @@
-import { omit } from "solid-js"
-import { renderPart, type PartProps } from "./foundation/render"
+import { omit } from 'solid-js'
 
-export type SeparatorOrientation = "horizontal" | "vertical"
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+
+export type SeparatorOrientation = 'horizontal' | 'vertical'
 
 export type SeparatorOptions = {
   orientation?: SeparatorOrientation
@@ -14,22 +16,22 @@ export type SeparatorState = {
 }
 
 export type SeparatorProps = SeparatorOptions &
-  Omit<PartProps<"div", SeparatorState>, keyof SeparatorOptions>
+  Omit<PartProps<'div', SeparatorState>, keyof SeparatorOptions>
 
 export function Separator(props: SeparatorProps) {
-  const rest = omit(props, "orientation", "decorative")
+  const rest = omit(props, 'orientation', 'decorative')
   const state = (): SeparatorState => ({
-    orientation: props.orientation ?? "horizontal",
+    orientation: props.orientation ?? 'horizontal',
     decorative: !!props.decorative,
   })
 
-  return renderPart("div", rest, state, {
+  return renderPart('div', rest, state, {
     attrs: () => {
       const s = state()
       return {
-        role: s.decorative ? "none" : "separator",
-        "aria-orientation": s.decorative ? undefined : s.orientation,
-        "data-orientation": s.orientation,
+        role: s.decorative ? 'none' : 'separator',
+        'aria-orientation': s.decorative ? undefined : s.orientation,
+        'data-orientation': s.orientation,
       }
     },
   })

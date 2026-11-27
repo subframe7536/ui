@@ -1,18 +1,20 @@
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from "solid-js"
-import { renderPart, type PartProps } from "./foundation/render"
+import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
 
 export type ValidityKey =
-  | "valueMissing"
-  | "typeMismatch"
-  | "patternMismatch"
-  | "tooLong"
-  | "tooShort"
-  | "rangeUnderflow"
-  | "rangeOverflow"
-  | "stepMismatch"
-  | "badInput"
-  | "customError"
-  | "valid"
+  | 'valueMissing'
+  | 'typeMismatch'
+  | 'patternMismatch'
+  | 'tooLong'
+  | 'tooShort'
+  | 'rangeUnderflow'
+  | 'rangeOverflow'
+  | 'stepMismatch'
+  | 'badInput'
+  | 'customError'
+  | 'valid'
 
 export type FieldOptions = {
   name?: string
@@ -75,7 +77,7 @@ export function useFieldControl(): FieldControlContextValue | null {
 }
 
 export function Field(
-  props: FieldOptions & Omit<PartProps<"div", FieldState>, keyof FieldOptions>
+  props: FieldOptions & Omit<PartProps<'div', FieldState>, keyof FieldOptions>,
 ) {
   const uid = createUniqueId()
   const controlId = `ui-field-${uid}`
@@ -102,13 +104,17 @@ export function Field(
   })
 
   const describedBy = () => {
-    const ids: string[] = []
-    if (hasDescription()) ids.push(descriptionId)
-    if (hasError() && invalid()) ids.push(errorId)
-    return ids.length > 0 ? ids.join(" ") : undefined
+    const ids: Array<string> = []
+    if (hasDescription()) {
+      ids.push(descriptionId)
+    }
+    if (hasError() && invalid()) {
+      ids.push(errorId)
+    }
+    return ids.length > 0 ? ids.join(' ') : undefined
   }
 
-  const rest = omit(props, "name", "disabled", "invalid", "required", "readOnly", "error", "debug")
+  const rest = omit(props, 'name', 'disabled', 'invalid', 'required', 'readOnly', 'error', 'debug')
 
   return (
     <FieldContext
@@ -131,16 +137,16 @@ export function Field(
         setTouched,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         attrs: () => {
           const s = state()
           return {
-            "data-disabled": s.disabled ? "" : undefined,
-            "data-invalid": s.invalid ? "" : undefined,
-            "data-required": s.required ? "" : undefined,
-            "data-readonly": s.readOnly ? "" : undefined,
-            "data-dirty": s.dirty ? "" : undefined,
-            "data-touched": s.touched ? "" : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
+            'data-required': s.required ? '' : undefined,
+            'data-readonly': s.readOnly ? '' : undefined,
+            'data-dirty': s.dirty ? '' : undefined,
+            'data-touched': s.touched ? '' : undefined,
           }
         },
       })}
@@ -148,7 +154,7 @@ export function Field(
   )
 }
 
-export function FieldLabel(props: PartProps<"label", FieldState>) {
+export function FieldLabel(props: PartProps<'label', FieldState>) {
   const ctx = useContext(FieldContext)
   const state = () =>
     ctx?.state() ?? {
@@ -159,18 +165,18 @@ export function FieldLabel(props: PartProps<"label", FieldState>) {
       dirty: false,
       touched: false,
     }
-  return renderPart("label", props, state, {
+  return renderPart('label', props, state, {
     attrs: () => ({
       id: props.id ?? ctx?.labelId,
       for: (props as Record<string, unknown>).for ?? ctx?.controlId,
-      "data-disabled": state().disabled ? "" : undefined,
-      "data-invalid": state().invalid ? "" : undefined,
-      "data-required": state().required ? "" : undefined,
+      'data-disabled': state().disabled ? '' : undefined,
+      'data-invalid': state().invalid ? '' : undefined,
+      'data-required': state().required ? '' : undefined,
     }),
   })
 }
 
-export function FieldControl(props: PartProps<"input", FieldState>) {
+export function FieldControl(props: PartProps<'input', FieldState>) {
   const ctx = useContext(FieldContext)
   const state = () =>
     ctx?.state() ?? {
@@ -181,16 +187,16 @@ export function FieldControl(props: PartProps<"input", FieldState>) {
       dirty: false,
       touched: false,
     }
-  return renderPart("input", props, state, {
+  return renderPart('input', props, state, {
     attrs: () => ({
       id: props.id ?? ctx?.controlId,
       name: (props as Record<string, unknown>).name ?? ctx?.name(),
       disabled: state().disabled || undefined,
       required: state().required || undefined,
       readonly: state().readOnly || undefined,
-      "aria-invalid": state().invalid ? "true" : undefined,
-      "aria-describedby": ctx?.describedBy(),
-      "data-invalid": state().invalid ? "" : undefined,
+      'aria-invalid': state().invalid ? 'true' : undefined,
+      'aria-describedby': ctx?.describedBy(),
+      'data-invalid': state().invalid ? '' : undefined,
     }),
     handlers: {
       onInput: () => ctx?.setDirty(true),
@@ -199,7 +205,7 @@ export function FieldControl(props: PartProps<"input", FieldState>) {
   })
 }
 
-export function FieldDescription(props: PartProps<"p", FieldDescriptionState>) {
+export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
   const ctx = useContext(FieldContext)
   ctx?.setHasDescription(true)
   const state = () =>
@@ -211,7 +217,7 @@ export function FieldDescription(props: PartProps<"p", FieldDescriptionState>) {
       dirty: false,
       touched: false,
     }
-  return renderPart("p", props, state, {
+  return renderPart('p', props, state, {
     attrs: () => ({
       id: props.id ?? ctx?.descriptionId,
     }),
@@ -219,11 +225,11 @@ export function FieldDescription(props: PartProps<"p", FieldDescriptionState>) {
 }
 
 export function FieldError(
-  props: FieldErrorProps & Omit<PartProps<"p", FieldErrorState>, keyof FieldErrorProps>
+  props: FieldErrorProps & Omit<PartProps<'p', FieldErrorState>, keyof FieldErrorProps>,
 ) {
   const ctx = useContext(FieldContext)
   ctx?.setHasError(true)
-  const rest = omit(props, "match", "forceShow")
+  const rest = omit(props, 'match', 'forceShow')
   const visible = () => !!props.forceShow || (ctx ? ctx.invalid() : true)
   const state = (): FieldErrorState => ({
     ...(ctx?.state() ?? {
@@ -239,11 +245,11 @@ export function FieldError(
 
   return (
     <Show when={visible()}>
-      {renderPart("p", rest, state, {
+      {renderPart('p', rest, state, {
         attrs: () => ({
           id: props.id ?? ctx?.errorId,
-          role: "alert",
-          "data-invalid": "",
+          role: 'alert',
+          'data-invalid': '',
         }),
       })}
     </Show>
@@ -251,34 +257,34 @@ export function FieldError(
 }
 
 export function FieldSet(
-  props: FieldSetOptions & Omit<PartProps<"fieldset", FieldSetState>, keyof FieldSetOptions>
+  props: FieldSetOptions & Omit<PartProps<'fieldset', FieldSetState>, keyof FieldSetOptions>,
 ) {
   const parentDisabled = useContext(FieldSetContext)
   const disabled = () => !!props.disabled || parentDisabled()
-  const rest = omit(props, "disabled")
+  const rest = omit(props, 'disabled')
   return (
     <FieldSetContext value={disabled}>
-      {renderPart("fieldset", rest, () => ({ disabled: disabled() }), {
+      {renderPart('fieldset', rest, () => ({ disabled: disabled() }), {
         attrs: () => ({
           disabled: disabled() || undefined,
-          "data-disabled": disabled() ? "" : undefined,
+          'data-disabled': disabled() ? '' : undefined,
         }),
       })}
     </FieldSetContext>
   )
 }
 
-export function FieldLegend(props: PartProps<"legend", FieldSetState>) {
+export function FieldLegend(props: PartProps<'legend', FieldSetState>) {
   const disabled = useContext(FieldSetContext)
-  return renderPart("legend", props, () => ({ disabled: disabled() }), {
+  return renderPart('legend', props, () => ({ disabled: disabled() }), {
     attrs: () => ({
-      "data-disabled": disabled() ? "" : undefined,
+      'data-disabled': disabled() ? '' : undefined,
     }),
   })
 }
 
-export function FieldGroup(props: PartProps<"div", {}>) {
-  return renderPart("div", props, () => ({}), {
-    attrs: () => ({ role: "group" }),
+export function FieldGroup(props: PartProps<'div'>) {
+  return renderPart('div', props, () => ({}), {
+    attrs: () => ({ role: 'group' }),
   })
 }

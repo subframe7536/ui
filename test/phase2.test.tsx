@@ -1,6 +1,7 @@
-import { render } from "@solidjs/web"
-import { flush, For } from "solid-js"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { render } from '@solidjs/web'
+import { flush, For } from 'solid-js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
 import {
   Drawer,
   DrawerClose,
@@ -46,13 +47,13 @@ import {
   createOverlays,
   createToaster,
   createTooltipController,
-} from "../src"
+} from '../src'
 
 let disposers: Array<() => void> = []
 
 function mount(fn: () => any) {
-  const container = document.createElement("div")
-  document.body.appendChild(container)
+  const container = document.createElement('div')
+  document.body.append(container)
   const dispose = render(fn, container)
   disposers.push(() => {
     dispose()
@@ -62,13 +63,15 @@ function mount(fn: () => any) {
 }
 
 afterEach(() => {
-  for (const dispose of disposers) dispose()
+  for (const dispose of disposers) {
+    dispose()
+  }
   disposers = []
-  document.body.innerHTML = ""
+  document.body.innerHTML = ''
 })
 
-describe("Tooltip & HoverCard", () => {
-  it("opens Tooltip on focus and controller", () => {
+describe('tooltip & HoverCard', () => {
+  it('opens Tooltip on focus and controller', () => {
     const ctrl = createTooltipController()
     mount(() => (
       <Tooltip controller={ctrl} openDelay={0} closeDelay={0}>
@@ -76,16 +79,16 @@ describe("Tooltip & HoverCard", () => {
         <TooltipContent inline>Helpful hint</TooltipContent>
       </Tooltip>
     ))
-    expect(document.body.textContent).not.toContain("Helpful hint")
+    expect(document.body.textContent).not.toContain('Helpful hint')
     ctrl.open()
     flush()
-    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe("Helpful hint")
+    expect(document.querySelector('[role="tooltip"]')?.textContent).toBe('Helpful hint')
     ctrl.close()
     flush()
     expect(document.querySelector('[role="tooltip"]')).toBeNull()
   })
 
-  it("opens HoverCard via controller", () => {
+  it('opens HoverCard via controller', () => {
     const ctrl = createHoverCardController()
     mount(() => (
       <HoverCard controller={ctrl} openDelay={0} closeDelay={0}>
@@ -95,13 +98,13 @@ describe("Tooltip & HoverCard", () => {
     ))
     ctrl.open()
     flush()
-    expect(document.body.textContent).toContain("Solid 2 developer")
+    expect(document.body.textContent).toContain('Solid 2 developer')
   })
 })
 
-describe("Drawer", () => {
-  it("opens Drawer, cycles snapPoints via DrawerHandle, and closes with returnValue", async () => {
-    const ctrl = createDrawerController<undefined, string>()
+describe('drawer', () => {
+  it('opens Drawer, cycles snapPoints via DrawerHandle, and closes with returnValue', async () => {
+    const ctrl = createDrawerController<undefined>()
     mount(() => (
       <Drawer controller={ctrl} side="bottom" snapPoints={[0.5, 1]}>
         <DrawerTrigger>Open Sheet</DrawerTrigger>
@@ -116,24 +119,24 @@ describe("Drawer", () => {
     const resP = ctrl.open()
     flush()
     expect(ctrl.getSnapPoint()).toBe(0.5)
-    const snapBtn = Array.from(document.querySelectorAll("button")).find(
-      (b) => b.textContent === "Snap"
+    const snapBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Snap',
     )!
     snapBtn.click()
     flush()
     expect(ctrl.getSnapPoint()).toBe(1)
 
-    const doneBtn = Array.from(document.querySelectorAll("button")).find(
-      (b) => b.textContent === "Done"
+    const doneBtn = Array.from(document.querySelectorAll('button')).find(
+      (b) => b.textContent === 'Done',
     )!
     doneBtn.click()
     flush()
-    expect(await resP).toBe("saved")
+    expect(await resP).toBe('saved')
   })
 })
 
-describe("Menu & Menubar", () => {
-  it("selects MenuItem, toggles MenuCheckboxItem, and picks MenuRadioItem", () => {
+describe('menu & Menubar', () => {
+  it('selects MenuItem, toggles MenuCheckboxItem, and picks MenuRadioItem', () => {
     const onSelect = vi.fn()
     const ctrl = createMenuController()
     mount(() => (
@@ -152,7 +155,7 @@ describe("Menu & Menubar", () => {
       </Menubar>
     ))
 
-    document.querySelector("button")!.click()
+    document.querySelector('button')!.click()
     flush()
     const menu = document.querySelector('[role="menu"]')!
     expect(menu).toBeTruthy()
@@ -160,7 +163,7 @@ describe("Menu & Menubar", () => {
     const checkbox = menu.querySelector<HTMLElement>('[role="menuitemcheckbox"]')!
     checkbox.click()
     flush()
-    expect(checkbox.getAttribute("aria-checked")).toBe("true")
+    expect(checkbox.getAttribute('aria-checked')).toBe('true')
 
     const newItem = menu.querySelector<HTMLElement>('[role="menuitem"]')!
     newItem.click()
@@ -170,11 +173,11 @@ describe("Menu & Menubar", () => {
   })
 })
 
-describe("TriggerMenu, NavigationMenu, Toast, Overlays & Toolbar", () => {
-  it("opens TriggerMenu on @ mention and inserts selected value", () => {
+describe('triggerMenu, NavigationMenu, Toast, Overlays & Toolbar', () => {
+  it('opens TriggerMenu on @ mention and inserts selected value', () => {
     const onSelect = vi.fn()
     const root = mount(() => (
-      <TriggerMenu triggers={["@"]} onSelect={onSelect}>
+      <TriggerMenu triggers={['@']} onSelect={onSelect}>
         <TriggerMenuInput />
         <TriggerMenuContent inline>
           <TriggerMenuList>
@@ -184,21 +187,21 @@ describe("TriggerMenu, NavigationMenu, Toast, Overlays & Toolbar", () => {
       </TriggerMenu>
     ))
 
-    const input = root.querySelector("input")!
-    input.value = "Hi @al"
+    const input = root.querySelector('input')!
+    input.value = 'Hi @al'
     input.setSelectionRange(6, 6)
-    input.dispatchEvent(new Event("input", { bubbles: true }))
+    input.dispatchEvent(new Event('input', { bubbles: true }))
     flush()
 
     const opt = root.querySelector<HTMLElement>('[role="option"]')!
     expect(opt).toBeTruthy()
     opt.click()
     flush()
-    expect(input.value).toBe("Hi @alice ")
+    expect(input.value).toBe('Hi @alice ')
     expect(onSelect).toHaveBeenCalledTimes(1)
   })
 
-  it("toggles NavigationMenu content and closes on link click", () => {
+  it('toggles NavigationMenu content and closes on link click', () => {
     const root = mount(() => (
       <NavigationMenu>
         <NavigationMenuList>
@@ -212,15 +215,15 @@ describe("TriggerMenu, NavigationMenu, Toast, Overlays & Toolbar", () => {
       </NavigationMenu>
     ))
 
-    root.querySelector("button")!.click()
+    root.querySelector('button')!.click()
     flush()
-    expect(root.textContent).toContain("Intro")
-    root.querySelector("a")!.click()
+    expect(root.textContent).toContain('Intro')
+    root.querySelector('a')!.click()
     flush()
-    expect(root.textContent).not.toContain("Intro")
+    expect(root.textContent).not.toContain('Intro')
   })
 
-  it("manages Toast items via createToaster and dismisses via ToastClose", () => {
+  it('manages Toast items via createToaster and dismisses via ToastClose', () => {
     const manager = createToaster({ duration: Infinity })
     const root = mount(() => (
       <ToastRegion toaster={manager}>
@@ -235,38 +238,38 @@ describe("TriggerMenu, NavigationMenu, Toast, Overlays & Toolbar", () => {
       </ToastRegion>
     ))
 
-    manager.success("Saved!")
+    manager.success('Saved!')
     flush()
-    expect(root.textContent).toContain("Saved!")
-    root.querySelector("button")!.click()
+    expect(root.textContent).toContain('Saved!')
+    root.querySelector('button')!.click()
     flush()
-    expect(root.textContent).not.toContain("Saved!")
+    expect(root.textContent).not.toContain('Saved!')
   })
 
-  it("opens and resolves imperative overlays via OverlayHost", async () => {
+  it('opens and resolves imperative overlays via OverlayHost', async () => {
     const manager = createOverlays()
     const root = mount(() => <OverlayHost manager={manager} />)
     const promise = manager.open<string>((close) => (
-      <button type="button" onClick={() => close("yes")}>
+      <button type="button" onClick={() => close('yes')}>
         Confirm Overlay
       </button>
     ))
     flush()
-    root.querySelector("button")!.click()
+    root.querySelector('button')!.click()
     flush()
-    expect(await promise).toBe("yes")
+    expect(await promise).toBe('yes')
   })
 
-  it("navigates Toolbar buttons with arrow keys", () => {
+  it('navigates Toolbar buttons with arrow keys', () => {
     const root = mount(() => (
       <Toolbar>
         <ToolbarButton>Bold</ToolbarButton>
         <ToolbarButton>Italic</ToolbarButton>
       </Toolbar>
     ))
-    const buttons = root.querySelectorAll("button")
+    const buttons = root.querySelectorAll('button')
     buttons[0]!.focus()
-    buttons[0]!.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }))
+    buttons[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
     expect(document.activeElement).toBe(buttons[1])
   })
 })

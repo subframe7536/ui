@@ -1,33 +1,24 @@
-import type { JSX } from "@solidjs/web"
-import {
-  createContext,
-  createSignal,
-  createUniqueId,
-  For,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import {
-  createChangeDetails,
-  type ChangeDetails,
-  type ChangeOptions,
-} from "./foundation/details"
-import { registerComponent } from "./foundation/registry"
-import { renderPart, type PartProps } from "./foundation/render"
-import { createControlledSignal } from "./foundation/state"
-import type { ListHighlightDetails } from "./listbox"
+import type { JSX } from '@solidjs/web'
+import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+
+import { createController, useController } from './foundation/controller'
+import { createChangeDetails } from './foundation/details'
+import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { registerComponent } from './foundation/registry'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+import { createControlledSignal } from './foundation/state'
+import type { ListHighlightDetails } from './listbox'
 
 export type { ListHighlightDetails }
 
-export type TreeMode = "single" | "multiple"
-export type TreeValue<T extends string = string> = T | T[] | null
-export type TreeCheckedState = boolean | "indeterminate"
-export type TreeCheckStrategy = "cascade" | "independent"
-export type TreeValueChangeReason = "click" | "keyboard" | "programmatic" | "clear"
-export type TreeExpandedChangeReason = "click" | "keyboard" | "programmatic"
-export type TreeCheckedChangeReason = "click" | "keyboard" | "programmatic"
+export type TreeMode = 'single' | 'multiple'
+export type TreeValue<T extends string = string> = T | Array<T> | null
+export type TreeCheckedState = boolean | 'indeterminate'
+export type TreeCheckStrategy = 'cascade' | 'independent'
+export type TreeValueChangeReason = 'click' | 'keyboard' | 'programmatic' | 'clear'
+export type TreeExpandedChangeReason = 'click' | 'keyboard' | 'programmatic'
+export type TreeCheckedChangeReason = 'click' | 'keyboard' | 'programmatic'
 export type TreeChangeOptions = ChangeOptions<TreeValueChangeReason>
 
 export type TreeActionDetails = {
@@ -43,7 +34,7 @@ export type TreeItemData<T extends string = string> = {
   value: T
   label: string
   disabled?: boolean
-  children?: TreeItemData<T>[]
+  children?: Array<TreeItemData<T>>
 }
 
 export type TreeCollectionNode<T extends string = string> = {
@@ -52,11 +43,11 @@ export type TreeCollectionNode<T extends string = string> = {
   parent: T | null
   depth: number
   disabled: boolean
-  children: T[]
+  children: Array<T>
 }
 
 export type TreeCollection<T extends string = string> = {
-  roots: T[]
+  roots: Array<T>
   nodes: Map<T, TreeCollectionNode<T>>
 }
 
@@ -69,12 +60,12 @@ export type TreeRow<T extends string = string> = {
   disabled: boolean
 }
 
-export function treeFromPaths(paths: string[], separator = "/"): TreeItemData[] {
+export function treeFromPaths(paths: Array<string>, separator = '/'): Array<TreeItemData> {
   const rootMap = new Map<string, TreeItemData>()
   for (const raw of paths) {
     const parts = raw.split(separator).filter(Boolean)
     let currentMap = rootMap
-    let prefix = ""
+    let prefix = ''
     for (const part of parts) {
       prefix = prefix ? `${prefix}${separator}${part}` : part
       let node = currentMap.get(prefix)
@@ -87,30 +78,30 @@ export function treeFromPaths(paths: string[], separator = "/"): TreeItemData[] 
         nextMap.set(child.value, child)
       }
       currentMap = {
-        get: (k: string) => (node!.children ?? []).find((c) => c.value === k),
+        get: (k: string) => (node.children ?? []).find((c) => c.value === k),
         set: (_k: string, v: TreeItemData) => {
-          node!.children = [...(node!.children ?? []), v]
+          node.children = [...(node.children ?? []), v]
           return nextMap
         },
       } as unknown as Map<string, TreeItemData>
     }
   }
-  const clean = (items: TreeItemData[]): TreeItemData[] =>
+  const clean = (items: Array<TreeItemData>): Array<TreeItemData> =>
     items.map((item) =>
       item.children && item.children.length > 0
         ? { ...item, children: clean(item.children) }
-        : { value: item.value, label: item.label }
+        : { value: item.value, label: item.label },
     )
   return clean([...rootMap.values()])
 }
 
 export function visibleTreeRows<T extends string = string>(
-  items: TreeItemData<T>[],
-  expanded: Set<T> | T[]
-): TreeRow<T>[] {
+  items: Array<TreeItemData<T>>,
+  expanded: Set<T> | Array<T>,
+): Array<TreeRow<T>> {
   const expandedSet = expanded instanceof Set ? expanded : new Set(expanded)
-  const rows: TreeRow<T>[] = []
-  const walk = (nodes: TreeItemData<T>[], depth: number) => {
+  const rows: Array<TreeRow<T>> = []
+  const walk = (nodes: Array<TreeItemData<T>>, depth: number) => {
     for (const node of nodes) {
       const hasChildren = !!node.children && node.children.length > 0
       const isExpanded = hasChildren && expandedSet.has(node.value)
@@ -131,8 +122,8 @@ export function visibleTreeRows<T extends string = string>(
   return rows
 }
 
-function collectDescendants<T extends string>(node: TreeItemData<T>): T[] {
-  const out: T[] = []
+function collectDescendants<T extends string>(node: TreeItemData<T>): Array<T> {
+  const out: Array<T> = []
   const walk = (n: TreeItemData<T>) => {
     for (const child of n.children ?? []) {
       out.push(child.value)
@@ -144,29 +135,33 @@ function collectDescendants<T extends string>(node: TreeItemData<T>): T[] {
 }
 
 function findNode<T extends string>(
-  items: TreeItemData<T>[],
-  value: T
+  items: Array<TreeItemData<T>>,
+  value: T,
 ): TreeItemData<T> | undefined {
   for (const item of items) {
-    if (item.value === value) return item
+    if (item.value === value) {
+      return item
+    }
     if (item.children) {
       const found = findNode(item.children, value)
-      if (found) return found
+      if (found) {
+        return found
+      }
     }
   }
   return undefined
 }
 
 export function treeCheckedStates<T extends string = string>(
-  items: TreeItemData<T>[],
-  checked: T[],
-  strategy: TreeCheckStrategy = "cascade"
+  items: Array<TreeItemData<T>>,
+  checked: Array<T>,
+  strategy: TreeCheckStrategy = 'cascade',
 ): Map<T, TreeCheckedState> {
   const checkedSet = new Set(checked)
   const result = new Map<T, TreeCheckedState>()
 
   const visit = (node: TreeItemData<T>): TreeCheckedState => {
-    if (!node.children || node.children.length === 0 || strategy === "independent") {
+    if (!node.children || node.children.length === 0 || strategy === 'independent') {
       const st: TreeCheckedState = checkedSet.has(node.value)
       result.set(node.value, st)
       return st
@@ -174,36 +169,44 @@ export function treeCheckedStates<T extends string = string>(
     const childStates = node.children.map(visit)
     const allTrue = childStates.every((s) => s === true)
     const allFalse = childStates.every((s) => s === false)
-    const st: TreeCheckedState = allTrue ? true : allFalse ? false : "indeterminate"
+    const st: TreeCheckedState = allTrue ? true : allFalse ? false : 'indeterminate'
     result.set(node.value, st)
     return st
   }
 
-  for (const item of items) visit(item)
+  for (const item of items) {
+    visit(item)
+  }
   return result
 }
 
 export function toggleTreeChecked<T extends string = string>(
-  items: TreeItemData<T>[],
-  checked: T[],
+  items: Array<TreeItemData<T>>,
+  checked: Array<T>,
   value: T,
-  strategy: TreeCheckStrategy = "cascade"
-): T[] {
+  strategy: TreeCheckStrategy = 'cascade',
+): Array<T> {
   const set = new Set(checked)
   const states = treeCheckedStates(items, checked, strategy)
   const shouldCheck = states.get(value) !== true
   const node = findNode(items, value)
 
-  if (strategy === "independent" || !node?.children?.length) {
-    if (shouldCheck) set.add(value)
-    else set.delete(value)
+  if (strategy === 'independent' || !node?.children?.length) {
+    if (shouldCheck) {
+      set.add(value)
+    } else {
+      set.delete(value)
+    }
     return [...set]
   }
 
   const targets = [value, ...collectDescendants(node)]
   for (const t of targets) {
-    if (shouldCheck) set.add(t)
-    else set.delete(t)
+    if (shouldCheck) {
+      set.add(t)
+    } else {
+      set.delete(t)
+    }
   }
   return [...set]
 }
@@ -217,8 +220,8 @@ export type TreeApi<T extends string = string> = {
   collapseAll: () => void
   toggleChecked: (value: T) => void
   getValue: () => TreeValue<T>
-  getExpanded: () => T[]
-  getChecked: () => T[]
+  getExpanded: () => Array<T>
+  getChecked: () => Array<T>
 }
 
 export function createTreeController<T extends string = string>() {
@@ -228,25 +231,16 @@ export function createTreeController<T extends string = string>() {
 export type TreeController<T extends string = string> = TreeApi<T>
 
 export type TreeOptions<T extends string = string> = {
-  items?: TreeItemData<T>[]
+  items?: Array<TreeItemData<T>>
   value?: TreeValue<T>
   defaultValue?: TreeValue<T>
-  onValueChange?: (
-    value: TreeValue<T>,
-    details: ChangeDetails<TreeValueChangeReason>
-  ) => void
-  expanded?: T[]
-  defaultExpanded?: T[]
-  onExpandedChange?: (
-    expanded: T[],
-    details: ChangeDetails<TreeExpandedChangeReason>
-  ) => void
-  checked?: T[]
-  defaultChecked?: T[]
-  onCheckedChange?: (
-    checked: T[],
-    details: ChangeDetails<TreeCheckedChangeReason>
-  ) => void
+  onValueChange?: (value: TreeValue<T>, details: ChangeDetails<TreeValueChangeReason>) => void
+  expanded?: Array<T>
+  defaultExpanded?: Array<T>
+  onExpandedChange?: (expanded: Array<T>, details: ChangeDetails<TreeExpandedChangeReason>) => void
+  checked?: Array<T>
+  defaultChecked?: Array<T>
+  onCheckedChange?: (checked: Array<T>, details: ChangeDetails<TreeCheckedChangeReason>) => void
   checkStrategy?: TreeCheckStrategy
   multiple?: boolean
   disabled?: boolean
@@ -257,8 +251,8 @@ export type TreeOptions<T extends string = string> = {
 
 export type TreeState<T extends string = string> = {
   value: TreeValue<T>
-  expanded: T[]
-  checked: T[]
+  expanded: Array<T>
+  checked: Array<T>
   highlightedValue: string | null
   multiple: boolean
   disabled: boolean
@@ -266,7 +260,7 @@ export type TreeState<T extends string = string> = {
 
 export type TreePrimitive = TreeState
 export type TreeProps<T extends string = string> = TreeOptions<T> &
-  Omit<PartProps<"div", TreeState<T>>, keyof TreeOptions<T> | "defaultValue" | "onChange">
+  Omit<PartProps<'div', TreeState<T>>, keyof TreeOptions<T> | 'defaultValue' | 'onChange'>
 
 export type TreeItemProps<T extends string = string> = {
   value: T
@@ -294,8 +288,8 @@ export type TreeGroupState = { expanded: boolean }
 
 type TreeContextValue = {
   id: string
-  state: () => TreeState<string>
-  items: () => TreeItemData<string>[]
+  state: () => TreeState
+  items: () => Array<TreeItemData>
   isSelected: (val: string) => boolean
   isExpanded: (val: string) => boolean
   getCheckedState: (val: string) => TreeCheckedState
@@ -311,24 +305,26 @@ const TreeItemContext = createContext<(() => TreeItemState) | null>(null)
 
 function useTree(part: string): TreeContextValue {
   const ctx = useContext(TreeContext)
-  if (!ctx) throw new Error(`<Tree${part}> must be used inside <Tree>.`)
+  if (!ctx) {
+    throw new Error(`<Tree${part}> must be used inside <Tree>.`)
+  }
   return ctx
 }
 
 export function Tree<T extends string = string>(props: TreeProps<T>) {
   const id = `ui-tree-${createUniqueId()}`
   const isMultiple = () => !!props.multiple
-  const strategy = (): TreeCheckStrategy => props.checkStrategy ?? "cascade"
+  const strategy = (): TreeCheckStrategy => props.checkStrategy ?? 'cascade'
 
   const [value, setRawValue] = createControlledSignal<TreeValue<T>>({
     value: () => props.value,
-    defaultValue: () => props.defaultValue ?? (isMultiple() ? ([] as T[]) : null),
+    defaultValue: () => props.defaultValue ?? (isMultiple() ? ([] as Array<T>) : null),
   })
-  const [expanded, setRawExpanded] = createControlledSignal<T[]>({
+  const [expanded, setRawExpanded] = createControlledSignal<Array<T>>({
     value: () => props.expanded,
     defaultValue: () => props.defaultExpanded ?? [],
   })
-  const [checked, setRawChecked] = createControlledSignal<T[]>({
+  const [checked, setRawChecked] = createControlledSignal<Array<T>>({
     value: () => props.checked,
     defaultValue: () => props.defaultChecked ?? [],
   })
@@ -354,32 +350,38 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
   const commitValue = (next: TreeValue<T>, reason: TreeValueChangeReason, event?: Event) => {
     const details = createChangeDetails(reason, event)
     props.onValueChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawValue(next)
   }
 
-  const commitExpanded = (next: T[], reason: TreeExpandedChangeReason, event?: Event) => {
+  const commitExpanded = (next: Array<T>, reason: TreeExpandedChangeReason, event?: Event) => {
     const details = createChangeDetails(reason, event)
     props.onExpandedChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawExpanded(next)
   }
 
-  const commitChecked = (next: T[], reason: TreeCheckedChangeReason, event?: Event) => {
+  const commitChecked = (next: Array<T>, reason: TreeCheckedChangeReason, event?: Event) => {
     const details = createChangeDetails(reason, event)
     props.onCheckedChange?.(next, details)
-    if (details.canceled) return
+    if (details.canceled) {
+      return
+    }
     setRawChecked(next)
   }
 
   const selectItem = (val: string, reason: TreeValueChangeReason, event?: Event) => {
-    if (disabled()) return
+    if (disabled()) {
+      return
+    }
     const cur = value()
     if (isMultiple()) {
       const arr = Array.isArray(cur) ? cur : []
-      const next = arr.includes(val as T)
-        ? arr.filter((v) => v !== val)
-        : [...arr, val as T]
+      const next = arr.includes(val as T) ? arr.filter((v) => v !== val) : [...arr, val as T]
       commitValue(next, reason, event)
     } else {
       commitValue(val as T, reason, event)
@@ -388,14 +390,14 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
 
   const toggleExpand = (val: string, reason: TreeExpandedChangeReason, event?: Event) => {
     const cur = expanded()
-    const next = cur.includes(val as T)
-      ? cur.filter((v) => v !== val)
-      : [...cur, val as T]
+    const next = cur.includes(val as T) ? cur.filter((v) => v !== val) : [...cur, val as T]
     commitExpanded(next, reason, event)
   }
 
   const toggleCheck = (val: string, reason: TreeCheckedChangeReason, event?: Event) => {
-    if (disabled()) return
+    if (disabled()) {
+      return
+    }
     const next = props.items
       ? toggleTreeChecked(props.items, checked(), val as T, strategy())
       : checked().includes(val as T)
@@ -404,8 +406,8 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
     commitChecked(next, reason, event)
   }
 
-  const collectAllBranchValues = (nodes: TreeItemData<T>[]): T[] => {
-    const out: T[] = []
+  const collectAllBranchValues = (nodes: Array<TreeItemData<T>>): Array<T> => {
+    const out: Array<T> = []
     for (const n of nodes) {
       if (n.children && n.children.length > 0) {
         out.push(n.value, ...collectAllBranchValues(n.children))
@@ -415,19 +417,24 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
   }
 
   const api: TreeApi<T> = {
-    setValue: (next, opts) => commitValue(next, opts?.reason ?? "programmatic", opts?.event),
+    setValue: (next, opts) => commitValue(next, opts?.reason ?? 'programmatic', opts?.event),
     expand: (val) => {
-      if (!expanded().includes(val)) commitExpanded([...expanded(), val], "programmatic")
+      if (!expanded().includes(val)) {
+        commitExpanded([...expanded(), val], 'programmatic')
+      }
     },
     collapse: (val) => {
       if (expanded().includes(val)) {
-        commitExpanded(expanded().filter((v) => v !== val), "programmatic")
+        commitExpanded(
+          expanded().filter((v) => v !== val),
+          'programmatic',
+        )
       }
     },
-    toggleExpanded: (val) => toggleExpand(val, "programmatic"),
-    expandAll: () => commitExpanded(collectAllBranchValues(props.items ?? []), "programmatic"),
-    collapseAll: () => commitExpanded([], "programmatic"),
-    toggleChecked: (val) => toggleCheck(val, "programmatic"),
+    toggleExpanded: (val) => toggleExpand(val, 'programmatic'),
+    expandAll: () => commitExpanded(collectAllBranchValues(props.items ?? []), 'programmatic'),
+    collapseAll: () => commitExpanded([], 'programmatic'),
+    toggleChecked: (val) => toggleCheck(val, 'programmatic'),
     getValue: () => value(),
     getExpanded: () => expanded(),
     getChecked: () => checked(),
@@ -445,7 +452,7 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
   })
 
   registerComponent({
-    component: "tree",
+    component: 'tree',
     getElements: () => [rootEl],
     getState: () => ({
       value: value(),
@@ -457,36 +464,36 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
     actions: {
       expand: (v) => api.expand(String(v) as T),
       collapse: (v) => api.collapse(String(v) as T),
-      select: (v) => selectItem(String(v), "programmatic"),
+      select: (v) => selectItem(String(v), 'programmatic'),
     },
   })
 
   const rest = omit(
     props,
-    "items",
-    "value",
-    "defaultValue",
-    "onValueChange",
-    "expanded",
-    "defaultExpanded",
-    "onExpandedChange",
-    "checked",
-    "defaultChecked",
-    "onCheckedChange",
-    "checkStrategy",
-    "multiple",
-    "disabled",
-    "onActivate",
-    "controller",
-    "debug"
+    'items',
+    'value',
+    'defaultValue',
+    'onValueChange',
+    'expanded',
+    'defaultExpanded',
+    'onExpandedChange',
+    'checked',
+    'defaultChecked',
+    'onCheckedChange',
+    'checkStrategy',
+    'multiple',
+    'disabled',
+    'onActivate',
+    'controller',
+    'debug',
   )
 
   return (
     <TreeContext
       value={{
         id,
-        state: state as () => TreeState<string>,
-        items: () => (props.items ?? []) as TreeItemData<string>[],
+        state,
+        items: () => props.items ?? [],
         isSelected,
         isExpanded,
         getCheckedState,
@@ -497,16 +504,16 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
         onActivate: props.onActivate,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
         },
         attrs: () => ({
           id,
-          role: "tree",
-          "aria-multiselectable": isMultiple() ? "true" : undefined,
-          "aria-disabled": disabled() ? "true" : undefined,
-          "data-disabled": disabled() ? "" : undefined,
+          role: 'tree',
+          'aria-multiselectable': isMultiple() ? 'true' : undefined,
+          'aria-disabled': disabled() ? 'true' : undefined,
+          'data-disabled': disabled() ? '' : undefined,
         }),
       })}
     </TreeContext>
@@ -514,37 +521,40 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
 }
 
 export function TreeItems(props: {
-  items?: TreeItemData<string>[]
-  renderItem?: (row: TreeRow<string>) => JSX.Element
+  items?: Array<TreeItemData>
+  renderItem?: (row: TreeRow) => JSX.Element
 }) {
-  const ctx = useTree("Items")
+  const ctx = useTree('Items')
   const rows = () => visibleTreeRows(props.items ?? ctx.items(), ctx.state().expanded)
   return (
     <For each={rows()}>
-      {(row) =>
-        props.renderItem ? (
-          props.renderItem(row)
-        ) : (
-          <TreeItem
-            value={row.value}
-            label={row.label}
-            depth={row.depth}
-            hasChildren={row.hasChildren}
-            disabled={row.disabled}
-          >
-            <TreeItemIndicator />
-            <TreeItemLabel>{row.label}</TreeItemLabel>
-          </TreeItem>
-        )
-      }
+      {(row) => (
+        <Show
+          when={props.renderItem}
+          fallback={
+            <TreeItem
+              value={row.value}
+              label={row.label}
+              depth={row.depth}
+              hasChildren={row.hasChildren}
+              disabled={row.disabled}
+            >
+              <TreeItemIndicator />
+              <TreeItemLabel>{row.label}</TreeItemLabel>
+            </TreeItem>
+          }
+        >
+          {props.renderItem(row)}
+        </Show>
+      )}
     </For>
   )
 }
 
 export function TreeItem<T extends string = string>(
-  props: TreeItemProps<T> & Omit<PartProps<"div", TreeItemState>, keyof TreeItemProps<T>>
+  props: TreeItemProps<T> & Omit<PartProps<'div', TreeItemState>, keyof TreeItemProps<T>>,
 ) {
-  const ctx = useTree("Item")
+  const ctx = useTree('Item')
   const itemState = (): TreeItemState => ({
     value: props.value,
     depth: props.depth ?? 0,
@@ -555,49 +565,55 @@ export function TreeItem<T extends string = string>(
     hasChildren: !!props.hasChildren,
     disabled: ctx.state().disabled || !!props.disabled,
   })
-  const rest = omit(props, "value", "label", "depth", "hasChildren", "disabled")
+  const rest = omit(props, 'value', 'label', 'depth', 'hasChildren', 'disabled')
 
   return (
     <TreeItemContext value={itemState}>
-      {renderPart("div", rest, itemState, {
+      {renderPart('div', rest, itemState, {
         attrs: () => {
           const s = itemState()
           return {
-            role: "treeitem",
+            role: 'treeitem',
             tabindex: s.disabled ? -1 : 0,
-            "aria-level": s.depth + 1,
-            "aria-selected": s.selected ? "true" : "false",
-            "aria-expanded": s.hasChildren ? (s.expanded ? "true" : "false") : undefined,
-            "aria-disabled": s.disabled ? "true" : undefined,
-            "data-value": s.value,
-            "data-depth": s.depth,
-            "data-selected": s.selected ? "" : undefined,
-            "data-expanded": s.expanded ? "" : undefined,
-            "data-highlighted": s.highlighted ? "" : undefined,
-            "data-disabled": s.disabled ? "" : undefined,
+            'aria-level': s.depth + 1,
+            'aria-selected': s.selected ? 'true' : 'false',
+            'aria-expanded': s.hasChildren ? (s.expanded ? 'true' : 'false') : undefined,
+            'aria-disabled': s.disabled ? 'true' : undefined,
+            'data-value': s.value,
+            'data-depth': s.depth,
+            'data-selected': s.selected ? '' : undefined,
+            'data-expanded': s.expanded ? '' : undefined,
+            'data-highlighted': s.highlighted ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
           }
         },
         handlers: {
           onClick: (e: MouseEvent) => {
             const s = itemState()
-            if (s.disabled) return
+            if (s.disabled) {
+              return
+            }
             ctx.setHighlighted(s.value)
-            ctx.selectItem(s.value, "click", e)
-            if (s.hasChildren) ctx.toggleExpand(s.value, "click", e)
+            ctx.selectItem(s.value, 'click', e)
+            if (s.hasChildren) {
+              ctx.toggleExpand(s.value, 'click', e)
+            }
             ctx.onActivate?.({ value: s.value, event: e })
           },
           onKeyDown: (e: KeyboardEvent) => {
             const s = itemState()
-            if (s.disabled) return
-            if (e.key === "ArrowRight" && s.hasChildren && !s.expanded) {
+            if (s.disabled) {
+              return
+            }
+            if (e.key === 'ArrowRight' && s.hasChildren && !s.expanded) {
               e.preventDefault()
-              ctx.toggleExpand(s.value, "keyboard", e)
-            } else if (e.key === "ArrowLeft" && s.hasChildren && s.expanded) {
+              ctx.toggleExpand(s.value, 'keyboard', e)
+            } else if (e.key === 'ArrowLeft' && s.hasChildren && s.expanded) {
               e.preventDefault()
-              ctx.toggleExpand(s.value, "keyboard", e)
-            } else if (e.key === "Enter" || e.key === " ") {
+              ctx.toggleExpand(s.value, 'keyboard', e)
+            } else if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault()
-              ctx.selectItem(s.value, "keyboard", e)
+              ctx.selectItem(s.value, 'keyboard', e)
               ctx.onActivate?.({ value: s.value, event: e })
             }
           },
@@ -608,70 +624,73 @@ export function TreeItem<T extends string = string>(
 }
 
 export function TreeGroup(
-  props: TreeGroupProps & Omit<PartProps<"div", TreeGroupState>, keyof TreeGroupProps>
+  props: TreeGroupProps & Omit<PartProps<'div', TreeGroupState>, keyof TreeGroupProps>,
 ) {
-  const ctx = useTree("Group")
+  const ctx = useTree('Group')
   const parent = useContext(TreeItemContext)
   const val = () => props.value ?? parent?.().value
   const groupState = (): TreeGroupState => ({
     expanded: val() ? ctx.isExpanded(val()!) : true,
   })
-  const rest = omit(props, "value")
+  const rest = omit(props, 'value')
   return (
     <Show when={groupState().expanded}>
-      {renderPart("div", rest, groupState, {
-        attrs: () => ({ role: "group" }),
+      {renderPart('div', rest, groupState, {
+        attrs: () => ({ role: 'group' }),
       })}
     </Show>
   )
 }
 
-export function TreeItemIndicator(
-  props: TreeItemPartProps & PartProps<"span", TreeItemState>
-) {
+export function TreeItemIndicator(props: TreeItemPartProps & PartProps<'span', TreeItemState>) {
   const itemState = useContext(TreeItemContext)
-  if (!itemState) throw new Error("<TreeItemIndicator> must be used inside <TreeItem>.")
-  return renderPart("span", props, itemState, {
+  if (!itemState) {
+    throw new Error('<TreeItemIndicator> must be used inside <TreeItem>.')
+  }
+  return renderPart('span', props, itemState, {
     attrs: () => ({
-      "aria-hidden": true,
-      "data-expanded": itemState().expanded ? "" : undefined,
-      "data-leaf": !itemState().hasChildren ? "" : undefined,
+      'aria-hidden': true,
+      'data-expanded': itemState().expanded ? '' : undefined,
+      'data-leaf': !itemState().hasChildren ? '' : undefined,
     }),
   })
 }
 
-export function TreeItemLabel(
-  props: TreeItemPartProps & PartProps<"span", TreeItemState>
-) {
+export function TreeItemLabel(props: TreeItemPartProps & PartProps<'span', TreeItemState>) {
   const itemState = useContext(TreeItemContext)
-  if (!itemState) throw new Error("<TreeItemLabel> must be used inside <TreeItem>.")
-  return renderPart("span", props, itemState)
+  if (!itemState) {
+    throw new Error('<TreeItemLabel> must be used inside <TreeItem>.')
+  }
+  return renderPart('span', props, itemState)
 }
 
 export function TreeItemCheckbox(
-  props: TreeItemPartProps & Omit<PartProps<"button", TreeItemState>, "type">
+  props: TreeItemPartProps & Omit<PartProps<'button', TreeItemState>, 'type'>,
 ) {
-  const ctx = useTree("ItemCheckbox")
+  const ctx = useTree('ItemCheckbox')
   const itemState = useContext(TreeItemContext)
-  if (!itemState) throw new Error("<TreeItemCheckbox> must be used inside <TreeItem>.")
-  return renderPart("button", props, itemState, {
+  if (!itemState) {
+    throw new Error('<TreeItemCheckbox> must be used inside <TreeItem>.')
+  }
+  return renderPart('button', props, itemState, {
     attrs: () => {
       const s = itemState()
       return {
-        type: "button",
-        role: "checkbox",
+        type: 'button',
+        role: 'checkbox',
         disabled: s.disabled,
-        "aria-checked":
-          s.checked === "indeterminate" ? "mixed" : s.checked ? "true" : "false",
-        "data-checked": s.checked === true ? "" : undefined,
-        "data-indeterminate": s.checked === "indeterminate" ? "" : undefined,
+        'aria-checked': s.checked === 'indeterminate' ? 'mixed' : s.checked ? 'true' : 'false',
+        'data-checked': s.checked === true ? '' : undefined,
+        'data-indeterminate': s.checked === 'indeterminate' ? '' : undefined,
       }
     },
     handlers: {
       onClick: (e: MouseEvent) => {
         e.stopPropagation()
-        if (itemState().disabled) return
-        ctx.toggleCheck(itemState().value, "click", e)
+        if (itemState().disabled) {
+          return
+        }
+        ctx.toggleCheck(itemState().value, 'click', e)
       },
     },
   })

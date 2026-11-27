@@ -1,14 +1,10 @@
-import {
-  createContext,
-  createSignal,
-  omit,
-  Show,
-  useContext,
-} from "solid-js"
-import { createController, useController } from "./foundation/controller"
-import { renderPart, type PartProps } from "./foundation/render"
+import { createContext, createSignal, omit, Show, useContext } from 'solid-js'
 
-export type ScrollAreaType = "auto" | "always" | "scroll" | "hover"
+import { createController, useController } from './foundation/controller'
+import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
+
+export type ScrollAreaType = 'auto' | 'always' | 'scroll' | 'hover'
 
 export type ScrollAreaScrollOptions = {
   top?: number
@@ -48,11 +44,11 @@ export type ScrollAreaState = {
 export type ScrollAreaPrimitive = ScrollAreaState
 
 export type ScrollAreaScrollbarProps = {
-  orientation?: "vertical" | "horizontal"
+  orientation?: 'vertical' | 'horizontal'
 }
 
 export type ScrollAreaScrollbarState = ScrollAreaState & {
-  orientation: "vertical" | "horizontal"
+  orientation: 'vertical' | 'horizontal'
   visible: boolean
 }
 
@@ -71,12 +67,14 @@ const ScrollbarContext = createContext<(() => ScrollAreaScrollbarState) | null>(
 
 function useScrollArea(part: string): ScrollAreaContextValue {
   const ctx = useContext(ScrollAreaContext)
-  if (!ctx) throw new Error(`<ScrollArea${part}> must be used inside <ScrollArea>.`)
+  if (!ctx) {
+    throw new Error(`<ScrollArea${part}> must be used inside <ScrollArea>.`)
+  }
   return ctx
 }
 
 export function ScrollArea(
-  props: ScrollAreaOptions & Omit<PartProps<"div", ScrollAreaState>, keyof ScrollAreaOptions>
+  props: ScrollAreaOptions & Omit<PartProps<'div', ScrollAreaState>, keyof ScrollAreaOptions>,
 ) {
   let viewportEl: HTMLElement | null = null
   const [scrolling, setScrolling] = createSignal(false)
@@ -90,7 +88,9 @@ export function ScrollArea(
   let scrollTimer: ReturnType<typeof setTimeout> | undefined
 
   const updateMetrics = () => {
-    if (!viewportEl) return
+    if (!viewportEl) {
+      return
+    }
     const { scrollTop, scrollLeft, scrollHeight, scrollWidth, clientHeight, clientWidth } =
       viewportEl
     setAtTop(scrollTop <= 1)
@@ -100,12 +100,14 @@ export function ScrollArea(
     setVOverflow(scrollHeight > clientHeight + 1)
     setHOverflow(scrollWidth > clientWidth + 1)
     setScrolling(true)
-    if (scrollTimer) clearTimeout(scrollTimer)
+    if (scrollTimer) {
+      clearTimeout(scrollTimer)
+    }
     scrollTimer = setTimeout(() => setScrolling(false), 300)
   }
 
   const state = (): ScrollAreaState => ({
-    type: props.type ?? "hover",
+    type: props.type ?? 'hover',
     scrolling: scrolling(),
     atTop: atTop(),
     atBottom: atBottom(),
@@ -117,14 +119,14 @@ export function ScrollArea(
 
   const api: ScrollAreaApi = {
     scrollTo: (opts) => viewportEl?.scrollTo?.(opts),
-    scrollToTop: (behavior = "smooth") => viewportEl?.scrollTo?.({ top: 0, behavior }),
-    scrollToBottom: (behavior = "smooth") =>
+    scrollToTop: (behavior = 'smooth') => viewportEl?.scrollTo?.({ top: 0, behavior }),
+    scrollToBottom: (behavior = 'smooth') =>
       viewportEl?.scrollTo?.({ top: viewportEl.scrollHeight, behavior }),
   }
 
   useController(() => props.controller, api)
 
-  const rest = omit(props, "type", "controller", "debug")
+  const rest = omit(props, 'type', 'controller', 'debug')
 
   return (
     <ScrollAreaContext
@@ -138,56 +140,56 @@ export function ScrollArea(
         updateMetrics,
       }}
     >
-      {renderPart("div", rest, state, {
+      {renderPart('div', rest, state, {
         attrs: () => ({
-          "data-scrolling": scrolling() ? "" : undefined,
+          'data-scrolling': scrolling() ? '' : undefined,
         }),
-        style: () => ({ position: "relative", overflow: "hidden" }),
+        style: () => ({ position: 'relative', overflow: 'hidden' }),
       })}
     </ScrollAreaContext>
   )
 }
 
-export function ScrollAreaViewport(props: PartProps<"div", ScrollAreaState>) {
-  const ctx = useScrollArea("Viewport")
-  return renderPart("div", props, ctx.state, {
+export function ScrollAreaViewport(props: PartProps<'div', ScrollAreaState>) {
+  const ctx = useScrollArea('Viewport')
+  return renderPart('div', props, ctx.state, {
     ref: (el: HTMLElement | null) => ctx.registerViewport(el),
-    style: () => ({ width: "100%", height: "100%", overflow: "auto" }),
+    style: () => ({ width: '100%', height: '100%', overflow: 'auto' }),
     handlers: {
       onScroll: () => ctx.updateMetrics(),
     },
   })
 }
 
-export function ScrollAreaContent(props: PartProps<"div", ScrollAreaState>) {
-  const ctx = useScrollArea("Content")
-  return renderPart("div", props, ctx.state)
+export function ScrollAreaContent(props: PartProps<'div', ScrollAreaState>) {
+  const ctx = useScrollArea('Content')
+  return renderPart('div', props, ctx.state)
 }
 
 export function ScrollAreaScrollbar(
   props: ScrollAreaScrollbarProps &
-    Omit<PartProps<"div", ScrollAreaScrollbarState>, keyof ScrollAreaScrollbarProps>
+    Omit<PartProps<'div', ScrollAreaScrollbarState>, keyof ScrollAreaScrollbarProps>,
 ) {
-  const ctx = useScrollArea("Scrollbar")
-  const orientation = () => props.orientation ?? "vertical"
+  const ctx = useScrollArea('Scrollbar')
+  const orientation = () => props.orientation ?? 'vertical'
   const barState = (): ScrollAreaScrollbarState => {
     const s = ctx.state()
     const hasOverflow =
-      orientation() === "vertical" ? s.hasVerticalOverflow : s.hasHorizontalOverflow
+      orientation() === 'vertical' ? s.hasVerticalOverflow : s.hasHorizontalOverflow
     return {
       ...s,
       orientation: orientation(),
-      visible: s.type === "always" || hasOverflow,
+      visible: s.type === 'always' || hasOverflow,
     }
   }
-  const rest = omit(props, "orientation")
+  const rest = omit(props, 'orientation')
   return (
     <ScrollbarContext value={barState}>
       <Show when={barState().visible}>
-        {renderPart("div", rest, barState, {
+        {renderPart('div', rest, barState, {
           attrs: () => ({
-            "data-orientation": orientation(),
-            "data-scrolling": barState().scrolling ? "" : undefined,
+            'data-orientation': orientation(),
+            'data-scrolling': barState().scrolling ? '' : undefined,
           }),
         })}
       </Show>
@@ -195,37 +197,39 @@ export function ScrollAreaScrollbar(
   )
 }
 
-export function ScrollAreaThumb(props: PartProps<"div", ScrollAreaThumbState>) {
+export function ScrollAreaThumb(props: PartProps<'div', ScrollAreaThumbState>) {
   const barState = useContext(ScrollbarContext)
-  if (!barState) throw new Error("<ScrollAreaThumb> must be used inside <ScrollAreaScrollbar>.")
-  return renderPart("div", props, barState, {
-    attrs: () => ({ "data-orientation": barState().orientation }),
+  if (!barState) {
+    throw new Error('<ScrollAreaThumb> must be used inside <ScrollAreaScrollbar>.')
+  }
+  return renderPart('div', props, barState, {
+    attrs: () => ({ 'data-orientation': barState().orientation }),
   })
 }
 
-export function ScrollAreaCorner(props: PartProps<"div", ScrollAreaState>) {
-  const ctx = useScrollArea("Corner")
+export function ScrollAreaCorner(props: PartProps<'div', ScrollAreaState>) {
+  const ctx = useScrollArea('Corner')
   return (
     <Show when={ctx.state().hasVerticalOverflow && ctx.state().hasHorizontalOverflow}>
-      {renderPart("div", props, ctx.state)}
+      {renderPart('div', props, ctx.state)}
     </Show>
   )
 }
 
 export function ScrollAreaScrollToEnd(
-  props: Omit<PartProps<"button", ScrollAreaScrollToEndState>, "type">
+  props: Omit<PartProps<'button', ScrollAreaScrollToEndState>, 'type'>,
 ) {
-  const ctx = useScrollArea("ScrollToEnd")
+  const ctx = useScrollArea('ScrollToEnd')
   const endState = (): ScrollAreaScrollToEndState => ({
     ...ctx.state(),
     visible: !ctx.state().atBottom,
   })
   return (
     <Show when={endState().visible}>
-      {renderPart("button", props, endState, {
+      {renderPart('button', props, endState, {
         attrs: () => ({
-          type: "button",
-          "aria-label": "Scroll to bottom",
+          type: 'button',
+          'aria-label': 'Scroll to bottom',
         }),
         handlers: {
           onClick: () => ctx.api.scrollToBottom(),
