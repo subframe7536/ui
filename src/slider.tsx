@@ -493,6 +493,11 @@ export function SliderThumb(
         <>
           {typeof props.children === 'function' ? props.children(thumbState()) : props.children}
           <input
+            id={
+              ctx.state().values.length === 1 || thumbState().index === 0
+                ? ctx.id
+                : `${ctx.id}-thumb-${thumbState().index}`
+            }
             type="range"
             data-slot="slider-thumb-input"
             min={ctx.state().min}
@@ -523,7 +528,7 @@ export function SliderThumb(
       const ts = thumbState()
       const s = ctx.state()
       return {
-        id: s.values.length === 1 ? ctx.id : `${ctx.id}-thumb-${ts.index}`,
+        id: `${ctx.id}-thumb-el-${ts.index}`,
         role: 'slider',
         tabindex: s.disabled ? -1 : 0,
         'aria-valuemin': s.min,
