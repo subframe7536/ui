@@ -92,7 +92,7 @@ export type FileInputOptions = FileRules & {
   onReject?: (rejections: Array<FileRejection>) => void
   multiple?: boolean
   directory?: boolean
-  capture?: boolean | 'user' | 'environment'
+  capture?: 'user' | 'environment'
   disabled?: boolean
   readOnly?: boolean
   required?: boolean
