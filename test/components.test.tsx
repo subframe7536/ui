@@ -96,7 +96,7 @@ describe('separator & Label', () => {
 describe('button', () => {
   it('handles async onClick pending state and prevents double press', async () => {
     let resolveAction!: () => void
-    const onClick = vi.fn(
+    const onClick = vi.fn<(...args: Array<unknown>) => unknown>(
       () =>
         new Promise<void>((resolve) => {
           resolveAction = resolve
@@ -121,6 +121,7 @@ describe('button', () => {
     expect(btn.className).toBe('is-pending')
     expect(btn.textContent).toBe('Saving...')
 
+    // Duplicate click while pending is ignored
     btn.click()
     expect(onClick).toHaveBeenCalledTimes(1)
 
@@ -134,7 +135,7 @@ describe('button', () => {
 
 describe('toggle & ToggleGroup', () => {
   it('toggles pressed state and manages single selection in ToggleGroup', () => {
-    const onValueChange = vi.fn()
+    const onValueChange = vi.fn<(...args: Array<unknown>) => void>()
     const root = mount(() => (
       <ToggleGroup defaultValue="left" onValueChange={onValueChange}>
         <Toggle value="left">Left</Toggle>
@@ -294,10 +295,12 @@ describe('dialog, AlertDialog & Popover', () => {
     expect(dialog).toBeTruthy()
     expect(dialog.textContent).toContain('Edit row-42')
 
+    // Escape closes it
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     flush()
     expect(document.querySelector('[role="dialog"]')).toBeNull()
 
+    // Imperative open resolves with returnValue on close
     const resultPromise = controller.open('row-99')
     flush()
     const confirmBtn = Array.from(document.querySelectorAll('button')).find(

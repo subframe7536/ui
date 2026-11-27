@@ -1,4 +1,6 @@
 import { render } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { flush } from 'solid-js'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -66,10 +68,11 @@ import {
   WaterfallRowHeader,
 } from '../src/index'
 
-function mount(fn: () => any) {
+function mount(fn: () => JSX.Element) {
   const container = document.createElement('div')
   document.body.append(container)
   const dispose = render(fn, container)
+  flush()
   return {
     container,
     unmount() {
@@ -108,9 +111,12 @@ describe('phase 5 Specialized & Rich Interactive Components', () => {
     ))
     expect(ctrl.getPage()).toBe(0)
     ctrl.next()
+    flush()
     expect(ctrl.getPage()).toBe(1)
     ctrl.previous()
+    flush()
     ctrl.previous()
+    flush()
     expect(ctrl.getPage()).toBe(2)
     unmount()
   })
@@ -126,6 +132,7 @@ describe('phase 5 Specialized & Rich Interactive Components', () => {
     ))
     expect(ctrl.getLayout()).toEqual([40, 60])
     ctrl.collapse(0)
+    flush()
     expect(ctrl.getLayout()).toEqual([0, 100])
     unmount()
   })
@@ -156,6 +163,7 @@ describe('phase 5 Specialized & Rich Interactive Components', () => {
 
     expect(themeGetter?.()).toBe('light')
     themeSetter?.('dark')
+    flush()
     expect(themeGetter?.()).toBe('dark')
     unmount()
   })
@@ -200,14 +208,17 @@ describe('phase 5 Specialized & Rich Interactive Components', () => {
     ))
 
     calCtrl.selectDate('2026-05-15')
+    flush()
     expect(calCtrl.getValue()).toBe('2026-05-15')
     calCtrl.nextMonth()
+    flush()
     expect(calCtrl.getMonth()).toBe('2026-06')
 
     expect(diCtrl.getValue()).toBe('2026-05-10')
     expect(tiCtrl.getValue()).toBe('09:30')
 
     dpCtrl.setValue('2026-06-01')
+    flush()
     expect(dpCtrl.getValue()).toBe('2026-06-01')
     unmount()
   })
@@ -268,15 +279,19 @@ describe('phase 5 Specialized & Rich Interactive Components', () => {
     ))
 
     colorCtrl.setValue('#00ff00')
+    flush()
     expect(colorCtrl.getValue()).toBe('#00ff00')
 
     cropCtrl.rotate(90)
+    flush()
     expect(cropCtrl.getRotation()).toBe(90)
 
     tlCtrl.setActiveIndex(0)
+    flush()
     expect(tlCtrl.getActiveIndex()).toBe(0)
 
     wfCtrl.setValue('req')
+    flush()
     expect(wfCtrl.getValue()).toBe('req')
     unmount()
   })

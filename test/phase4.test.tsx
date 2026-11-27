@@ -1,4 +1,6 @@
 import { render } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { flush } from 'solid-js'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -56,10 +58,11 @@ import {
   visibleTreeRows,
 } from '../src/index'
 
-function mount(fn: () => any) {
+function mount(fn: () => JSX.Element) {
   const container = document.createElement('div')
   document.body.append(container)
   const dispose = render(fn, container)
+  flush()
   return {
     container,
     unmount() {
@@ -85,6 +88,7 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
 
     expect(ctrl.getValue()).toEqual(['a'])
     ctrl.toggle('b')
+    flush()
     expect(ctrl.getValue()).toEqual(['a', 'b'])
     expect(container.querySelectorAll('[role="option"][aria-selected="true"]').length).toBe(2)
     unmount()
@@ -111,8 +115,10 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
     ))
 
     ctrl.open()
+    flush()
     expect(ctrl.isOpen()).toBe(true)
     ctrl.select('apple')
+    flush()
     expect(ctrl.getValue()).toBe('apple')
     expect(ctrl.isOpen()).toBe(false)
     unmount()
@@ -120,7 +126,7 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
 
   it('combobox filters, selects chips, and supports creatable items', () => {
     const ctrl = createComboboxController()
-    const onCreate = vi.fn()
+    const onCreate = vi.fn<(...args: Array<unknown>) => void>()
     const { unmount } = mount(() => (
       <Combobox multiple creatable onCreate={onCreate} controller={ctrl}>
         <ComboboxChips>
@@ -144,8 +150,10 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
     ))
 
     ctrl.select('solid')
+    flush()
     expect(ctrl.getValue()).toEqual(['solid'])
     ctrl.remove('solid')
+    flush()
     expect(ctrl.getValue()).toEqual([])
     unmount()
   })
@@ -169,15 +177,17 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
     ))
 
     ctrl.setValue('tok')
+    flush()
     expect(ctrl.getValue()).toBe('tok')
     ctrl.open()
+    flush()
     expect(ctrl.isOpen()).toBe(true)
     unmount()
   })
 
   it('command manages pages, query, and selection callbacks', () => {
     const ctrl = createCommandController()
-    const onSelect = vi.fn()
+    const onSelect = vi.fn<(...args: Array<unknown>) => void>()
     const { unmount } = mount(() => (
       <Command onSelect={onSelect} controller={ctrl}>
         <CommandInput />
@@ -190,11 +200,15 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
     ))
 
     ctrl.pushPage('settings')
+    flush()
     expect(ctrl.getPages()).toEqual(['settings'])
     ctrl.popPage()
+    flush()
     expect(ctrl.getPages()).toEqual([])
     ctrl.highlight('theme')
+    flush()
     ctrl.selectHighlighted()
+    flush()
     expect(onSelect).toHaveBeenCalledTimes(1)
     unmount()
   })
@@ -218,8 +232,10 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
     ))
 
     ctrl.expand('src')
+    flush()
     expect(ctrl.getExpanded()).toEqual(['src'])
     ctrl.collapseAll()
+    flush()
     expect(ctrl.getExpanded()).toEqual([])
     unmount()
   })
@@ -255,10 +271,13 @@ describe('phase 4 Lists, Combobox, Command, Tree & Pagination', () => {
     ))
 
     ctrl.next()
+    flush()
     expect(ctrl.getPage()).toBe(3)
     ctrl.last()
+    flush()
     expect(ctrl.getPage()).toBe(10)
     ctrl.first()
+    flush()
     expect(ctrl.getPage()).toBe(1)
     unmount()
   })

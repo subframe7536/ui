@@ -137,7 +137,7 @@ describe('drawer', () => {
 
 describe('menu & Menubar', () => {
   it('selects MenuItem, toggles MenuCheckboxItem, and picks MenuRadioItem', () => {
-    const onSelect = vi.fn()
+    const onSelect = vi.fn<(...args: Array<unknown>) => void>()
     const ctrl = createMenuController()
     mount(() => (
       <Menubar>
@@ -175,7 +175,7 @@ describe('menu & Menubar', () => {
 
 describe('triggerMenu, NavigationMenu, Toast, Overlays & Toolbar', () => {
   it('opens TriggerMenu on @ mention and inserts selected value', () => {
-    const onSelect = vi.fn()
+    const onSelect = vi.fn<(...args: Array<unknown>) => void>()
     const root = mount(() => (
       <TriggerMenu triggers={['@']} onSelect={onSelect}>
         <TriggerMenuInput />

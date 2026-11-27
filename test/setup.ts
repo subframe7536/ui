@@ -14,12 +14,16 @@ if (typeof document !== 'undefined') {
   document.head.append(style)
 }
 
-if (globalThis.ResizeObserver === undefined) {
-  globalThis.ResizeObserver = class ResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
+function MockResizeObserver() {
+  return {
+    observe() {},
+    unobserve() {},
+    disconnect() {},
   }
+}
+
+if (globalThis.ResizeObserver === undefined) {
+  globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver
 }
 
 if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {

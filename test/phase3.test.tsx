@@ -1,4 +1,6 @@
 import { render } from '@solidjs/web'
+import type { JSX } from '@solidjs/web'
+import { flush } from 'solid-js'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -70,10 +72,11 @@ import {
   toText,
 } from '../src/index'
 
-function mount(fn: () => any) {
+function mount(fn: () => JSX.Element) {
   const container = document.createElement('div')
   document.body.append(container)
   const dispose = render(fn, container)
+  flush()
   return {
     container,
     unmount() {
@@ -102,6 +105,7 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     expect(input.value).toBe('hello')
     expect(input.getAttribute('aria-invalid')).toBe('true')
     ctrl.clear()
+    flush()
     expect(ctrl.getValue()).toBe('')
     unmount()
   })
@@ -122,6 +126,7 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     expect(boxes[0]?.getAttribute('aria-checked')).toBe('true')
     expect(boxes[1]?.getAttribute('aria-checked')).toBe('false')
     boxes[1]?.click()
+    flush()
     expect(boxes[1]?.getAttribute('aria-checked')).toBe('true')
     unmount()
   })
@@ -141,6 +146,7 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     const radios = container.querySelectorAll<HTMLElement>('[role="radio"]')
     expect(radios[0]?.getAttribute('aria-checked')).toBe('true')
     radios[1]?.click()
+    flush()
     expect(radios[1]?.getAttribute('aria-checked')).toBe('true')
     expect(radios[0]?.getAttribute('aria-checked')).toBe('false')
     unmount()
@@ -161,6 +167,7 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     const input = container.querySelector('input')!
     expect(input.type).toBe('password')
     pwCtrl.toggleVisible()
+    flush()
     expect(input.type).toBe('text')
     unmount()
   })
@@ -178,8 +185,10 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     ))
 
     ctrl.increment()
+    flush()
     expect(ctrl.getValue()).toBe(7)
     ctrl.setValue(99)
+    flush()
     expect(ctrl.getValue()).toBe(10)
     expect(container.querySelector('input')?.getAttribute('aria-valuenow')).toBe('10')
     unmount()
@@ -199,6 +208,7 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     ))
 
     ctrl.setValue('12a34')
+    flush()
     expect(ctrl.getValue()).toBe('1234')
     expect(container.querySelectorAll('[data-slot-index]').length).toBe(4)
     unmount()
@@ -223,9 +233,11 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     ))
 
     const res = ctrl.addFiles([file])
+    flush()
     expect(res.accepted.length).toBe(1)
     expect(container.querySelectorAll('li').length).toBe(1)
     ctrl.clear()
+    flush()
     expect(ctrl.getFiles().length).toBe(0)
     unmount()
   })
@@ -269,16 +281,21 @@ describe('phase 3 Form Controls, Inputs & Gauges', () => {
     ))
 
     sliderCtrl.setValue(60)
+    flush()
     expect(sliderCtrl.getValues()).toEqual([60])
 
     ratingCtrl.setValue(4)
+    flush()
     expect(ratingCtrl.getValue()).toBe(4)
 
     segCtrl.setValue('week')
+    flush()
     expect(segCtrl.getValue()).toBe('week')
 
     const tok = tokCtrl.insertToken({ id: 'u1', label: '@alice' })
+    flush()
     tokCtrl.setText('hi')
+    flush()
     expect(tok).toBeTruthy()
     expect(toText(tokCtrl.getValue())).toBe('@alice hi')
 

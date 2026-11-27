@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
-import { describe, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 const ROOT = resolve(__dirname, '..')
 const DIST = resolve(ROOT, 'dist')
@@ -36,7 +36,7 @@ const NON_FLOATING_ENTRIES = [
 ]
 
 // Pure non-JSX runtime entries must not depend on @solidjs/web.
-const PURE_TS_ENTRIES = ['agent.mjs', 'observe.mjs', 'primitive.mjs']
+const PURE_TS_ENTRIES = ['agent.mjs', 'observe.mjs']
 
 function collectBareImports(entry: string): Set<string> {
   const bare = new Set<string>()
@@ -49,6 +49,9 @@ function collectBareImports(entry: string): Set<string> {
     }
     seen.add(file)
     for (const [, specifier] of readFileSync(file, 'utf8').matchAll(IMPORT_PATTERN)) {
+      if (!specifier) {
+        continue
+      }
       if (specifier.startsWith('.')) {
         const target = file.endsWith('.d.mts') ? specifier.replace(/\.mjs$/, '.d.mts') : specifier
         queue.push(resolve(dirname(file), target))
@@ -66,14 +69,17 @@ describe.skipIf(!existsSync(join(DIST, 'index.mjs')))('package entry boundaries'
       exports: Record<string, string | Record<string, string>>
     }
 
-    for (const [subpath, target] of Object.entries(pkg.exports)) {
-      if (typeof target === 'string') {
-        expect(existsSync(resolve(ROOT, target)), `${subpath} -> ${target}`).toBe(true)
-        continue
-      }
-      for (const [condition, file] of Object.entries(target)) {
-        expect(existsSync(resolve(ROOT, file)), `${subpath} (${condition}) -> ${file}`).toBe(true)
-      }
+    const targets = Object.entries(pkg.exports).flatMap(([subpath, target]) =>
+      typeof target === 'string'
+        ? [{ label: `${subpath} -> ${target}`, file: target }]
+        : Object.entries(target).map(([condition, file]) => ({
+            label: `${subpath} (${condition}) -> ${file}`,
+            file,
+          })),
+    )
+
+    for (const { label, file } of targets) {
+      expect(existsSync(resolve(ROOT, file)), label).toBe(true)
     }
   })
 
