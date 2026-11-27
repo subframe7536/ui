@@ -1,5 +1,16 @@
 import type { JSX } from '@solidjs/web'
-import { For, Show, createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+import {
+  untrack,
+  For,
+  Show,
+  createContext,
+  createEffect,
+  createSignal,
+  createUniqueId,
+  omit,
+  useContext,
+  onSettled,
+} from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -82,6 +93,7 @@ export type AutocompleteOptions = {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<AutocompleteOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   disabled?: boolean
   readOnly?: boolean
   required?: boolean
@@ -169,7 +181,9 @@ type AutocompleteContextValue = {
   arrowEl: () => HTMLElement | null
   setArrowEl: (el: HTMLElement | null) => void
   field: ReturnType<typeof useFieldControl>
+  registerExplicitContent: () => () => void
 }
+const AutoAutocompleteContentContext = createContext(false)
 
 const AutocompleteContext = createContext<AutocompleteContextValue | null>(null)
 const AutocompleteItemContext = createContext<(() => AutocompleteItemState) | null>(null)
@@ -201,6 +215,8 @@ export function Autocomplete(props: AutocompleteProps) {
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | null>(null)
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
+  const [explicitContentCount, setExplicitContentCount] = createSignal(0)
+  let ssrExplicitContent = false
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
   const optionList: Array<RegisteredAutocompleteOption> = []
@@ -307,6 +323,14 @@ export function Autocomplete(props: AutocompleteProps) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   const reg = registerComponent({
     component: 'autocomplete',
@@ -370,9 +394,26 @@ export function Autocomplete(props: AutocompleteProps) {
         arrowEl,
         setArrowEl,
         field,
+        registerExplicitContent: () => {
+          if (typeof window === 'undefined') {
+            ssrExplicitContent = true
+            return () => {}
+          }
+          setExplicitContentCount((c) => c + 1)
+          return () => setExplicitContentCount((c) => Math.max(0, c - 1))
+        },
       }}
     >
       {props.children}
+      <Show when={props.items && explicitContentCount() === 0 && !ssrExplicitContent}>
+        <AutoAutocompleteContentContext value={true}>
+          <AutocompleteContent>
+            <AutocompleteList>
+              <AutocompleteItems />
+            </AutocompleteList>
+          </AutocompleteContent>
+        </AutoAutocompleteContentContext>
+      </Show>
     </AutocompleteContext>
   )
 }
@@ -500,6 +541,14 @@ export function AutocompleteContent(
     Omit<PartProps<'div', AutocompleteContentState>, keyof AutocompleteContentProps>,
 ) {
   const ctx = useAutocomplete('Content')
+  const isAuto = useContext(AutoAutocompleteContentContext)
+  if (!isAuto) {
+    if (typeof window === 'undefined') {
+      ctx.registerExplicitContent()
+    } else {
+      onSettled(() => ctx.registerExplicitContent())
+    }
+  }
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.inputEl() ?? undefined,

@@ -1,14 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import {
-  For,
-  Show,
-  createContext,
-  createSignal,
-  createUniqueId,
-  merge,
-  omit,
-  useContext,
-} from 'solid-js'
+import { For, Show, createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -75,6 +66,12 @@ export type CommandOptions = {
   query?: string
   defaultQuery?: string
   onQueryChange?: (query: string, details: ChangeDetails<CommandQueryChangeReason>) => void
+  value?: string | null
+  defaultValue?: string | null
+  onValueChange?: (
+    value: string | null,
+    details: ChangeDetails<'input' | 'keyboard' | 'pointer' | 'programmatic'>,
+  ) => void
   pages?: Array<string>
   defaultPages?: Array<string>
   onPagesChange?: (pages: Array<string>, details: ChangeDetails<CommandPagesChangeReason>) => void
@@ -171,7 +168,25 @@ export function Command(props: CommandProps) {
     value: () => props.pages,
     defaultValue: () => props.defaultPages ?? [],
   })
-  const [highlighted, setHighlighted] = createSignal<string | null>(null)
+  const [highlighted, setRawHighlighted] = createControlledSignal<string | null>({
+    value: () => props.value,
+    defaultValue: () => props.defaultValue ?? null,
+  })
+  const setHighlighted = (
+    next: string | null,
+    reason: 'input' | 'keyboard' | 'pointer' | 'programmatic' = 'programmatic',
+    event?: Event,
+  ) => {
+    if (highlighted() === next) {
+      return
+    }
+    const details = createChangeDetails(reason, event)
+    props.onValueChange?.(next, details)
+    if (details.canceled) {
+      return
+    }
+    setRawHighlighted(next)
+  }
 
   let rootEl: HTMLElement | null = null
   let inputEl: HTMLInputElement | null = null
@@ -206,6 +221,10 @@ export function Command(props: CommandProps) {
       return
     }
     setRawQuery(next)
+    const firstMatch = registered.find(
+      (i) => !i.disabled && (next ? filterFn()(i.label, next, i.keywords) : true),
+    )
+    setHighlighted(firstMatch?.value ?? null, 'input', event)
   }
 
   const setPages = (next: Array<string>, reason: CommandPagesChangeReason, event?: Event) => {
@@ -296,6 +315,9 @@ export function Command(props: CommandProps) {
     'query',
     'defaultQuery',
     'onQueryChange',
+    'value',
+    'defaultValue',
+    'onValueChange',
     'pages',
     'defaultPages',
     'onPagesChange',
@@ -335,64 +357,53 @@ export function Command(props: CommandProps) {
           get children() {
             const rendered =
               typeof props.children === 'function' ? props.children(state()) : props.children
-            const filteredItems = () => {
+            const itemEntries = () => {
               const dataItems = props.items
               if (!dataItems || hasComposedList) {
                 return []
               }
               const q = query().trim().toLowerCase()
-              const normalized = dataItems
-                .map((entry) =>
-                  typeof entry === 'string'
-                    ? { value: entry, label: entry }
-                    : 'type' in entry && entry.type === 'separator'
-                      ? null
-                      : 'items' in entry
-                        ? null
-                        : {
-                            value: entry.value,
-                            label: entry.label ?? entry.value,
-                            disabled: entry.disabled,
-                            shortcut: entry.shortcut,
-                          },
-                )
-                .filter(
-                  (
-                    x,
-                  ): x is {
-                    value: string
-                    label: string
-                    disabled?: boolean
-                    shortcut?: string
-                  } => x !== null,
-                )
-              return q
-                ? normalized
-                    .filter(
-                      (item) =>
-                        item.label.toLowerCase().includes(q) ||
-                        item.value.toLowerCase().includes(q),
-                    )
-                    .toSorted((a, b) => {
-                      const aStart = a.label.toLowerCase().startsWith(q) ? 0 : 1
-                      const bStart = b.label.toLowerCase().startsWith(q) ? 0 : 1
-                      return aStart - bStart
-                    })
-                : normalized
+              const valid = dataItems.filter(
+                (entry): entry is string | CommandDataItem =>
+                  typeof entry === 'string' ||
+                  ((!('type' in entry) || entry.type !== 'separator') && !('items' in entry)),
+              )
+              if (!q) {
+                return valid
+              }
+              return valid
+                .filter((item) => {
+                  const lbl = typeof item === 'string' ? item : (item.label ?? item.value)
+                  const val = typeof item === 'string' ? item : item.value
+                  return lbl.toLowerCase().includes(q) || val.toLowerCase().includes(q)
+                })
+                .toSorted((a, b) => {
+                  const aLbl = typeof a === 'string' ? a : (a.label ?? a.value)
+                  const bLbl = typeof b === 'string' ? b : (b.label ?? b.value)
+                  const aStart = aLbl.toLowerCase().startsWith(q) ? 0 : 1
+                  const bStart = bLbl.toLowerCase().startsWith(q) ? 0 : 1
+                  return aStart - bStart
+                })
             }
             return (
               <>
                 {rendered}
                 <Show when={props.items && !hasComposedList}>
                   <div id={listId} role="listbox">
-                    <For each={filteredItems()}>
+                    <For each={itemEntries()}>
                       {(item) => (
                         <CommandItem
-                          value={item.value}
-                          disabled={item.disabled}
-                          shortcut={item.shortcut}
+                          value={typeof item === 'string' ? item : item.value}
+                          disabled={typeof item === 'string' ? undefined : item.disabled}
+                          shortcut={
+                            typeof item === 'string'
+                              ? undefined
+                              : Array.isArray(item.shortcut)
+                                ? item.shortcut[0]
+                                : item.shortcut
+                          }
                         >
-                          {item.label}
+                          {(() => (typeof item === 'string' ? item : (item.label ?? item.value)))()}
                         </CommandItem>
                       )}
                     </For>
