@@ -25,12 +25,7 @@ import {
   createHoverCardController,
 } from '../../src/hover-card'
 import { Toast, ToastRegion, ToastTitle, createToaster } from '../../src/toast'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  createTooltipController,
-} from '../../src/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger, createTooltipController } from '../../src/tooltip'
 
 let disposers: Array<() => void> = []
 
