@@ -338,20 +338,12 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
       return resolveChildren()
     },
   })
-  return (
-    <>
-      {(() => {
-        const fn = userProps.render
-        return (
-          <>
-            {fn ? (
-              fn(propsWithChildren, reactiveState)
-            ) : (
-              <TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>
-            )}
-          </>
-        )
-      })()}
-    </>
-  )
+  const renderDynamic = () => {
+    const fn = userProps.render
+    if (fn) {
+      return fn(propsWithChildren, reactiveState)
+    }
+    return <TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>
+  }
+  return <>{renderDynamic()}</>
 }
