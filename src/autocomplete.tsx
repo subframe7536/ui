@@ -385,7 +385,7 @@ export function AutocompleteLabel(props: PartProps<'label', AutocompleteState>) 
 }
 
 export function AutocompleteInput(
-  props: Omit<PartProps<'input', AutocompleteInputState>, 'type' | 'value'>,
+  props: Omit<PartProps<'input', AutocompleteInputState>, 'type' | 'value' | 'readonly'>,
 ) {
   const ctx = useAutocomplete('Input')
   return renderPart('input', props, ctx.state, {

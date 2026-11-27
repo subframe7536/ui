@@ -341,7 +341,10 @@ export function DatePickerTrigger(
 
 export function DatePickerInput(
   props: DatePickerInputProps &
-    Omit<PartProps<'input', DatePickerInputState>, keyof DatePickerInputProps | 'type' | 'value'>,
+    Omit<
+      PartProps<'input', DatePickerInputState>,
+      keyof DatePickerInputProps | 'type' | 'value' | 'readonly'
+    >,
 ) {
   const ctx = useDatePicker('Input')
   const inputState = (): DatePickerInputState => ({

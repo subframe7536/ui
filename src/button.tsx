@@ -47,6 +47,7 @@ export type ButtonProps = Omit<PartProps<'button', ButtonState>, 'type' | 'onCli
     onClick?:
       | ((event: ButtonClickEvent, details: ButtonActionDetails) => unknown)
       | ButtonBoundClickHandler
+      | JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent>
   }
 
 /**
