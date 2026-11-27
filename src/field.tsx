@@ -1,4 +1,5 @@
 import {
+  untrack,
   Show,
   createContext,
   createSignal,
@@ -56,7 +57,12 @@ export type FieldSetState = { disabled: boolean }
 
 export type FieldControlContextValue = {
   controlId: string
+  getControlId: () => string
+  setControlId: (id: string) => void
   labelId: string
+  getLabelId: () => string
+  setLabelId: (id: string) => void
+  hasLabel: () => boolean
   descriptionId: string
   errorId: string
   name: () => string | undefined
@@ -88,19 +94,29 @@ export function Field(
   props: FieldOptions & Omit<PartProps<'div', FieldState>, keyof FieldOptions>,
 ) {
   const uid = createUniqueId()
-  const controlId = `ui-field-${uid}`
-  const labelId = `ui-field-label-${uid}`
+  const defaultControlId = `ui-field-${uid}`
+  const defaultLabelId = `ui-field-label-${uid}`
+  let customControlId: string | undefined
+  let customLabelId: string | undefined
+  let labelPresent = false
   const descriptionId = `ui-field-desc-${uid}`
   const errorId = `ui-field-err-${uid}`
 
   const parentDisabled = useContext(FieldSetContext)
   const [hasDescription, setHasDescription] = createSignal(false)
   const [descriptionIds, setDescriptionIds] = createSignal<Array<string>>([])
+  const ssrDescriptionIds: Array<string> = []
   const [hasError, setHasError] = createSignal(false)
   const [dirty, setDirty] = createSignal(false)
   const [touched, setTouched] = createSignal(false)
 
   const registerDescription = (id: string) => {
+    if (typeof window === 'undefined') {
+      if (!ssrDescriptionIds.includes(id)) {
+        ssrDescriptionIds.push(id)
+      }
+      return () => {}
+    }
     setDescriptionIds((prev) => (prev.includes(id) ? prev : [...prev, id]))
     return () => {
       setDescriptionIds((prev) => prev.filter((item) => item !== id))
@@ -121,7 +137,7 @@ export function Field(
 
   const describedBy = () => {
     const ids: Array<string> = []
-    const descList = descriptionIds()
+    const descList = typeof window === 'undefined' ? ssrDescriptionIds : descriptionIds()
     if (descList.length > 0) {
       ids.push(...descList)
     } else if (hasDescription()) {
@@ -138,8 +154,23 @@ export function Field(
   return (
     <FieldContext
       value={{
-        controlId,
-        labelId,
+        get controlId() {
+          return customControlId ?? defaultControlId
+        },
+        getControlId: () => customControlId ?? defaultControlId,
+        setControlId: (id: string) => {
+          customControlId = id
+        },
+        get labelId() {
+          return customLabelId ?? defaultLabelId
+        },
+        getLabelId: () => customLabelId ?? defaultLabelId,
+        setLabelId: (id: string) => {
+          customLabelId = id
+          labelPresent = true
+        },
+        hasLabel: () => labelPresent,
+
         descriptionId,
         errorId,
         name: () => props.name,
@@ -176,6 +207,11 @@ export function Field(
 
 export function FieldLabel(props: PartProps<'label', FieldState>) {
   const ctx = useContext(FieldContext)
+  if (ctx) {
+    untrack(() => {
+      ctx.setLabelId(typeof props.id === 'string' ? props.id : ctx.getLabelId())
+    })
+  }
   const state = () =>
     ctx?.state() ?? {
       disabled: false,
@@ -187,8 +223,8 @@ export function FieldLabel(props: PartProps<'label', FieldState>) {
     }
   return renderPart('label', props, state, {
     attrs: () => ({
-      id: props.id ?? ctx?.labelId,
-      for: (props as Record<string, unknown>).for ?? ctx?.controlId,
+      id: props.id ?? ctx?.getLabelId(),
+      for: (props as Record<string, unknown>).for ?? ctx?.getControlId(),
       'data-disabled': state().disabled ? '' : undefined,
       'data-invalid': state().invalid ? '' : undefined,
       'data-required': state().required ? '' : undefined,
@@ -198,6 +234,13 @@ export function FieldLabel(props: PartProps<'label', FieldState>) {
 
 export function FieldControl(props: PartProps<'input', FieldState>) {
   const ctx = useContext(FieldContext)
+  if (ctx) {
+    untrack(() => {
+      if (typeof props.id === 'string') {
+        ctx.setControlId(props.id)
+      }
+    })
+  }
   const state = () =>
     ctx?.state() ?? {
       disabled: false,
@@ -209,7 +252,8 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
     }
   return renderPart('input', props, state, {
     attrs: () => ({
-      id: props.id ?? ctx?.controlId,
+      id: props.id ?? ctx?.getControlId(),
+      'aria-labelledby': ctx?.hasLabel() ? ctx.getLabelId() : undefined,
       name: (props as Record<string, unknown>).name ?? ctx?.name(),
       disabled: state().disabled || undefined,
       required: state().required || undefined,
@@ -229,6 +273,11 @@ export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
   const ctx = useContext(FieldContext)
   const fallbackId = `ui-field-desc-${createUniqueId()}`
   const resolvedId = () => (typeof props.id === 'string' ? props.id : fallbackId)
+  if (typeof window === 'undefined' && ctx) {
+    untrack(() => {
+      ctx.registerDescription(resolvedId())
+    })
+  }
   onSettled(() => {
     const id = resolvedId()
     return ctx?.registerDescription(id)

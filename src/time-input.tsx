@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, For, merge, omit, Show, useContext } from 'solid-js'
 
 import type { HourCycle } from './date-input'
 import { useFieldControl } from './field'
@@ -50,6 +50,7 @@ export type TimeInputOptions = {
   required?: boolean
   invalid?: boolean
   name?: string
+  locale?: string
   controller?: TimeInputController
   debug?: boolean
 }
@@ -125,15 +126,20 @@ export function TimeInput(
   const invalid = () => !!props.invalid || !!field?.invalid()
   const granularity = (): TimeInputGranularity => props.granularity ?? 'minute'
 
+  const is12Hour = () =>
+    props.hourCycle === 12 || (props.hourCycle === undefined && !!props.locale?.startsWith('en-US'))
+
   const buildSegments = (): Array<TimeInputSegmentData> => {
     const p = parseTimeParts(value())
+    const twelve = is12Hour()
+    const displayHour = p.hour !== null ? (twelve ? p.hour % 12 || 12 : p.hour) : null
     const list: Array<TimeInputSegmentData> = [
       {
         type: 'hour',
-        value: p.hour,
-        text: p.hour !== null ? pad2(p.hour) : '--',
-        min: 0,
-        max: 23,
+        value: displayHour,
+        text: displayHour !== null ? pad2(displayHour) : '--',
+        min: twelve ? 1 : 0,
+        max: twelve ? 12 : 23,
         placeholder: '--',
       },
       { type: 'literal', value: null, text: ':', placeholder: ':' },
@@ -156,6 +162,20 @@ export function TimeInput(
           min: 0,
           max: 59,
           placeholder: '--',
+        },
+      )
+    }
+    if (twelve) {
+      const period = p.hour !== null ? (p.hour >= 12 ? 'PM' : 'AM') : 'AM'
+      list.push(
+        { type: 'literal', value: null, text: ' ', placeholder: ' ' },
+        {
+          type: 'dayPeriod',
+          value: p.hour !== null ? (p.hour >= 12 ? 1 : 0) : null,
+          text: period,
+          min: 0,
+          max: 1,
+          placeholder: 'AM',
         },
       )
     }
@@ -238,13 +258,59 @@ export function TimeInput(
     'required',
     'invalid',
     'name',
+    'locale',
     'controller',
     'debug',
   )
 
+  const resolvedRoot: PartProps<'div', TimeInputState> = merge(rest, {
+    get children() {
+      const hasCustom = props.children !== undefined
+      return (
+        <>
+          <Show
+            when={hasCustom}
+            fallback={
+              <For each={state().segments}>
+                {(seg) => (
+                  <Show
+                    when={seg.type !== 'literal'}
+                    fallback={
+                      <span aria-hidden="true" data-segment="literal">
+                        {seg.text}
+                      </span>
+                    }
+                  >
+                    <input
+                      type="text"
+                      role="spinbutton"
+                      value={seg.text}
+                      readonly={readOnly()}
+                      disabled={disabled()}
+                      aria-valuenow={seg.value ?? undefined}
+                      aria-valuemin={seg.min}
+                      aria-valuemax={seg.max}
+                      aria-label={seg.type}
+                      data-segment={seg.type}
+                    />
+                  </Show>
+                )}
+              </For>
+            }
+          >
+            {typeof props.children === 'function' ? props.children(state()) : props.children}
+          </Show>
+          <Show when={props.name}>
+            <input type="hidden" name={props.name} value={value() ?? ''} />
+          </Show>
+        </>
+      )
+    },
+  })
+
   return (
     <TimeInputContext value={{ state, stepSegment }}>
-      {renderPart('div', rest, state, {
+      {renderPart('div', resolvedRoot, state, {
         ref: (el) => {
           rootEl = el
         },

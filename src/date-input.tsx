@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, For, merge, omit, Show, useContext } from 'solid-js'
 
 import type { DateMatcher, DateMatchers } from './calendar'
 import { useFieldControl } from './field'
@@ -60,6 +60,7 @@ export type DateInputOptions = {
   required?: boolean
   invalid?: boolean
   name?: string
+  locale?: string
   controller?: DateInputController
   debug?: boolean
 }
@@ -133,33 +134,45 @@ export function DateInput(
 
   const buildSegments = (): Array<DateInputSegmentData> => {
     const p = parseDateParts(value())
+    const yearSeg: DateInputSegmentData = {
+      type: 'year',
+      value: p.year,
+      text: p.year !== null ? pad(p.year, 4) : 'yyyy',
+      min: 1,
+      max: 9999,
+      placeholder: 'yyyy',
+    }
+    const monthSeg: DateInputSegmentData = {
+      type: 'month',
+      value: p.month,
+      text: p.month !== null ? pad(p.month) : 'mm',
+      min: 1,
+      max: 12,
+      placeholder: 'mm',
+    }
+    const daySeg: DateInputSegmentData = {
+      type: 'day',
+      value: p.day,
+      text: p.day !== null ? pad(p.day) : 'dd',
+      min: 1,
+      max: 31,
+      placeholder: 'dd',
+    }
+    if (props.locale?.startsWith('en-US')) {
+      return [
+        monthSeg,
+        { type: 'literal', value: null, text: '/', placeholder: '/' },
+        daySeg,
+        { type: 'literal', value: null, text: '/', placeholder: '/' },
+        yearSeg,
+      ]
+    }
     return [
-      {
-        type: 'year',
-        value: p.year,
-        text: p.year !== null ? pad(p.year, 4) : 'yyyy',
-        min: 1,
-        max: 9999,
-        placeholder: 'yyyy',
-      },
+      yearSeg,
       { type: 'literal', value: null, text: '-', placeholder: '-' },
-      {
-        type: 'month',
-        value: p.month,
-        text: p.month !== null ? pad(p.month) : 'mm',
-        min: 1,
-        max: 12,
-        placeholder: 'mm',
-      },
+      monthSeg,
       { type: 'literal', value: null, text: '-', placeholder: '-' },
-      {
-        type: 'day',
-        value: p.day,
-        text: p.day !== null ? pad(p.day) : 'dd',
-        min: 1,
-        max: 31,
-        placeholder: 'dd',
-      },
+      daySeg,
     ]
   }
 
@@ -265,13 +278,59 @@ export function DateInput(
     'required',
     'invalid',
     'name',
+    'locale',
     'controller',
     'debug',
   )
 
+  const resolvedRoot: PartProps<'div', DateInputState> = merge(rest, {
+    get children() {
+      const hasCustom = props.children !== undefined
+      return (
+        <>
+          <Show
+            when={hasCustom}
+            fallback={
+              <For each={state().segments}>
+                {(seg) => (
+                  <Show
+                    when={seg.type !== 'literal'}
+                    fallback={
+                      <span aria-hidden="true" data-segment="literal">
+                        {seg.text}
+                      </span>
+                    }
+                  >
+                    <input
+                      type="text"
+                      role="spinbutton"
+                      value={seg.text}
+                      readonly={readOnly()}
+                      disabled={disabled()}
+                      aria-valuenow={seg.value ?? undefined}
+                      aria-valuemin={seg.min}
+                      aria-valuemax={seg.max}
+                      aria-label={seg.type}
+                      data-segment={seg.type}
+                    />
+                  </Show>
+                )}
+              </For>
+            }
+          >
+            {typeof props.children === 'function' ? props.children(state()) : props.children}
+          </Show>
+          <Show when={props.name}>
+            <input type="hidden" name={props.name} value={value() ?? ''} />
+          </Show>
+        </>
+      )
+    },
+  })
+
   return (
     <DateInputContext value={{ state, stepSegment, setSegmentValue }}>
-      {renderPart('div', rest, state, {
+      {renderPart('div', resolvedRoot, state, {
         ref: (el) => {
           rootEl = el
         },
