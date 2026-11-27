@@ -1,4 +1,4 @@
-import { createContext, omit, Show, useContext } from 'solid-js'
+import { createContext, omit, Show, untrack, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -72,6 +72,7 @@ type RadioGroupContextValue = {
   loop: () => boolean
   select: (value: string, reason: RadioGroupValueChangeReason, event?: Event) => void
   registerItem: (value: string, el: HTMLElement) => void
+  claimInitialTabStop: (disabled: boolean) => boolean
   getItems: () => Array<{ value: string; el: HTMLElement }>
 }
 
@@ -88,6 +89,7 @@ export function RadioGroup<T extends string = string>(
   const field = useFieldControl()
   let rootEl: HTMLElement | undefined
   const itemMap = new Map<string, HTMLElement>()
+  let initialTabStopClaimed = false
 
   const [value, setValue] = createControlledSignal<T | undefined>({
     value: () => props.value,
@@ -183,6 +185,13 @@ export function RadioGroup<T extends string = string>(
         orientation,
         loop: () => props.loop ?? true,
         select: (v, reason, event) => applyValue(v as T, reason, event),
+        claimInitialTabStop: (isItemDisabled) => {
+          if (isItemDisabled || initialTabStopClaimed) {
+            return false
+          }
+          initialTabStopClaimed = true
+          return true
+        },
         registerItem: (v, el) => itemMap.set(v, el),
         getItems: () =>
           Array.from(itemMap.entries())
@@ -215,6 +224,9 @@ export function Radio<T extends string = string>(
     throw new Error('<Radio> must be used inside <RadioGroup>.')
   }
   let elRef: HTMLElement | undefined
+  const isInitialStop = group.claimInitialTabStop(
+    untrack(() => !!props.disabled || group.disabled()),
+  )
 
   const state = (): RadioState => ({
     checked: group.value() === props.value,
@@ -238,7 +250,11 @@ export function Radio<T extends string = string>(
             type: 'button',
             role: 'radio',
             'aria-checked': s.checked ? 'true' : 'false',
-            tabindex: s.checked || group.value() === undefined ? 0 : -1,
+            tabindex: s.disabled
+              ? undefined
+              : s.checked || (group.value() === undefined && isInitialStop)
+                ? 0
+                : -1,
             disabled: s.disabled || undefined,
             'data-state': s.checked ? 'checked' : 'unchecked',
             'data-checked': s.checked ? '' : undefined,

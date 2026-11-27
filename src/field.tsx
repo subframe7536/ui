@@ -66,6 +66,7 @@ export type FieldControlContextValue = {
   descriptionId: string
   claimDescriptionId: () => string | undefined
   errorId: string
+  claimErrorId: () => string | undefined
   name: () => string | undefined
   disabled: () => boolean
   invalid: () => boolean
@@ -108,6 +109,7 @@ export function Field(
   const [descriptionIds, setDescriptionIds] = createSignal<Array<string>>([])
   const ssrDescriptionIds: Array<string> = []
   let defaultDescClaimed = false
+  let defaultErrClaimed = false
   const [hasError, setHasError] = createSignal(false)
   const [dirty, setDirty] = createSignal(false)
   const [touched, setTouched] = createSignal(false)
@@ -145,7 +147,7 @@ export function Field(
     } else if (hasDescription()) {
       ids.push(descriptionId)
     }
-    if (hasError() && invalid()) {
+    if ((hasError() || typeof window === 'undefined') && invalid()) {
       ids.push(errorId)
     }
     return ids.length > 0 ? ids.join(' ') : undefined
@@ -182,6 +184,13 @@ export function Field(
           return descriptionId
         },
         errorId,
+        claimErrorId: () => {
+          if (defaultErrClaimed) {
+            return undefined
+          }
+          defaultErrClaimed = true
+          return errorId
+        },
         name: () => props.name,
         disabled,
         invalid,
@@ -272,10 +281,12 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
       'aria-invalid': state().invalid ? 'true' : undefined,
       'aria-describedby': (() => {
         const own = props['aria-describedby']
-        const fieldDesc =
-          ctx?.describedBy() ??
-          (typeof window === 'undefined' && ctx ? ctx.descriptionId : undefined)
-        const parts = [typeof own === 'string' ? own : undefined, fieldDesc].filter(Boolean)
+        const fieldDesc = ctx?.describedBy()
+        const ssrFallback =
+          typeof window === 'undefined' && ctx && !fieldDesc ? ctx.descriptionId : undefined
+        const parts = [typeof own === 'string' ? own : undefined, fieldDesc ?? ssrFallback].filter(
+          Boolean,
+        )
         return parts.length > 0 ? parts.join(' ') : undefined
       })(),
       'data-invalid': state().invalid ? '' : undefined,
@@ -311,6 +322,7 @@ export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
     }
   return renderPart('p', props, state, {
     attrs: () => ({
+      'data-slot': 'field-description',
       id: resolvedId(),
     }),
   })
@@ -325,7 +337,29 @@ export function FieldError(
     return () => ctx?.setHasError(false)
   })
   const rest = omit(props, 'match', 'forceShow')
-  const visible = () => !!props.forceShow || (ctx ? ctx.invalid() : true)
+  const visible = () => {
+    if (props.forceShow) {
+      return true
+    }
+    if (props.match === false) {
+      return false
+    }
+    if (typeof props.match === 'string') {
+      return false
+    }
+    return ctx ? ctx.invalid() : true
+  }
+  const uniqueFallbackId = `ui-field-err-${createUniqueId()}`
+  let assignedId: string | undefined
+  const resolvedErrorId = () => {
+    if (typeof props.id === 'string') {
+      return props.id
+    }
+    if (!assignedId) {
+      assignedId = ctx?.claimErrorId() ?? uniqueFallbackId
+    }
+    return assignedId
+  }
   const state = (): FieldErrorState => ({
     ...(ctx?.state() ?? {
       disabled: false,
@@ -342,7 +376,8 @@ export function FieldError(
     <Show when={visible()}>
       {renderPart('p', rest, state, {
         attrs: () => ({
-          id: props.id ?? ctx?.errorId,
+          'data-slot': 'field-error',
+          id: resolvedErrorId(),
           role: 'alert',
           'data-invalid': '',
         }),

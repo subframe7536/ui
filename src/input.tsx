@@ -259,6 +259,7 @@ export function Input(props: InputProps) {
         disabled: s.disabled || undefined,
         readonly: s.readOnly || undefined,
         required: s.required || undefined,
+        'aria-labelledby': field?.hasLabel() ? field.getLabelId() : undefined,
         'aria-invalid': s.invalid ? 'true' : undefined,
         'aria-describedby': (() => {
           const own = props['aria-describedby']
