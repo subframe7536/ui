@@ -1,4 +1,5 @@
 import {
+  onSettled,
   createContext,
   createEffect,
   createSignal,
@@ -141,12 +142,9 @@ export function Carousel(
 
   const goTo = (next: number, reason: CarouselPageChangeReason, event?: Event) => {
     const total = pageCount()
-    let target = next
-    if (loop()) {
-      target = ((next % total) + total) % total
-    } else {
-      target = Math.min(total - 1, Math.max(0, next))
-    }
+    const target = loop()
+      ? ((next % total) + total) % total
+      : Math.min(total - 1, Math.max(0, next))
     if (target === currentPage()) {
       return
     }
@@ -207,7 +205,9 @@ export function Carousel(
 
   const registerSlide = () => {
     const idx = slideSeq++
-    setRegisteredCount((c) => c + 1)
+    onSettled(() => {
+      setRegisteredCount((c) => c + 1)
+    })
     return {
       index: idx,
       cleanup: () => setRegisteredCount((c) => Math.max(0, c - 1)),

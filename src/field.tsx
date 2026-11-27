@@ -1,4 +1,12 @@
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  onSettled,
+  createContext,
+  createSignal,
+  createUniqueId,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
@@ -70,7 +78,6 @@ const FieldSetContext = createContext<() => boolean>(() => false)
 
 /**
  * Reads the nearest `<Field>` context for form controls.
- * @stable
  */
 export function useFieldControl(): FieldControlContextValue | null {
   return useContext(FieldContext)
@@ -207,7 +214,10 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
 
 export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
   const ctx = useContext(FieldContext)
-  ctx?.setHasDescription(true)
+  onSettled(() => {
+    ctx?.setHasDescription(true)
+    return () => ctx?.setHasDescription(false)
+  })
   const state = () =>
     ctx?.state() ?? {
       disabled: false,
@@ -228,7 +238,10 @@ export function FieldError(
   props: FieldErrorProps & Omit<PartProps<'p', FieldErrorState>, keyof FieldErrorProps>,
 ) {
   const ctx = useContext(FieldContext)
-  ctx?.setHasError(true)
+  onSettled(() => {
+    ctx?.setHasError(true)
+    return () => ctx?.setHasError(false)
+  })
   const rest = omit(props, 'match', 'forceShow')
   const visible = () => !!props.forceShow || (ctx ? ctx.invalid() : true)
   const state = (): FieldErrorState => ({

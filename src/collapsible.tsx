@@ -39,11 +39,13 @@ export type CollapsibleState = {
   disabled: boolean
 }
 
-export type CollapsibleTriggerProps = {}
+export type CollapsibleTriggerProps = object
 export type CollapsibleTriggerState = CollapsibleState
 
 export type CollapsiblePanelProps = {
+  /** Keeps the panel mounted in the DOM when closed. */
   keepMounted?: boolean
+  /** Uses `hidden="until-found"` when closed so browser find-in-page can reveal it. */
   hiddenUntilFound?: boolean
 }
 
@@ -68,6 +70,9 @@ function useCollapsibleContext(part: string): CollapsibleContextValue {
   return ctx
 }
 
+/**
+ * A panel of content that a trigger shows and hides.
+ */
 export function Collapsible(
   props: CollapsibleOptions & Omit<PartProps<'div', CollapsibleState>, keyof CollapsibleOptions>,
 ) {
@@ -176,6 +181,9 @@ export function Collapsible(
   )
 }
 
+/**
+ * The button that toggles the collapsible panel.
+ */
 export function CollapsibleTrigger(
   props: CollapsibleTriggerProps & PartProps<'button', CollapsibleTriggerState>,
 ) {
@@ -201,6 +209,9 @@ export function CollapsibleTrigger(
   })
 }
 
+/**
+ * The collapsible content panel.
+ */
 export function CollapsiblePanel(
   props: CollapsiblePanelProps &
     Omit<PartProps<'div', CollapsiblePanelState>, keyof CollapsiblePanelProps>,

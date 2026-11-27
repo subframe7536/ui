@@ -63,9 +63,9 @@ export type AccordionItemState = {
   disabled: boolean
 }
 
-export type AccordionHeaderProps = {}
+export type AccordionHeaderProps = object
 export type AccordionHeaderState = AccordionItemState
-export type AccordionTriggerProps = {}
+export type AccordionTriggerProps = object
 export type AccordionTriggerState = AccordionItemState
 export type AccordionPanelProps = {
   keepMounted?: boolean
@@ -110,6 +110,9 @@ function useAccordionItem(part: string): ItemContextValue {
   return ctx
 }
 
+/**
+ * A stack of collapsible sections. Single open item by default unless `multiple` is set.
+ */
 export function Accordion<T extends string = string>(
   props: AccordionOptions<T> &
     Omit<PartProps<'div', AccordionState<T>>, 'defaultValue' | 'onChange'>,
@@ -282,6 +285,9 @@ export function Accordion<T extends string = string>(
   )
 }
 
+/**
+ * One item in an `Accordion`.
+ */
 export function AccordionItem<T extends string = string>(
   props: AccordionItemProps<T> & Omit<PartProps<'div', AccordionItemState>, 'value'>,
 ) {
@@ -322,6 +328,9 @@ export function AccordionItem<T extends string = string>(
   )
 }
 
+/**
+ * Heading wrapper around `AccordionTrigger`.
+ */
 export function AccordionHeader(
   props: AccordionHeaderProps & PartProps<'h3', AccordionHeaderState>,
 ) {
@@ -341,6 +350,9 @@ export function AccordionHeader(
   })
 }
 
+/**
+ * Button that toggles its `AccordionItem`'s panel.
+ */
 export function AccordionTrigger(
   props: AccordionTriggerProps & PartProps<'button', AccordionTriggerState>,
 ) {
@@ -390,6 +402,9 @@ export function AccordionTrigger(
   })
 }
 
+/**
+ * Content panel for an `AccordionItem`.
+ */
 export function AccordionPanel(
   props: AccordionPanelProps &
     Omit<PartProps<'div', AccordionPanelState>, keyof AccordionPanelProps>,

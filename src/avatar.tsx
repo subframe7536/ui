@@ -1,4 +1,5 @@
 import {
+  untrack,
   createContext,
   createEffect,
   createSignal,
@@ -116,7 +117,7 @@ export function AvatarFallback(
   props: AvatarFallbackProps & Omit<PartProps<'span', AvatarState>, keyof AvatarFallbackProps>,
 ) {
   const ctx = useAvatar('Fallback')
-  const [canRender, setCanRender] = createSignal((props.delayMs ?? 0) <= 0)
+  const [canRender, setCanRender] = createSignal(untrack(() => (props.delayMs ?? 0) <= 0))
 
   createEffect(
     () => props.delayMs,

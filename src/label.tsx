@@ -3,15 +3,20 @@ import { createUniqueId } from 'solid-js'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 
-export type LabelOptions = {}
+export type LabelOptions = object
 
 export type LabelProps = LabelOptions & PartProps<'label'>
 
+/**
+ * A native `<label>` that names any control by `for` or by wrapping it.
+ * Clicking a label referencing a non-native ARIA control focuses and activates it.
+ */
+const emptyLabelState = () => ({})
+
 export function Label(props: LabelProps) {
   const fallbackId = createUniqueId()
-  const state = () => ({})
 
-  return renderPart('label', props, state, {
+  return renderPart('label', props, emptyLabelState, {
     attrs: () => ({
       id: props.id ?? fallbackId,
     }),

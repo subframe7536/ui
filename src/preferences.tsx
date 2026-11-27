@@ -18,11 +18,15 @@ const PreferencesContext = createContext<PreferencesContextValue>({
 })
 
 export function Preferences(props: PreferencesProps) {
-  const value = (): PreferencesContextValue => ({
-    prefix: props.prefix ?? 'ui-pref:',
-    storage: props.storage ?? (typeof localStorage !== 'undefined' ? localStorage : null),
-  })
-  return <PreferencesContext value={value()}>{props.children}</PreferencesContext>
+  const ctx: PreferencesContextValue = {
+    get prefix() {
+      return props.prefix ?? 'ui-pref:'
+    },
+    get storage() {
+      return props.storage ?? (typeof localStorage !== 'undefined' ? localStorage : null)
+    },
+  }
+  return <PreferencesContext value={ctx}>{props.children}</PreferencesContext>
 }
 
 export function usePreference<T>(

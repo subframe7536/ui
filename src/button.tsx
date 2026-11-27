@@ -11,10 +11,15 @@ import type { PartProps } from './foundation/render'
 export type ButtonActionDetails = ActionDetails
 
 export type ButtonOptions = {
+  /** Disables the button. */
   disabled?: boolean
+  /** Keeps a disabled button in the tab order using `aria-disabled` instead of `disabled`. */
   focusableWhenDisabled?: boolean
+  /** HTML button type. Defaults to `"button"`. */
   type?: 'button' | 'submit' | 'reset'
+  /** Screen-reader announcement spoken if a returned Promise stays pending past 1 second. */
   pendingAnnouncement?: string
+  /** Optional debug label. */
   debug?: boolean
 }
 
@@ -34,14 +39,19 @@ type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLElement, MouseEvent>>[0]
 
 type ButtonClickHandlers = {
   handler: (event: ButtonClickEvent, details: ButtonActionDetails) => unknown
-  bound: (data: any, event: ButtonClickEvent, details: ButtonActionDetails) => unknown
+  bound: (data: unknown, event: ButtonClickEvent, details: ButtonActionDetails) => unknown
 }
 
 export type ButtonProps = Omit<PartProps<'button', ButtonState>, 'type' | 'onClick'> &
   ButtonOptions & {
-    onClick?: ButtonClickHandlers['handler'] | { 0: ButtonClickHandlers['bound']; 1: any }
+    onClick?: ButtonClickHandlers['handler'] | { 0: ButtonClickHandlers['bound']; 1: unknown }
   }
 
+/**
+ * A button, or unknown element acting as one via `render`.
+ * Returning a Promise from `onClick` marks the button pending (`aria-busy`, `data-pending`)
+ * until it settles and ignores duplicate presses in the meantime.
+ */
 export function Button(props: ButtonProps) {
   const [pending, setPending] = createSignal(false)
   const [error, setError] = createSignal<unknown>(undefined)

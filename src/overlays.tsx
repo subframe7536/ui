@@ -18,6 +18,9 @@ export type Overlays = {
 
 let overlayCounter = 1
 
+/**
+ * Creates a reactive Solid 2 overlay manager for imperative dialogs, sheets, and drawers.
+ */
 export function createOverlays(): Overlays {
   const [entries, setEntries] = createSignal<Array<OverlayEntry>>([])
 
@@ -56,17 +59,26 @@ export function createOverlays(): Overlays {
   return { entries, open, close, closeAll }
 }
 
+/**
+ * Default global overlay stack.
+ */
 export const overlays = createOverlays()
 
 export type OverlayHostProps = {
   manager?: Overlays
 }
 
+/**
+ * Renders all active imperative overlays managed by `overlays` (or a custom `createOverlays()`).
+ */
 export function OverlayHost(props: OverlayHostProps) {
   const manager = () => props.manager ?? overlays
   return (
     <For each={manager().entries()}>
-      {(entry) => entry.render((result) => manager().close(entry.id, result))}
+      {(entry) => {
+        const close = (result?: unknown) => manager().close(entry.id, result)
+        return entry.render(close)
+      }}
     </For>
   )
 }

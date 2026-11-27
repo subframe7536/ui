@@ -131,15 +131,15 @@ export function Rating(
     }
   }
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const selectValue = (next: number, reason: RatingValueChangeReason, event?: Event) => {
     if (disabled() || readOnly()) {
@@ -155,7 +155,7 @@ export function Rating(
     }
     setRawValue(finalVal)
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: finalVal,
@@ -183,7 +183,7 @@ export function Rating(
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const indices = () => Array.from({ length: max() }, (_, i) => i + 1)
 
@@ -209,13 +209,15 @@ export function Rating(
 
   const combinedProps: PartProps<'div', RatingState> = {
     ...rest,
-    children: (
-      <For each={indices()}>
-        {(starIndex) => (
-          <RatingItemIndexContext value={starIndex}>{props.children}</RatingItemIndexContext>
-        )}
-      </For>
-    ),
+    get children() {
+      return (
+        <For each={indices()}>
+          {(starIndex) => (
+            <RatingItemIndexContext value={starIndex}>{props.children}</RatingItemIndexContext>
+          )}
+        </For>
+      )
+    },
   }
 
   return (
