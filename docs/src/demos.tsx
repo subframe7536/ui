@@ -23,7 +23,6 @@ import {
   CalendarHeading,
   CalendarNext,
   CalendarPrevious,
-  CalendarWeekday,
   CalendarWeekdays,
   CalendarWeeks,
   Carousel,
@@ -352,13 +351,7 @@ function RatingDemo() {
   return (
     <div class="ui-row">
       <Rating class="ui-rating" value={score()} max={5} onValueChange={(v) => setScore(v)}>
-        <For each={[1, 2, 3, 4, 5]}>
-          {(n) => (
-            <RatingItem class="ui-rating-item" index={n}>
-              ★
-            </RatingItem>
-          )}
-        </For>
+        <RatingItem class="ui-rating-item">★</RatingItem>
       </Rating>
       <span class="ui-state-pill">{score()} / 5</span>
     </div>
@@ -713,9 +706,7 @@ function CalendarDemo() {
           <CalendarNext class="ui-page-btn">›</CalendarNext>
         </div>
         <CalendarGrid class="ui-calendar-grid">
-          <thead>
-            <CalendarWeekdays>{(day) => <CalendarWeekday>{day}</CalendarWeekday>}</CalendarWeekdays>
-          </thead>
+          <CalendarWeekdays />
           <CalendarWeeks>
             <CalendarDay class="ui-calendar-day" />
           </CalendarWeeks>

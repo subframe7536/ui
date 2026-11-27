@@ -356,9 +356,7 @@ import { Input } from '@subf/ui/input'
     example: `import { Rating, RatingItem } from '@subf/ui/rating'
 
 <Rating defaultValue={4} max={5}>
-  {[1, 2, 3, 4, 5].map((n) => (
-    <RatingItem index={n}>★</RatingItem>
-  ))}
+  <RatingItem>★</RatingItem>
 </Rating>`,
   },
   {
