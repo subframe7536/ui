@@ -92,6 +92,7 @@ export type FileInputOptions = FileRules & {
   onReject?: (rejections: Array<FileRejection>) => void
   multiple?: boolean
   directory?: boolean
+  capture?: boolean | 'user' | 'environment'
   disabled?: boolean
   readOnly?: boolean
   required?: boolean
@@ -199,6 +200,7 @@ type FileInputContextValue = {
 
 const FileInputContext = createContext<FileInputContextValue | null>(null)
 const FileItemContext = createContext<(() => File) | null>(null)
+const FileItemIndexContext = createContext<(() => number) | null>(null)
 
 function useFileInput(part: string): FileInputContextValue {
   const ctx = useContext(FileInputContext)
@@ -384,6 +386,7 @@ export function FileInput(
     'validate',
     'multiple',
     'directory',
+    'capture',
     'disabled',
     'readOnly',
     'required',
@@ -401,10 +404,11 @@ export function FileInput(
           ref={(el) => {
             inputEl = el
           }}
-          id={id}
           type="file"
           accept={acceptAttr()}
           multiple={multiple()}
+          capture={props.capture}
+          {...(props.directory ? { webkitdirectory: true } : {})}
           name={props.name ?? field?.name()}
           form={props.form}
           disabled={disabled()}
@@ -443,6 +447,7 @@ export function FileInput(
         attrs: () => {
           const s = state()
           return {
+            'data-slot': 'file-input',
             'data-empty': s.empty ? '' : undefined,
             'data-dragging': s.dragging ? '' : undefined,
             'data-disabled': s.disabled ? '' : undefined,
@@ -488,6 +493,7 @@ export function FileInputDropzone(
         'aria-disabled': s.disabled ? 'true' : undefined,
         'aria-labelledby': ctx.field?.labelId,
         'aria-describedby': ctx.field?.describedBy(),
+        'data-slot': 'file-input-dropzone',
         'data-dragging': s.dragging ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,
         'data-empty': s.empty ? '' : undefined,
@@ -549,8 +555,10 @@ export function FileInputTrigger(
       const s = ctx.state()
       const isDisabled = !!props.disabled || s.disabled || s.readOnly || !s.canAddMore
       return {
+        id: props.id ?? ctx.id,
         type: 'button',
         disabled: isDisabled,
+        'data-slot': 'file-input-trigger',
         'data-disabled': isDisabled ? '' : undefined,
       }
     },
@@ -572,7 +580,9 @@ export function FileInputList(
       <For each={ctx.state().files}>
         {(file, index) => (
           <FileItemContext value={() => file}>
-            {typeof props.children === 'function' ? props.children(file, index) : props.children}
+            <FileItemIndexContext value={index}>
+              {typeof props.children === 'function' ? props.children(file, index) : props.children}
+            </FileItemIndexContext>
           </FileItemContext>
         )}
       </For>
@@ -582,6 +592,7 @@ export function FileInputList(
   return renderPart('ul', combinedProps, ctx.state, {
     attrs: () => ({
       role: 'list',
+      'data-slot': 'file-input-list',
       'data-empty': ctx.state().empty ? '' : undefined,
     }),
   })
@@ -592,6 +603,7 @@ export function FileInputItem(
 ) {
   const ctx = useFileInput('Item')
   const getFile = useItemFile('Item', () => props.file)
+  const index = useContext(FileItemIndexContext)
   const itemState = (): FileInputItemState => {
     const f = getFile()
     return {
@@ -609,6 +621,9 @@ export function FileInputItem(
     <FileItemContext value={getFile}>
       {renderPart('li', rest, itemState, {
         attrs: () => ({
+          role: 'listitem',
+          tabindex: index ? (index() === 0 ? 0 : -1) : undefined,
+          'data-slot': 'file-input-item',
           'data-disabled': itemState().disabled ? '' : undefined,
         }),
       })}
@@ -642,6 +657,7 @@ export function FileInputItemRemove(
         type: 'button',
         disabled: s.disabled,
         'aria-label': `Remove ${s.name}`,
+        'data-slot': 'file-input-item-remove',
         'data-disabled': s.disabled ? '' : undefined,
       }
     },
