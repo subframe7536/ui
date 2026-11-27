@@ -32,7 +32,13 @@ import {
   NumberInputDecrement,
   NumberInputIncrement,
 } from '../../src/number-input'
-import { Pagination, PaginationItem, PaginationNext, PaginationPrevious } from '../../src/pagination'
+import {
+  Pagination,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '../../src/pagination'
 import { PasswordInput, PasswordInputControl, PasswordInputToggle } from '../../src/password-input'
 import { Progress, ProgressIndicator, ProgressTrack, ProgressValue } from '../../src/progress'
 import { Radio, RadioGroup } from '../../src/radio'
@@ -264,7 +270,9 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
     expect(input.value).toBe('6')
 
     dec!.click()
+    flush()
     dec!.click()
+    flush()
     dec!.click()
     flush()
     expect(input.value).toBe('4')
@@ -294,10 +302,7 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
     const root = mount(() => (
       <>
         <Rating defaultValue={2} max={5}>
-          <RatingItem value={1}>1</RatingItem>
-          <RatingItem value={2}>2</RatingItem>
-          <RatingItem value={3}>3</RatingItem>
-          <RatingItem value={4}>4</RatingItem>
+          <RatingItem />
         </Rating>
         <SegmentedControl defaultValue="day">
           <SegmentedControlItem value="day">Day</SegmentedControlItem>
@@ -322,9 +327,15 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
     const root = mount(() => (
       <Pagination count={3} defaultPage={1}>
         <PaginationPrevious>Prev</PaginationPrevious>
-        <PaginationItem page={1}>1</PaginationItem>
-        <PaginationItem page={2}>2</PaginationItem>
-        <PaginationItem page={3}>3</PaginationItem>
+        <PaginationItem>
+          <PaginationLink page={1}>1</PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink page={2}>2</PaginationLink>
+        </PaginationItem>
+        <PaginationItem>
+          <PaginationLink page={3}>3</PaginationLink>
+        </PaginationItem>
         <PaginationNext>Next</PaginationNext>
       </Pagination>
     ))

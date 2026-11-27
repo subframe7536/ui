@@ -1,14 +1,14 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
-  untrack,
-  createMemo,
+  Show,
   createContext,
+  createMemo,
   createSignal,
   createUniqueId,
+  merge,
   omit,
   onCleanup,
-  Show,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -24,7 +24,12 @@ import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import {
+  SafePortal,
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
@@ -65,6 +70,8 @@ export type TooltipOptions<Payload = unknown> = PortalProps & {
   openDelay?: number
   closeDelay?: number
   disabled?: boolean
+  shortcut?: string
+  type?: 'description' | 'label'
   payload?: Payload
   controller?: TooltipController<Payload>
   debug?: boolean
@@ -110,6 +117,8 @@ export type TooltipShortcutState = { shortcut: string | undefined }
 type TooltipContextValue = {
   open: () => boolean
   disabled: () => boolean
+  shortcut: () => string | undefined
+  type: () => 'description' | 'label'
   payload: () => unknown
   container: () => HTMLElement | null | undefined
   contentId: string
@@ -145,7 +154,7 @@ function useTooltipContext(part: string): TooltipContextValue {
  * A small floating label describing a trigger on hover or focus.
  */
 export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
-  const contentId = `ui-tooltip-${createUniqueId()}`
+  const contentId = `ui-tooltip-${createUniqueId()}-content`
 
   const [open, setOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -284,6 +293,8 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
   const ctx: TooltipContextValue = {
     open,
     disabled: () => !!props.disabled,
+    shortcut: () => props.shortcut,
+    type: () => props.type ?? 'description',
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
@@ -336,9 +347,13 @@ export function TooltipTrigger<Payload = unknown>(
         attrs: () => {
           const s = state()
           const ctx = target()
+          const shortcutVal = props.shortcut ?? ctx?.shortcut()
+          const isLabel = ctx?.type() === 'label'
           return {
             type: 'button',
-            'aria-describedby': s.open ? ctx?.contentId : undefined,
+            'aria-describedby': isLabel ? undefined : ctx?.contentId,
+            'aria-labelledby': isLabel ? ctx?.contentId : undefined,
+            'aria-keyshortcuts': formatAriaKeyShortcuts(shortcutVal),
             'data-open': s.open ? '' : undefined,
             'data-closed': !s.open ? '' : undefined,
             'data-state': s.open ? 'open' : 'closed',
@@ -414,8 +429,6 @@ export function TooltipContent<Payload = unknown>(
     payload: ctx.payload() as Payload | undefined,
   })
 
-  const shouldRender = () => ctx.open() || !!props.keepMounted
-
   const renderSurface = () =>
     renderPart('div', rest, state, {
       ref: ctx.setContentEl,
@@ -440,10 +453,10 @@ export function TooltipContent<Payload = unknown>(
     })
 
   return (
-    <Show when={shouldRender()}>
-      <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
-      </Show>
+    <Show when={!props.inline} fallback={renderSurface()}>
+      <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+        {renderSurface()}
+      </SafePortal>
     </Show>
   )
 }
@@ -465,8 +478,19 @@ export function TooltipArrow(props: PartProps<'div', TooltipArrowState>) {
 export function TooltipShortcut(
   props: TooltipShortcutProps & PartProps<'kbd', TooltipShortcutState>,
 ) {
-  const shortcut = useContext(TooltipShortcutContext)
-  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ 'aria-hidden': 'true' }),
+  const triggerShortcut = useContext(TooltipShortcutContext)
+  const tooltipCtx = useContext(TooltipContext)
+  const resolved = () => triggerShortcut() ?? tooltipCtx?.shortcut()
+  const resolvedProps: PartProps<'kbd', TooltipShortcutState> = merge(props, {
+    get children() {
+      return props.children ?? formatDisplayShortcut(resolved())
+    },
   })
+  return (
+    <Show when={resolved()}>
+      {renderPart('kbd', resolvedProps, () => ({ shortcut: resolved() }), {
+        attrs: () => ({ 'aria-hidden': 'true', 'data-slot': 'tooltip-shortcut' }),
+      })}
+    </Show>
+  )
 }
