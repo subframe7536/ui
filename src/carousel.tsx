@@ -84,7 +84,7 @@ export type CarouselPreviousState = CarouselStepState
 export type CarouselNextState = CarouselStepState
 export type CarouselPlayToggleState = CarouselState
 export type CarouselIndicatorGroupState = CarouselState
-export type CarouselIndicatorProps = { index: number; disabled?: boolean }
+export type CarouselIndicatorProps = { index?: number; page?: number; disabled?: boolean }
 export type CarouselIndicatorState = { index: number; current: boolean; disabled: boolean }
 
 type CarouselContextValue = {
@@ -125,7 +125,10 @@ export function Carousel(
   const orientation = (): CarouselOrientation => props.orientation ?? 'horizontal'
   const loop = () => !!props.loop
 
-  const currentPage = () => Math.min(pageCount() - 1, Math.max(0, page()))
+  const currentPage = () =>
+    typeof window === 'undefined'
+      ? Math.max(0, page())
+      : Math.min(pageCount() - 1, Math.max(0, page()))
 
   const state = (): CarouselState => {
     const p = currentPage()
@@ -206,11 +209,17 @@ export function Carousel(
   const registerSlide = () => {
     const idx = slideSeq++
     onSettled(() => {
-      setRegisteredCount((c) => c + 1)
+      if (typeof window !== 'undefined') {
+        setRegisteredCount((c) => c + 1)
+      }
     })
     return {
       index: idx,
-      cleanup: () => setRegisteredCount((c) => Math.max(0, c - 1)),
+      cleanup: () => {
+        if (typeof window !== 'undefined') {
+          setRegisteredCount((c) => Math.max(0, c - 1))
+        }
+      },
     }
   }
 
@@ -265,14 +274,20 @@ export function Carousel(
 export function CarouselViewport(props: PartProps<'div', CarouselViewportState>) {
   const ctx = useCarousel('Viewport')
   return renderPart('div', props, ctx.state, {
-    style: () => ({ overflow: 'hidden' }),
+    style: () => ({
+      overflow: 'hidden',
+      'scroll-snap-type': ctx.state().orientation === 'vertical' ? 'y mandatory' : 'x mandatory',
+    }),
   })
 }
 
 export function CarouselContent(props: PartProps<'div', CarouselContentState>) {
   const ctx = useCarousel('Content')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ 'data-orientation': ctx.state().orientation }),
+    attrs: () => ({
+      'aria-live': ctx.state().playing ? 'off' : 'polite',
+      'data-orientation': ctx.state().orientation,
+    }),
     style: () => ({
       display: 'flex',
       'flex-direction': ctx.state().orientation === 'vertical' ? 'column' : 'row',
@@ -293,6 +308,7 @@ export function CarouselItem(props: PartProps<'div', CarouselItemState>) {
     active: ctx.state().page === reg.index,
   })
   return renderPart('div', props, itemState, {
+    style: () => ({ 'scroll-snap-align': 'start' }),
     attrs: () => ({
       role: 'group',
       'aria-roledescription': 'slide',
@@ -382,25 +398,29 @@ export function CarouselIndicator(
     Omit<PartProps<'button', CarouselIndicatorState>, keyof CarouselIndicatorProps | 'type'>,
 ) {
   const ctx = useCarousel('Indicator')
+  const targetIndex = () => (props.index !== undefined ? props.index : (props.page ?? 1))
   const indState = (): CarouselIndicatorState => ({
-    index: props.index,
-    current: ctx.state().page === props.index,
+    index: targetIndex(),
+    current:
+      props.page !== undefined
+        ? ctx.state().page === props.page
+        : ctx.state().page === targetIndex(),
     disabled: !!props.disabled,
   })
-  const rest = omit(props, 'index', 'disabled')
+  const rest = omit(props, 'index', 'page', 'disabled')
   return renderPart('button', rest, indState, {
     attrs: () => ({
       type: 'button',
       role: 'tab',
       disabled: indState().disabled,
       'aria-selected': indState().current ? 'true' : 'false',
-      'aria-label': `Slide ${props.index + 1}`,
+      'aria-label': `Slide ${props.page !== undefined ? props.page : targetIndex() + 1}`,
       'data-current': indState().current ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
         if (!indState().disabled) {
-          ctx.goTo(props.index, 'indicator', e)
+          ctx.goTo(targetIndex(), 'indicator', e)
         }
       },
     },

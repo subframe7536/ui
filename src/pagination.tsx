@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, merge, omit, Show, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -104,7 +104,9 @@ export type PaginationController = ReturnType<typeof createPaginationController>
 export type PaginationOptions = {
   page?: number
   defaultPage?: number
-  count: number
+  count?: number
+  pageCount?: number
+  getHref?: (page: number) => string
   onPageChange?: (page: number, details: ChangeDetails<PaginationPageChangeReason>) => void
   siblingCount?: number
   boundaryCount?: number
@@ -120,6 +122,7 @@ export type PaginationState = {
   canNext: boolean
   disabled: boolean
   range: Array<PaginationRangeItem>
+  items: Array<number | 'ellipsis'>
 }
 
 export type PaginationPrimitive = PaginationState
@@ -135,6 +138,7 @@ type PaginationContextValue = {
   id: string
   state: () => PaginationState
   goTo: (page: number, reason: PaginationPageChangeReason, event?: Event) => void
+  getHref: () => ((page: number) => string) | undefined
 }
 
 const PaginationContext = createContext<PaginationContextValue | null>(null)
@@ -151,7 +155,7 @@ export function Pagination(
   props: PaginationOptions & Omit<PartProps<'nav', PaginationState>, keyof PaginationOptions>,
 ) {
   const id = `ui-pagination-${createUniqueId()}`
-  const count = () => Math.max(1, Math.floor(props.count))
+  const count = () => Math.max(1, Math.floor(props.count ?? props.pageCount ?? 1))
 
   const [page, setRawPage] = createControlledSignal<number>({
     value: () => props.page,
@@ -166,18 +170,20 @@ export function Pagination(
     const p = currentPage()
     const total = count()
     const isDisabled = disabled()
+    const range = paginationRange({
+      page: p,
+      count: total,
+      siblingCount: props.siblingCount,
+      boundaryCount: props.boundaryCount,
+    })
     return {
       page: p,
       count: total,
       canPrevious: !isDisabled && p > 1,
       canNext: !isDisabled && p < total,
       disabled: isDisabled,
-      range: paginationRange({
-        page: p,
-        count: total,
-        siblingCount: props.siblingCount,
-        boundaryCount: props.boundaryCount,
-      }),
+      range,
+      items: range.map((r) => (r.type === 'page' ? r.page : 'ellipsis')),
     }
   }
 
@@ -244,6 +250,8 @@ export function Pagination(
     'page',
     'defaultPage',
     'count',
+    'pageCount',
+    'getHref',
     'onPageChange',
     'siblingCount',
     'boundaryCount',
@@ -253,7 +261,7 @@ export function Pagination(
   )
 
   return (
-    <PaginationContext value={{ id, state, goTo }}>
+    <PaginationContext value={{ id, state, goTo, getHref: () => props.getHref }}>
       {renderPart('nav', rest, state, {
         ref: (el) => {
           rootEl = el
@@ -270,7 +278,9 @@ export function Pagination(
 
 export function PaginationList(props: PartProps<'ul', PaginationState>) {
   const ctx = usePagination('List')
-  return renderPart('ul', props, ctx.state)
+  return renderPart('ul', props, ctx.state, {
+    attrs: () => ({ role: 'list' }),
+  })
 }
 
 export function PaginationItem(props: PartProps<'li', PaginationState>) {
@@ -298,25 +308,50 @@ export function PaginationLink(
     },
   })
 
-  return renderPart('button', resolvedProps, linkState, {
-    attrs: () => {
-      const s = linkState()
-      return {
-        type: 'button',
-        disabled: s.disabled,
-        'aria-current': s.current ? 'page' : undefined,
-        'data-current': s.current ? '' : undefined,
-        'data-disabled': s.disabled ? '' : undefined,
+  return (
+    <Show
+      when={ctx.getHref()}
+      fallback={renderPart('button', resolvedProps, linkState, {
+        attrs: () => {
+          const s = linkState()
+          return {
+            type: 'button',
+            disabled: s.disabled,
+            'aria-current': s.current ? 'page' : undefined,
+            'data-current': s.current ? '' : undefined,
+            'data-disabled': s.disabled ? '' : undefined,
+          }
+        },
+        handlers: {
+          onClick: (e: MouseEvent) => {
+            if (!linkState().disabled) {
+              ctx.goTo(props.page, 'page', e)
+            }
+          },
+        },
+      })}
+    >
+      {(getHref) =>
+        renderPart(
+          'a',
+          resolvedProps as unknown as PartProps<'a', PaginationLinkState>,
+          linkState,
+          {
+            attrs: () => {
+              const s = linkState()
+              return {
+                href: s.disabled ? undefined : getHref()(props.page),
+                'aria-disabled': s.disabled ? 'true' : undefined,
+                'aria-current': s.current ? 'page' : undefined,
+                'data-current': s.current ? '' : undefined,
+                'data-disabled': s.disabled ? '' : undefined,
+              }
+            },
+          },
+        )
       }
-    },
-    handlers: {
-      onClick: (e: MouseEvent) => {
-        if (!linkState().disabled) {
-          ctx.goTo(props.page, 'page', e)
-        }
-      },
-    },
-  })
+    </Show>
+  )
 }
 
 export function PaginationPrevious(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
@@ -325,21 +360,37 @@ export function PaginationPrevious(props: Omit<PartProps<'button', PaginationSte
     const s = ctx.state()
     return { ...s, disabled: !s.canPrevious }
   }
-  return renderPart('button', props, stepState, {
-    attrs: () => ({
-      type: 'button',
-      disabled: stepState().disabled,
-      'aria-label': 'Previous page',
-      'data-disabled': stepState().disabled ? '' : undefined,
-    }),
-    handlers: {
-      onClick: (e: MouseEvent) => {
-        if (ctx.state().canPrevious) {
-          ctx.goTo(ctx.state().page - 1, 'previous', e)
-        }
-      },
-    },
-  })
+  return (
+    <Show
+      when={ctx.getHref()}
+      fallback={renderPart('button', props, stepState, {
+        attrs: () => ({
+          type: 'button',
+          disabled: stepState().disabled,
+          'aria-label': 'Previous page',
+          'data-disabled': stepState().disabled ? '' : undefined,
+        }),
+        handlers: {
+          onClick: (e: MouseEvent) => {
+            if (ctx.state().canPrevious) {
+              ctx.goTo(ctx.state().page - 1, 'previous', e)
+            }
+          },
+        },
+      })}
+    >
+      {(getHref) =>
+        renderPart('a', props as unknown as PartProps<'a', PaginationStepState>, stepState, {
+          attrs: () => ({
+            href: stepState().disabled ? undefined : getHref()(ctx.state().page - 1),
+            'aria-disabled': stepState().disabled ? 'true' : undefined,
+            'aria-label': 'Previous page',
+            'data-disabled': stepState().disabled ? '' : undefined,
+          }),
+        })
+      }
+    </Show>
+  )
 }
 
 export function PaginationNext(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
@@ -348,21 +399,37 @@ export function PaginationNext(props: Omit<PartProps<'button', PaginationStepSta
     const s = ctx.state()
     return { ...s, disabled: !s.canNext }
   }
-  return renderPart('button', props, stepState, {
-    attrs: () => ({
-      type: 'button',
-      disabled: stepState().disabled,
-      'aria-label': 'Next page',
-      'data-disabled': stepState().disabled ? '' : undefined,
-    }),
-    handlers: {
-      onClick: (e: MouseEvent) => {
-        if (ctx.state().canNext) {
-          ctx.goTo(ctx.state().page + 1, 'next', e)
-        }
-      },
-    },
-  })
+  return (
+    <Show
+      when={ctx.getHref()}
+      fallback={renderPart('button', props, stepState, {
+        attrs: () => ({
+          type: 'button',
+          disabled: stepState().disabled,
+          'aria-label': 'Next page',
+          'data-disabled': stepState().disabled ? '' : undefined,
+        }),
+        handlers: {
+          onClick: (e: MouseEvent) => {
+            if (ctx.state().canNext) {
+              ctx.goTo(ctx.state().page + 1, 'next', e)
+            }
+          },
+        },
+      })}
+    >
+      {(getHref) =>
+        renderPart('a', props as unknown as PartProps<'a', PaginationStepState>, stepState, {
+          attrs: () => ({
+            href: stepState().disabled ? undefined : getHref()(ctx.state().page + 1),
+            'aria-disabled': stepState().disabled ? 'true' : undefined,
+            'aria-label': 'Next page',
+            'data-disabled': stepState().disabled ? '' : undefined,
+          }),
+        })
+      }
+    </Show>
+  )
 }
 
 export function PaginationFirst(props: Omit<PartProps<'button', PaginationStepState>, 'type'>) {
@@ -419,6 +486,6 @@ export function PaginationEllipsis(props: PartProps<'span', PaginationState>) {
     },
   })
   return renderPart('span', resolvedProps, ctx.state, {
-    attrs: () => ({ 'aria-hidden': true }),
+    attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }
