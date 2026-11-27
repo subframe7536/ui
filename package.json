@@ -57,6 +57,11 @@
       "solid": "./dist/button.jsx",
       "default": "./dist/button.mjs"
     },
+    "./checkbox": {
+      "types": "./dist/checkbox.d.mts",
+      "solid": "./dist/checkbox.jsx",
+      "default": "./dist/checkbox.mjs"
+    },
     "./collapsible": {
       "types": "./dist/collapsible.d.mts",
       "solid": "./dist/collapsible.jsx",
@@ -72,10 +77,25 @@
       "solid": "./dist/drawer.jsx",
       "default": "./dist/drawer.mjs"
     },
+    "./field": {
+      "types": "./dist/field.d.mts",
+      "solid": "./dist/field.jsx",
+      "default": "./dist/field.mjs"
+    },
+    "./file-input": {
+      "types": "./dist/file-input.d.mts",
+      "solid": "./dist/file-input.jsx",
+      "default": "./dist/file-input.mjs"
+    },
     "./hover-card": {
       "types": "./dist/hover-card.d.mts",
       "solid": "./dist/hover-card.jsx",
       "default": "./dist/hover-card.mjs"
+    },
+    "./input": {
+      "types": "./dist/input.d.mts",
+      "solid": "./dist/input.jsx",
+      "default": "./dist/input.mjs"
     },
     "./label": {
       "types": "./dist/label.d.mts",
@@ -92,19 +112,39 @@
       "solid": "./dist/menubar.jsx",
       "default": "./dist/menubar.mjs"
     },
+    "./meter": {
+      "types": "./dist/meter.d.mts",
+      "solid": "./dist/meter.jsx",
+      "default": "./dist/meter.mjs"
+    },
     "./navigation-menu": {
       "types": "./dist/navigation-menu.d.mts",
       "solid": "./dist/navigation-menu.jsx",
       "default": "./dist/navigation-menu.mjs"
     },
+    "./number-input": {
+      "types": "./dist/number-input.d.mts",
+      "solid": "./dist/number-input.jsx",
+      "default": "./dist/number-input.mjs"
+    },
     "./observe": {
       "types": "./dist/observe.d.mts",
       "default": "./dist/observe.mjs"
+    },
+    "./otp-input": {
+      "types": "./dist/otp-input.d.mts",
+      "solid": "./dist/otp-input.jsx",
+      "default": "./dist/otp-input.mjs"
     },
     "./overlays": {
       "types": "./dist/overlays.d.mts",
       "solid": "./dist/overlays.jsx",
       "default": "./dist/overlays.mjs"
+    },
+    "./password-input": {
+      "types": "./dist/password-input.d.mts",
+      "solid": "./dist/password-input.jsx",
+      "default": "./dist/password-input.mjs"
     },
     "./popover": {
       "types": "./dist/popover.d.mts",
@@ -115,10 +155,35 @@
       "types": "./dist/primitive.d.mts",
       "default": "./dist/primitive.mjs"
     },
+    "./progress": {
+      "types": "./dist/progress.d.mts",
+      "solid": "./dist/progress.jsx",
+      "default": "./dist/progress.mjs"
+    },
+    "./radio": {
+      "types": "./dist/radio.d.mts",
+      "solid": "./dist/radio.jsx",
+      "default": "./dist/radio.mjs"
+    },
+    "./rating": {
+      "types": "./dist/rating.d.mts",
+      "solid": "./dist/rating.jsx",
+      "default": "./dist/rating.mjs"
+    },
+    "./segmented-control": {
+      "types": "./dist/segmented-control.d.mts",
+      "solid": "./dist/segmented-control.jsx",
+      "default": "./dist/segmented-control.mjs"
+    },
     "./separator": {
       "types": "./dist/separator.d.mts",
       "solid": "./dist/separator.jsx",
       "default": "./dist/separator.mjs"
+    },
+    "./slider": {
+      "types": "./dist/slider.d.mts",
+      "solid": "./dist/slider.jsx",
+      "default": "./dist/slider.mjs"
     },
     "./switch": {
       "types": "./dist/switch.d.mts",
@@ -130,6 +195,11 @@
       "solid": "./dist/tabs.jsx",
       "default": "./dist/tabs.mjs"
     },
+    "./textarea": {
+      "types": "./dist/textarea.d.mts",
+      "solid": "./dist/textarea.jsx",
+      "default": "./dist/textarea.mjs"
+    },
     "./toast": {
       "types": "./dist/toast.d.mts",
       "solid": "./dist/toast.jsx",
@@ -139,6 +209,11 @@
       "types": "./dist/toggle.d.mts",
       "solid": "./dist/toggle.jsx",
       "default": "./dist/toggle.mjs"
+    },
+    "./token-input": {
+      "types": "./dist/token-input.d.mts",
+      "solid": "./dist/token-input.jsx",
+      "default": "./dist/token-input.mjs"
     },
     "./toolbar": {
       "types": "./dist/toolbar.d.mts",
