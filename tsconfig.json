@@ -21,6 +21,6 @@
     "jsxImportSource": "@solidjs/web",
     "types": ["vite/client", "node", "vitest/globals"]
   },
-  "include": ["src", "test", "*.config.ts"],
+  "include": ["src", "test", "docs/src", "*.config.ts", "docs/*.config.ts"],
   "exclude": ["**/dist", "**/node_modules", "test/types", "ref"]
 }

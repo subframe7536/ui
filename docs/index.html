@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-color-scheme="system">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@subf/ui — SolidJS 2 Native UI SDK</title>
+    <meta
+      name="description"
+      content="Pure SolidJS 2 native headless UI library with full API parity to @ui-sdk/solid — zero kernel overhead, fine-grained signals, imperative controllers, and agent runtime."
+    />
+    <script>
+      ;(() => {
+        try {
+          const saved = localStorage.getItem('subf-ui-theme')
+          if (saved === 'light' || saved === 'dark' || saved === 'system') {
+            document.documentElement.dataset.colorScheme = saved
+          }
+        } catch {}
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

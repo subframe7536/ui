@@ -343,7 +343,10 @@
     "typecheck": "tsrs --noEmit --fast",
     "oxc": "pnpm run lint && pnpm run format",
     "qa": "pnpm run lint && pnpm run format && pnpm run typecheck",
-    "prepublishOnly": "pnpm run build"
+    "prepublishOnly": "pnpm run build",
+    "docs:dev": "vite -c docs/vite.config.ts",
+    "docs:build": "vite build -c docs/vite.config.ts",
+    "docs:preview": "vite preview -c docs/vite.config.ts"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.8.0"
