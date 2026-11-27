@@ -1,4 +1,3 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
   untrack,
@@ -27,7 +26,7 @@ import type { FocusTarget } from './foundation/focus'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { renderPart, SafePortal } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
@@ -127,6 +126,8 @@ type PopoverContextValue = {
   payload: () => unknown
   container: () => HTMLElement | null | undefined
   contentId: string
+  triggerId: () => string | undefined
+  setTriggerId: (id: string) => void
   titleId: string
   descriptionId: string
   hasTitle: () => boolean
@@ -178,6 +179,7 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
   const [hasTitle, setHasTitle] = createSignal(false)
   const [hasDescription, setHasDescription] = createSignal(false)
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
+  let customTriggerId: string | undefined
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | undefined>(undefined)
 
@@ -268,6 +270,10 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
+    triggerId: () => customTriggerId,
+    setTriggerId: (id) => {
+      customTriggerId = id
+    },
     titleId,
     descriptionId,
     hasTitle,
@@ -312,7 +318,15 @@ export function PopoverTrigger<Payload = unknown>(
   props: PopoverTriggerProps<Payload> &
     Omit<PartProps<'button', PopoverTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(() => props.controller, useContext(PopoverContext))
+  const directCtx = useContext(PopoverContext)
+  if (directCtx) {
+    untrack(() => {
+      if (typeof props.id === 'string') {
+        directCtx.setTriggerId(props.id)
+      }
+    })
+  }
+  const target = useControllerTarget(() => props.controller, directCtx)
   const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = (): PopoverTriggerState => ({
     open: target()?.open() ?? false,
@@ -421,7 +435,7 @@ export function PopoverContent<Payload = unknown>(
           role: 'dialog',
           id: props.id ?? ctx.contentId,
           tabindex: -1,
-          'aria-labelledby': ctx.hasTitle() ? ctx.titleId : undefined,
+          'aria-labelledby': ctx.hasTitle() ? ctx.titleId : ctx.triggerId(),
           'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
           hidden: open ? undefined : true,
           'data-open': open ? '' : undefined,
@@ -437,7 +451,9 @@ export function PopoverContent<Payload = unknown>(
   return (
     <Show when={shouldRender()}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
+        <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+          {renderSurface()}
+        </SafePortal>
       </Show>
     </Show>
   )

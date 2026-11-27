@@ -464,7 +464,8 @@ export function DialogContent<Payload = unknown>(
               id: props.id ?? ctx.contentId,
               tabindex: -1,
               'aria-modal': ctx.modal() ? 'true' : undefined,
-              'aria-labelledby': ctx.hasTitle() ? ctx.titleId : undefined,
+              'aria-labelledby':
+                ctx.hasTitle() || typeof window === 'undefined' ? ctx.titleId : undefined,
               'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
               hidden: open ? undefined : true,
               'data-open': open ? '' : undefined,

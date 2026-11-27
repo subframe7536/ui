@@ -1,4 +1,5 @@
 import {
+  untrack,
   createContext,
   createEffect,
   createSignal,
@@ -105,6 +106,8 @@ type TabsContextValue = {
   select: (value: string, reason: TabsValueChangeReason, event?: Event) => void
   registerTab: (value: string, el: HTMLElement) => void
   getTabs: () => Array<{ value: string; el: HTMLElement }>
+  registerTabId: (v: string, id: string) => void
+  getTabId: (v: string) => string
   getTabElement: (value: string) => HTMLElement | undefined
   setListEl: (el: HTMLElement) => void
   getListEl: () => HTMLElement | undefined
@@ -134,6 +137,7 @@ export function Tabs<T extends string = string>(
   let rootEl: HTMLElement | undefined
   let listEl: HTMLElement | undefined
   const tabMap = new Map<string, HTMLElement>()
+  const tabIdMap = new Map<string, string>()
   const [hoveredValue, setHoveredValue] = createSignal<string | undefined>(undefined)
 
   const [value, setValue] = createControlledSignal<T | undefined>({
@@ -235,6 +239,10 @@ export function Tabs<T extends string = string>(
             .filter(([, el]) => el.isConnected)
             .map(([v, el]) => ({ value: v, el })),
         getTabElement: (v) => tabMap.get(v),
+        registerTabId: (v, id) => {
+          tabIdMap.set(v, id)
+        },
+        getTabId: (v) => tabIdMap.get(v) ?? `${baseId}-tab-${v}`,
         setListEl: (el) => {
           listEl = el
         },
@@ -284,6 +292,11 @@ export function TabsTab<T extends string = string>(
     orientation: tabs.orientation(),
   })
 
+  untrack(() => {
+    if (typeof props.id === 'string') {
+      tabs.registerTabId(props.value, props.id)
+    }
+  })
   const rest = omit(props, 'value', 'disabled')
 
   return (
@@ -421,7 +434,7 @@ export function TabsPanel<T extends string = string>(
           return {
             role: 'tabpanel',
             id: props.id ?? `${tabs.baseId}-panel-${props.value}`,
-            'aria-labelledby': `${tabs.baseId}-tab-${props.value}`,
+            'aria-labelledby': tabs.getTabId(props.value),
             tabindex: s.selected ? 0 : -1,
             hidden: s.selected ? undefined : props.hiddenUntilFound ? 'until-found' : true,
             'data-selected': s.selected ? '' : undefined,
