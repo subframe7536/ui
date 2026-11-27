@@ -1,4 +1,4 @@
-import { createContext, omit, useContext } from 'solid-js'
+import { createContext, omit, untrack, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -97,7 +97,7 @@ type GroupContextValue = {
   isPressed: (value: string) => boolean
   hasValue: () => boolean
   claimTabStop: () => boolean
-  ownsToolbarStop: () => boolean
+  ownsToolbarStop: boolean
   toggleItem: (value: string, event?: Event) => void
   disabled: () => boolean
   orientation: () => ToggleGroupOrientation
@@ -219,7 +219,7 @@ export function Toggle(
           const focusableDisabled = disabled && (props.focusableWhenDisabled || !!group)
           if (claimedStop === undefined) {
             if (toolbar && group) {
-              claimedStop = group.ownsToolbarStop() && !disabled && group.claimTabStop()
+              claimedStop = group.ownsToolbarStop && !disabled && group.claimTabStop()
             } else if (toolbar) {
               claimedStop = !disabled && toolbar.claimTabStop()
             } else if (group) {
@@ -296,8 +296,8 @@ export function ToggleGroup<T extends string = string>(
   const toolbar = useOptionalToolbar()
   let rootEl: HTMLElement | undefined
   let tabStopClaimed = false
-  let toolbarStopOwned: boolean | undefined
   const items = new Set<HTMLElement>()
+  const ownsToolbarStop = toolbar ? untrack(() => !props.disabled) && toolbar.claimTabStop() : false
 
   const [value, setValue] = createControlledSignal<T | Array<T> | undefined>({
     value: () => props.value,
@@ -316,12 +316,6 @@ export function ToggleGroup<T extends string = string>(
     }
     tabStopClaimed = true
     return true
-  }
-  const ownsToolbarStop = () => {
-    if (toolbarStopOwned === undefined) {
-      toolbarStopOwned = toolbar ? !isDisabled() && toolbar.claimTabStop() : false
-    }
-    return toolbarStopOwned
   }
 
   const applyValue = (
@@ -442,14 +436,11 @@ export function ToggleGroup<T extends string = string>(
         ref: (el: HTMLElement) => {
           rootEl = el
         },
-        attrs: () => {
-          ownsToolbarStop()
-          return {
-            role: 'group',
-            'data-orientation': orientation(),
-            'data-disabled': isDisabled() ? '' : undefined,
-          }
-        },
+        attrs: () => ({
+          role: 'group',
+          'data-orientation': orientation(),
+          'data-disabled': isDisabled() ? '' : undefined,
+        }),
       })}
     </ToggleGroupContext>
   )

@@ -37,7 +37,7 @@ export type ButtonApi = {
 
 type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLElement, MouseEvent>>[0]
 
-type ButtonBoundClickHandler<T = any> = readonly [
+type ButtonBoundClickHandler<T = never> = readonly [
   (data: T, event: ButtonClickEvent, details: ButtonActionDetails) => unknown,
   T,
 ]
