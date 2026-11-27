@@ -24,6 +24,11 @@ function nextTheme(current: ColorScheme): ColorScheme {
   return 'system'
 }
 
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'instant' })
+  document.querySelector('.docs-article')?.scrollTo({ top: 0, behavior: 'instant' })
+}
+
 export function App() {
   const [hash, setHash] = createSignal(readHash())
   const [searchOpen, setSearchOpen] = createSignal(false)
@@ -35,12 +40,12 @@ export function App() {
   const navigate = (target: string) => {
     window.location.hash = target
     setHash(target)
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    scrollToTop()
   }
 
   const onHashChange = () => {
     setHash(readHash())
-    window.scrollTo({ top: 0, behavior: 'instant' })
+    scrollToTop()
   }
 
   const onKeyDown = (event: KeyboardEvent) => {
