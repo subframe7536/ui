@@ -1,0 +1,389 @@
+import { createContext, omit, Show, useContext } from "solid-js"
+import { useFieldControl } from "./field"
+import { createController, useController } from "./foundation/controller"
+import {
+  createChangeDetails,
+  type ChangeDetails,
+  type ChangeOptions,
+} from "./foundation/details"
+import { registerComponent } from "./foundation/registry"
+import { renderPart, type PartProps } from "./foundation/render"
+import { createControlledSignal } from "./foundation/state"
+
+export type CheckedState = boolean | "indeterminate"
+export type CheckboxCheckedChangeReason = "press" | "imperative" | "reset"
+export type CheckboxChangeOptions = ChangeOptions<CheckboxCheckedChangeReason>
+
+export type CheckboxApi = {
+  setChecked: (checked: CheckedState, options?: CheckboxChangeOptions) => void
+  toggle: (options?: CheckboxChangeOptions) => void
+  isChecked: () => boolean
+  isIndeterminate: () => boolean
+}
+
+export function createCheckboxController() {
+  return createController<CheckboxApi>()
+}
+
+export type CheckboxController = ReturnType<typeof createCheckboxController>
+
+export type CheckboxOptions = {
+  checked?: CheckedState
+  defaultChecked?: CheckedState
+  onCheckedChange?: (
+    checked: boolean,
+    details: ChangeDetails<CheckboxCheckedChangeReason>
+  ) => void
+  disabled?: boolean
+  readOnly?: boolean
+  required?: boolean
+  name?: string
+  value?: string
+  form?: string
+  controller?: CheckboxController
+  debug?: boolean
+}
+
+export type CheckboxState = {
+  checked: boolean
+  indeterminate: boolean
+  disabled: boolean
+  readOnly: boolean
+  required: boolean
+}
+
+export type CheckboxIndicatorProps = { keepMounted?: boolean }
+export type CheckboxIndicatorState = CheckboxState
+
+export type CheckboxGroupValueChangeReason = "press" | "imperative" | "reset"
+export type CheckboxGroupChangeOptions = ChangeOptions<CheckboxGroupValueChangeReason>
+
+export type CheckboxGroupApi<T extends string = string> = {
+  setValue: (value: T[], options?: CheckboxGroupChangeOptions) => void
+  getValue: () => T[]
+}
+
+export function createCheckboxGroupController<T extends string = string>() {
+  return createController<CheckboxGroupApi<T>>()
+}
+
+export type CheckboxGroupController<T extends string = string> = ReturnType<
+  typeof createCheckboxGroupController<T>
+>
+
+export type CheckboxGroupOptions<T extends string = string> = {
+  value?: T[]
+  defaultValue?: T[]
+  onValueChange?: (
+    value: T[],
+    details: ChangeDetails<CheckboxGroupValueChangeReason>
+  ) => void
+  disabled?: boolean
+  readOnly?: boolean
+  name?: string
+  controller?: CheckboxGroupController<T>
+  debug?: boolean
+}
+
+export type CheckboxGroupState<T extends string = string> = {
+  value: T[]
+  disabled: boolean
+  readOnly: boolean
+}
+
+type GroupContextValue = {
+  isChecked: (value: string) => boolean
+  toggleValue: (value: string, event?: Event) => void
+  disabled: () => boolean
+  readOnly: () => boolean
+  name: () => string | undefined
+}
+
+const CheckboxGroupContext = createContext<GroupContextValue | null>(null)
+const CheckboxContext = createContext<() => CheckboxState>(() => ({
+  checked: false,
+  indeterminate: false,
+  disabled: false,
+  readOnly: false,
+  required: false,
+}))
+
+export function Checkbox(
+  props: CheckboxOptions &
+    Omit<PartProps<"button", CheckboxState>, "value" | "onChange" | "type">
+) {
+  const group = useContext(CheckboxGroupContext)
+  const field = useFieldControl()
+  let rootEl: HTMLElement | undefined
+
+  const [ownState, setOwnState] = createControlledSignal<CheckedState>({
+    value: () => props.checked,
+    defaultValue: () => props.defaultChecked ?? false,
+  })
+
+  const rawChecked = (): CheckedState =>
+    group && props.value !== undefined ? group.isChecked(props.value) : ownState()
+
+  const isDisabled = () => !!props.disabled || (group?.disabled() ?? false) || (field?.disabled() ?? false)
+  const isReadOnly = () => !!props.readOnly || (group?.readOnly() ?? false) || (field?.readOnly() ?? false)
+  const isRequired = () => !!props.required || (field?.required() ?? false)
+
+  const state = (): CheckboxState => {
+    const cur = rawChecked()
+    return {
+      checked: cur === true,
+      indeterminate: cur === "indeterminate",
+      disabled: isDisabled(),
+      readOnly: isReadOnly(),
+      required: isRequired(),
+    }
+  }
+
+  const applyChecked = (
+    next: CheckedState,
+    reason: CheckboxCheckedChangeReason,
+    event?: Event,
+    source?: ChangeOptions["source"]
+  ) => {
+    if (isDisabled() || isReadOnly()) return
+    const prev = rawChecked()
+    if (prev === next) return
+    const details = createChangeDetails(reason, event, source)
+    props.onCheckedChange?.(next === true, details)
+    if (details.canceled) return
+    setOwnState(next)
+    reg.emit({
+      key: "checked",
+      previous: prev,
+      value: next,
+      reason: details.reason,
+      source: details.source,
+    })
+  }
+
+  const api: CheckboxApi = {
+    setChecked: (next, opts) =>
+      applyChecked(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+    toggle: (opts) =>
+      applyChecked(
+        rawChecked() !== true,
+        opts?.reason ?? "imperative",
+        opts?.event,
+        opts?.source
+      ),
+    isChecked: () => rawChecked() === true,
+    isIndeterminate: () => rawChecked() === "indeterminate",
+  }
+
+  useController(() => props.controller, api)
+
+  const reg = registerComponent({
+    component: "checkbox",
+    getElements: () => [rootEl],
+    getState: () => ({ checked: rawChecked(), required: isRequired() }),
+    getDisabled: () => isDisabled() || isReadOnly(),
+    actions: {
+      setChecked: (next) => api.setChecked(next === "indeterminate" ? "indeterminate" : Boolean(next)),
+      toggle: () => api.toggle(),
+    },
+  })
+
+  const rest = omit(
+    props,
+    "checked",
+    "defaultChecked",
+    "onCheckedChange",
+    "disabled",
+    "readOnly",
+    "required",
+    "name",
+    "value",
+    "form",
+    "controller",
+    "debug"
+  )
+
+  return (
+    <CheckboxContext value={state}>
+      {renderPart("button", rest, state, {
+        ref: (el: HTMLElement) => {
+          rootEl = el
+        },
+        attrs: () => {
+          const s = state()
+          return {
+            type: "button",
+            role: "checkbox",
+            id: props.id ?? (group ? undefined : field?.controlId),
+            "aria-checked": s.indeterminate ? "mixed" : s.checked ? "true" : "false",
+            "aria-readonly": s.readOnly ? "true" : undefined,
+            "aria-required": s.required ? "true" : undefined,
+            "aria-describedby": field?.describedBy(),
+            disabled: s.disabled || undefined,
+            "data-state": s.indeterminate ? "indeterminate" : s.checked ? "checked" : "unchecked",
+            "data-checked": s.checked ? "" : undefined,
+            "data-indeterminate": s.indeterminate ? "" : undefined,
+            "data-unchecked": !s.checked && !s.indeterminate ? "" : undefined,
+            "data-disabled": s.disabled ? "" : undefined,
+          }
+        },
+        handlers: {
+          onClick: (event: MouseEvent) => {
+            if (isDisabled() || isReadOnly()) return
+            if (group && props.value !== undefined) {
+              group.toggleValue(props.value, event)
+            } else {
+              applyChecked(rawChecked() !== true, "press", event)
+            }
+          },
+        },
+      })}
+      <input
+        type="checkbox"
+        aria-hidden="true"
+        tabindex={-1}
+        name={props.name ?? group?.name() ?? field?.name()}
+        value={props.value ?? "on"}
+        form={props.form}
+        checked={state().checked}
+        disabled={isDisabled()}
+        required={isRequired()}
+        readonly
+        style={{
+          position: "absolute",
+          width: "1px",
+          height: "1px",
+          margin: "-1px",
+          padding: "0",
+          overflow: "hidden",
+          clip: "rect(0, 0, 0, 0)",
+          "white-space": "nowrap",
+          border: "0",
+          "pointer-events": "none",
+        }}
+      />
+    </CheckboxContext>
+  )
+}
+
+export function CheckboxIndicator(
+  props: CheckboxIndicatorProps &
+    Omit<PartProps<"span", CheckboxIndicatorState>, "keepMounted">
+) {
+  const state = useContext(CheckboxContext)
+  const rest = omit(props, "keepMounted")
+  const visible = () => state().checked || state().indeterminate || !!props.keepMounted
+  return (
+    <Show when={visible()}>
+      {renderPart("span", rest, state, {
+        attrs: () => {
+          const s = state()
+          return {
+            "aria-hidden": "true",
+            "data-state": s.indeterminate ? "indeterminate" : s.checked ? "checked" : "unchecked",
+            "data-checked": s.checked ? "" : undefined,
+            "data-indeterminate": s.indeterminate ? "" : undefined,
+          }
+        },
+      })}
+    </Show>
+  )
+}
+
+export function CheckboxGroup<T extends string = string>(
+  props: CheckboxGroupOptions<T> &
+    Omit<PartProps<"div", CheckboxGroupState<T>>, "defaultValue" | "onChange">
+) {
+  let rootEl: HTMLElement | undefined
+  const [value, setValue] = createControlledSignal<T[]>({
+    value: () => props.value,
+    defaultValue: () => props.defaultValue ?? [],
+  })
+
+  const applyValue = (
+    next: T[],
+    reason: CheckboxGroupValueChangeReason,
+    event?: Event,
+    source?: ChangeOptions["source"]
+  ) => {
+    const prev = value()
+    const details = createChangeDetails(reason, event, source)
+    props.onValueChange?.(next, details)
+    if (details.canceled) return
+    setValue(next)
+    reg.emit({
+      key: "value",
+      previous: prev,
+      value: next,
+      reason: details.reason,
+      source: details.source,
+    })
+  }
+
+  const toggleValue = (itemValue: string, event?: Event) => {
+    const current = value()
+    const exists = current.includes(itemValue as T)
+    const next = exists
+      ? current.filter((v) => v !== itemValue)
+      : [...current, itemValue as T]
+    applyValue(next, "press", event)
+  }
+
+  const api: CheckboxGroupApi<T> = {
+    setValue: (next, opts) =>
+      applyValue(next, opts?.reason ?? "imperative", opts?.event, opts?.source),
+    getValue: value,
+  }
+
+  useController(() => props.controller, api)
+
+  const reg = registerComponent({
+    component: "checkbox-group",
+    getElements: () => [rootEl],
+    getState: () => ({ value: value() }),
+    getDisabled: () => !!props.disabled || !!props.readOnly,
+    actions: {
+      setValue: (next) => api.setValue(Array.isArray(next) ? (next as T[]) : []),
+    },
+  })
+
+  const state = (): CheckboxGroupState<T> => ({
+    value: value(),
+    disabled: !!props.disabled,
+    readOnly: !!props.readOnly,
+  })
+
+  const rest = omit(
+    props,
+    "value",
+    "defaultValue",
+    "onValueChange",
+    "disabled",
+    "readOnly",
+    "name",
+    "controller",
+    "debug"
+  )
+
+  return (
+    <CheckboxGroupContext
+      value={{
+        isChecked: (v) => value().includes(v as T),
+        toggleValue,
+        disabled: () => !!props.disabled,
+        readOnly: () => !!props.readOnly,
+        name: () => props.name,
+      }}
+    >
+      {renderPart("div", rest, state, {
+        ref: (el: HTMLElement) => {
+          rootEl = el
+        },
+        attrs: () => ({
+          role: "group",
+          "data-disabled": props.disabled ? "" : undefined,
+        }),
+      })}
+    </CheckboxGroupContext>
+  )
+}
