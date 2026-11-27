@@ -47,7 +47,7 @@ export function HomePage() {
           Open Kitchen Sink
         </a>
         <div class="install-pill">
-          <span>pnpm add @subf/ui</span>
+          <code>pnpm add @subf/ui</code>
           <button type="button" onClick={copyInstall}>
             {copied() ? 'Copied' : 'Copy'}
           </button>
@@ -57,7 +57,7 @@ export function HomePage() {
       <div class="poster-grid">
         <div class="poster-card poster-card-muted">
           <p class="poster-kicker">/solid-2</p>
-          <p style={{ margin: 0, 'font-size': '17px', 'line-height': 1.5 }}>
+          <p class="poster-copy">
             No framework-agnostic kernel. Every primitive runs directly on Solid 2{' '}
             <code class="inline-code">createSignal</code>, <code class="inline-code">merge()</code>,{' '}
             <code class="inline-code">omit()</code>, and <code class="inline-code">isStatic()</code>{' '}
@@ -65,10 +65,8 @@ export function HomePage() {
           </p>
         </div>
         <div class="poster-card">
-          <p class="poster-kicker" style={{ color: 'var(--blue)' }}>
-            56 parts. 1 dep.
-          </p>
-          <p style={{ margin: 0, 'font-size': '16px', color: 'var(--subtle)', 'line-height': 1.6 }}>
+          <p class="poster-kicker poster-kicker-accent">56 parts. 1 dep.</p>
+          <p class="poster-copy poster-copy-subtle">
             Only <code class="inline-code">@floating-ui/dom</code> at runtime. Every component ships
             with keyboard navigation, focus trapping, dismissal layers, cancelable{' '}
             <code class="inline-code">ChangeDetails</code>, and live{' '}
@@ -164,8 +162,8 @@ export function HomePage() {
         <For each={COMPONENTS}>
           {(comp) => (
             <a class="directory-item" href={`#/docs/components/${comp.slug}`}>
-              <span>{comp.name}</span>
-              <span>/{comp.slug}</span>
+              <span class="directory-item-name">{comp.name}</span>
+              <span class="directory-item-slug">/{comp.slug}</span>
             </a>
           )}
         </For>

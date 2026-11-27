@@ -1,4 +1,4 @@
-import { For, createMemo, createSignal, Show } from 'solid-js'
+import { For, Show, createMemo, createSignal } from 'solid-js'
 
 import { SegmentedControl, SegmentedControlItem, createAgent } from '../../../src'
 import { COMPONENTS } from '../data/components'
@@ -48,7 +48,7 @@ export function SinkPage() {
         side, plus a live <code class="inline-code">@subf/ui/agent</code> registry inspector.
       </p>
 
-      <div style={{ 'margin-bottom': '24px', 'overflow-x': 'auto' }}>
+      <div class="sink-filter-bar">
         <SegmentedControl class="ui-segmented" value={filter()} onValueChange={(v) => setFilter(v)}>
           <For each={FILTER_OPTIONS}>
             {(opt) => (
@@ -78,18 +78,16 @@ export function SinkPage() {
 
       <div class="editorial-rule" />
 
-      <div class="ui-row" style={{ 'justify-content': 'space-between', 'margin-bottom': '16px' }}>
+      <div class="sink-inspector-head">
         <div>
-          <h2 style={{ margin: 0, 'font-size': '22px', 'font-weight': 500 }}>
-            Agent Registry Inspector
-          </h2>
-          <p style={{ margin: '4px 0 0', color: 'var(--subtle)', 'font-size': '14px' }}>
+          <h2 class="sink-inspector-title">Agent Registry Inspector</h2>
+          <p class="sink-inspector-desc">
             Calls <code class="inline-code">createAgent().snapshot()</code> from{' '}
             <code class="inline-code">@subf/ui/agent</code> to inspect every mounted component on
             this page.
           </p>
         </div>
-        <button type="button" class="btn-primary" onClick={refreshRegistry}>
+        <button type="button" class="btn-primary sink-inspector-btn" onClick={refreshRegistry}>
           Inspect Mounted Components
         </button>
       </div>
@@ -112,7 +110,7 @@ export function SinkPage() {
                       <code class="inline-code">{row.ref}</code>
                     </td>
                     <td>{row.component}</td>
-                    <td>
+                    <td class="sink-state-cell">
                       <code class="inline-code">{JSON.stringify(row.state)}</code>
                     </td>
                   </tr>

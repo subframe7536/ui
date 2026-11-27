@@ -121,7 +121,22 @@ export function App() {
               onClick={() => setSearchOpen(true)}
               aria-label="Search docs"
             >
-              <span>Search docs</span>
+              <svg
+                class="search-trigger-icon"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <span class="search-trigger-label">Search docs</span>
               <kbd class="search-kbd">⌘K</kbd>
             </button>
 
@@ -130,6 +145,7 @@ export function App() {
               class="icon-btn"
               onClick={() => setTheme((t) => nextTheme(t))}
               title="Toggle theme (system / light / dark)"
+              aria-label="Toggle color theme"
             >
               {theme() === 'light' ? '☀' : theme() === 'dark' ? '☾' : '◐'}
             </button>
@@ -138,7 +154,7 @@ export function App() {
               href="https://github.com/subframe7536/ui"
               target="_blank"
               rel="noreferrer"
-              class="icon-btn"
+              class="icon-btn header-github-link"
             >
               GitHub
             </a>
@@ -179,7 +195,7 @@ export function App() {
             </a>
             .
           </span>
-          <div class="ui-row" style={{ gap: '16px' }}>
+          <div class="ui-row footer-links">
             <a href="#/docs/index">Docs</a>
             <a href="#/sink">Kitchen Sink</a>
             <a href="https://github.com/subframe7536/ui" target="_blank" rel="noreferrer">
@@ -198,21 +214,27 @@ export function App() {
       <Drawer side="right" open={mobileNavOpen()} onOpenChange={(open) => setMobileNavOpen(open)}>
         <DrawerBackdrop class="ui-backdrop" />
         <DrawerContent class="ui-drawer">
-          <div class="ui-row" style={{ 'justify-content': 'space-between' }}>
-            <DrawerTitle style={{ margin: 0, 'font-size': '16px' }}>Navigation</DrawerTitle>
-            <DrawerClose class="ui-btn" style={{ height: '28px', padding: '0 10px' }}>
+          <div class="drawer-header">
+            <DrawerTitle class="drawer-title">Navigation</DrawerTitle>
+            <DrawerClose class="ui-btn drawer-close-btn" aria-label="Close navigation menu">
               ×
             </DrawerClose>
           </div>
-          <div
-            class="ui-row"
-            style={{ 'padding-bottom': '10px', 'border-bottom': '1px solid var(--border)' }}
-          >
+          <div class="drawer-quick-links">
             <a href="#/" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
               Home
             </a>
             <a href="#/sink" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
               Sink
+            </a>
+            <a
+              href="https://github.com/subframe7536/ui"
+              target="_blank"
+              rel="noreferrer"
+              class="ui-btn"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              GitHub
             </a>
           </div>
           <DocsSidebar currentHash={hash()} onSelect={() => setMobileNavOpen(false)} />
