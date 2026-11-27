@@ -1,5 +1,5 @@
 import { renderToString } from '@solidjs/web'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
   AlertDialog,
@@ -37,7 +37,7 @@ describe('dialog server rendering', () => {
     </Dialog>
   )
 
-  test('a closed dialog renders its trigger only, with no aria-expanded on a modal trigger', () => {
+  it('a closed dialog renders its trigger only, with no aria-expanded on a modal trigger', () => {
     const html = renderToString(() => dialog(false))
     expect(typeof window).toBe('undefined')
     expect(html).toContain('aria-haspopup="dialog"')
@@ -45,14 +45,14 @@ describe('dialog server rendering', () => {
     expect(html).not.toContain('role="dialog"')
   })
 
-  test('the shortcut renders the same on the server and the first client render', () => {
+  it('the shortcut renders the same on the server and the first client render', () => {
     const html = renderToString(() => dialog(false))
     // Neutral names until the client knows its platform, so hydration never mismatches.
     expect(html).toContain('aria-keyshortcuts="Control+K"')
     expect(html).toContain('Ctrl+K')
   })
 
-  test('an open dialog renders its content in place, modal and visible before hydration', () => {
+  it('an open dialog renders its content in place, modal and visible before hydration', () => {
     const html = renderToString(() => dialog(true))
     expect(html).toContain('role="dialog"')
     expect(html).toContain('aria-modal="true"')
@@ -60,7 +60,7 @@ describe('dialog server rendering', () => {
     expect(html).toContain('<h2')
   })
 
-  test('an open alert dialog renders its role', () => {
+  it('an open alert dialog renders its role', () => {
     const html = renderToString(() => (
       <AlertDialog defaultOpen>
         <AlertDialogTrigger>Delete</AlertDialogTrigger>
@@ -74,7 +74,7 @@ describe('dialog server rendering', () => {
     expect(html).toContain('role="alertdialog"')
   })
 
-  test('a shortcut renders inside a trigger connected through a controller', () => {
+  it('a shortcut renders inside a trigger connected through a controller', () => {
     const search = createDialogController()
     const html = renderToString(() => (
       <>
@@ -91,7 +91,7 @@ describe('dialog server rendering', () => {
     expect(html).toContain('Search')
   })
 
-  test('a trigger inside its own dialog, given that dialog controller, renders bound to it', () => {
+  it('a trigger inside its own dialog, given that dialog controller, renders bound to it', () => {
     const shared = createDialogController()
     const html = renderToString(() => (
       <Dialog controller={shared}>

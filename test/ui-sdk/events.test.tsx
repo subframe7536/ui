@@ -1,6 +1,6 @@
 import { render } from '@solidjs/web'
 import { flush } from 'solid-js'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../../src/collapsible'
 import {
@@ -28,7 +28,7 @@ const settle = async () => {
 }
 
 describe('event handlers', () => {
-  test("a user's handler runs before the part's, and preventDefault() skips the part's", async () => {
+  it("a user's handler runs before the part's, and preventDefault() skips the part's", async () => {
     const calls: Array<string> = []
     const { root, dispose } = mount(() => (
       <Collapsible onOpenChange={(open) => calls.push(`open:${open}`)}>
@@ -43,7 +43,7 @@ describe('event handlers', () => {
     dispose()
   })
 
-  test("preventDefault() in the user's handler skips the part's", async () => {
+  it("preventDefault() in the user's handler skips the part's", async () => {
     const calls: Array<string> = []
     const { root, dispose } = mount(() => (
       <Collapsible onOpenChange={(open) => calls.push(`open:${open}`)}>
@@ -65,7 +65,7 @@ describe('event handlers', () => {
     dispose()
   })
 
-  test('Escape in a nested popup closes only the innermost', async () => {
+  it('Escape in a nested popup closes only the innermost', async () => {
     const outer = createPopoverController()
     const inner = createPopoverController()
     const { root, dispose } = mount(() => (

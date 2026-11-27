@@ -1,6 +1,6 @@
 import { render } from '@solidjs/web'
 import { createSignal, flush } from 'solid-js'
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
 
 import { Button } from '../../src/button'
 import { withSource } from '../../src/observe'
@@ -26,7 +26,7 @@ const settle = async () => {
   flush()
 }
 
-test('a press hands the handler how the button was pressed', () => {
+it('a press hands the handler how the button was pressed', () => {
   const sources: Array<string> = []
   const el = mount(() => (
     <Button onClick={(_event, { source }) => sources.push(source)}>Save</Button>
@@ -35,7 +35,7 @@ test('a press hands the handler how the button was pressed', () => {
   expect(sources).toEqual(['agent'])
 })
 
-test("Solid's bound form runs with its data, the event on the button and how it was pressed", () => {
+it("Solid's bound form runs with its data, the event on the button and how it was pressed", () => {
   const calls: Array<unknown> = []
   const handler = (data: string, event: MouseEvent, details: { source: string }) =>
     calls.push(data, event.currentTarget, details.source)
@@ -44,7 +44,7 @@ test("Solid's bound form runs with its data, the event on the button and how it 
   expect(calls).toEqual(['saved', el, 'keyboard'])
 })
 
-test("a bound handler's Promise keeps the button pending until it settles", async () => {
+it("a bound handler's Promise keeps the button pending until it settles", async () => {
   let finish = () => {}
   const wait = () =>
     new Promise<void>((resolve) => {
@@ -59,7 +59,7 @@ test("a bound handler's Promise keeps the button pending until it settles", asyn
   expect(el.hasAttribute('aria-busy')).toBe(false)
 })
 
-test('a part follows a render that changes after it mounts', () => {
+it('a part follows a render that changes after it mounts', () => {
   const [link, setLink] = createSignal(true)
   const root = document.createElement('div')
   document.body.append(root)

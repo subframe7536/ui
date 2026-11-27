@@ -28,6 +28,7 @@ export default defineConfig({
         },
       },
       {
+        extends: false,
         define: {
           'process.env.NODE_ENV': JSON.stringify('test'),
         },
@@ -43,6 +44,7 @@ export default defineConfig({
         },
       },
       {
+        extends: false,
         test: {
           name: 'boundaries',
           pool: 'vmThreads',

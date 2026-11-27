@@ -97,6 +97,7 @@ type GroupContextValue = {
   isPressed: (value: string) => boolean
   hasValue: () => boolean
   claimTabStop: () => boolean
+  ownsToolbarStop: () => boolean
   toggleItem: (value: string, event?: Event) => void
   disabled: () => boolean
   orientation: () => ToggleGroupOrientation
@@ -217,7 +218,9 @@ export function Toggle(
           const disabled = isDisabled()
           const focusableDisabled = disabled && (props.focusableWhenDisabled || !!group)
           if (claimedStop === undefined) {
-            if (toolbar) {
+            if (toolbar && group) {
+              claimedStop = group.ownsToolbarStop() && !disabled && group.claimTabStop()
+            } else if (toolbar) {
               claimedStop = !disabled && toolbar.claimTabStop()
             } else if (group) {
               claimedStop = group.hasValue()
@@ -290,8 +293,10 @@ export function ToggleGroup<T extends string = string>(
   props: ToggleGroupOptions<T> &
     Omit<PartProps<'div', ToggleGroupState<T>>, 'defaultValue' | 'onChange' | 'onSelect'>,
 ) {
+  const toolbar = useOptionalToolbar()
   let rootEl: HTMLElement | undefined
   let tabStopClaimed = false
+  let toolbarStopOwned: boolean | undefined
   const items = new Set<HTMLElement>()
 
   const [value, setValue] = createControlledSignal<T | Array<T> | undefined>({
@@ -311,6 +316,12 @@ export function ToggleGroup<T extends string = string>(
     }
     tabStopClaimed = true
     return true
+  }
+  const ownsToolbarStop = () => {
+    if (toolbarStopOwned === undefined) {
+      toolbarStopOwned = toolbar ? !isDisabled() && toolbar.claimTabStop() : false
+    }
+    return toolbarStopOwned
   }
 
   const applyValue = (
@@ -417,6 +428,7 @@ export function ToggleGroup<T extends string = string>(
         isPressed,
         hasValue,
         claimTabStop,
+        ownsToolbarStop,
         toggleItem,
         disabled: isDisabled,
         orientation,
@@ -430,11 +442,14 @@ export function ToggleGroup<T extends string = string>(
         ref: (el: HTMLElement) => {
           rootEl = el
         },
-        attrs: () => ({
-          role: 'group',
-          'data-orientation': orientation(),
-          'data-disabled': isDisabled() ? '' : undefined,
-        }),
+        attrs: () => {
+          ownsToolbarStop()
+          return {
+            role: 'group',
+            'data-orientation': orientation(),
+            'data-disabled': isDisabled() ? '' : undefined,
+          }
+        },
       })}
     </ToggleGroupContext>
   )

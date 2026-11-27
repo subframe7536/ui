@@ -1,19 +1,18 @@
 import { Portal, dynamic } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { isStatic, merge, omit, untrack } from 'solid-js'
+import { Show, isStatic, merge, omit, untrack } from 'solid-js'
 
 /**
  * Renders children in place on the server (SSR) and through a Solid `<Portal>` on the client.
  */
-export function SafePortal(props: { mount?: Node; children: JSX.Element }): JSX.Element {
+export function SafePortal(props: {
+  mount?: Element | ShadowRoot
+  children: JSX.Element
+}): JSX.Element {
   return (
-    <>
-      {typeof document === 'undefined' ? (
-        props.children
-      ) : (
-        <Portal mount={props.mount}>{props.children}</Portal>
-      )}
-    </>
+    <Show when={typeof document !== 'undefined'} fallback={props.children}>
+      <Portal mount={props.mount}>{props.children}</Portal>
+    </Show>
   )
 }
 

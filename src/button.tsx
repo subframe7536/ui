@@ -37,14 +37,16 @@ export type ButtonApi = {
 
 type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLElement, MouseEvent>>[0]
 
-type ButtonClickHandlers = {
-  handler: (event: ButtonClickEvent, details: ButtonActionDetails) => unknown
-  bound: (data: unknown, event: ButtonClickEvent, details: ButtonActionDetails) => unknown
-}
+type ButtonBoundClickHandler<T = any> = readonly [
+  (data: T, event: ButtonClickEvent, details: ButtonActionDetails) => unknown,
+  T,
+]
 
 export type ButtonProps = Omit<PartProps<'button', ButtonState>, 'type' | 'onClick'> &
   ButtonOptions & {
-    onClick?: ButtonClickHandlers['handler'] | { 0: ButtonClickHandlers['bound']; 1: unknown }
+    onClick?:
+      | ((event: ButtonClickEvent, details: ButtonActionDetails) => unknown)
+      | ButtonBoundClickHandler
   }
 
 /**

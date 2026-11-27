@@ -1,6 +1,6 @@
 import { render } from '@solidjs/web'
 import { Show, createEffect, createSignal, flush } from 'solid-js'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../../src/collapsible'
 
@@ -13,7 +13,7 @@ function mount(code: () => any) {
 }
 
 describe('collapsible', () => {
-  test('opens on press and renders its panel', async () => {
+  it('opens on press and renders its panel', async () => {
     const log: Array<string> = []
     const { root, dispose } = mount(() => (
       <Collapsible
@@ -50,7 +50,7 @@ describe('collapsible', () => {
 
   // Solid runs an effect once the DOM shows the signals it read, so an app
   // effect on its own `open`, like one focusing what opened, finds the panel.
-  test('an app effect on a controlled `open` sees the panel it opened', () => {
+  it('an app effect on a controlled `open` sees the panel it opened', () => {
     const [open, setOpen] = createSignal(false)
     const seen: Array<string> = []
     function Watch() {

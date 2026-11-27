@@ -1,5 +1,5 @@
 import { renderToString } from '@solidjs/web'
-import { describe, expect, test } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { Toggle, ToggleGroup, ToggleIcon } from '../../src/toggle'
 import {
@@ -13,7 +13,7 @@ import {
 
 // Runs with no DOM: any access to window or document during render throws.
 describe('server rendering toggles and toolbars', () => {
-  test('a toggle group renders one tab stop, on the pressed toggle', () => {
+  it('a toggle group renders one tab stop, on the pressed toggle', () => {
     const html = renderToString(() => (
       <ToggleGroup defaultValue={['c']} aria-label="Alignment">
         <Toggle value="a">A</Toggle>
@@ -27,7 +27,7 @@ describe('server rendering toggles and toolbars', () => {
     expect(html).toMatch(/aria-pressed="true"[^>]*>C/)
   })
 
-  test("a toggle renders as a button that isn't a submit, with its icon hidden from screen readers", () => {
+  it("a toggle renders as a button that isn't a submit, with its icon hidden from screen readers", () => {
     const html = renderToString(() => (
       <Toggle defaultPressed aria-label="Bold">
         <ToggleIcon>B</ToggleIcon>
@@ -37,7 +37,7 @@ describe('server rendering toggles and toolbars', () => {
     expect(html).toMatch(/<span[^>]*aria-hidden="true"[^>]*>B</)
   })
 
-  test('a toolbar renders one tab stop, on its first item, and its toggles join it', () => {
+  it('a toolbar renders one tab stop, on its first item, and its toggles join it', () => {
     const html = renderToString(() => (
       <Toolbar aria-label="Formatting">
         <ToggleGroup defaultValue={['bold']} aria-label="Style" multiple>
