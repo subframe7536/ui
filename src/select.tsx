@@ -134,7 +134,7 @@ export type SelectItemState = {
   visible: boolean
 }
 export type SelectItemTextState = SelectItemState
-export type SelectItemIconProps = Record<string, never>
+export type SelectItemIconProps = object
 export type SelectItemIconState = SelectItemState
 export type SelectItemIndicatorProps = { keepMounted?: boolean }
 export type SelectItemIndicatorState = SelectItemState
@@ -247,15 +247,15 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     invalid: invalid(),
   })
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const setOpen = (next: boolean, reason: SelectOpenChangeReason, event?: Event) => {
     if (next && disabled()) {
@@ -274,7 +274,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     if (!next) {
       setQuery('', 'clear')
     }
-    emitChange?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
+    emitRef.fn?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
   }
 
   const setQuery = (next: string, reason: SelectQueryChangeReason, event?: Event) => {
@@ -299,7 +299,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
+    emitRef.fn?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
   }
 
   const selectItem = (val: string, reason: SelectValueChangeReason, event?: Event) => {
@@ -381,7 +381,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   useDismissLayer({
     active: open,
@@ -490,9 +490,12 @@ export function SelectTrigger(
             ctx.setOpen(true, 'trigger-press', e)
           }
           ctx.moveHighlight(e.key === 'ArrowDown' ? 1 : -1)
-        } else if (e.key === 'Enter' && ctx.state().open && ctx.state().highlightedValue) {
-          e.preventDefault()
-          ctx.selectItem(ctx.state().highlightedValue!, 'item-press', e)
+        } else if (e.key === 'Enter' && ctx.state().open) {
+          const hv = ctx.state().highlightedValue
+          if (hv) {
+            e.preventDefault()
+            ctx.selectItem(hv, 'item-press', e)
+          }
         }
       },
     },
@@ -514,8 +517,12 @@ export function SelectValue(
     return { ...s, text, hasValue: !s.empty }
   }
   const rest = omit(props, 'placeholder')
-  const resolvedProps: PartProps<'span', SelectValueState> =
-    props.children !== undefined ? rest : { ...rest, children: (s: SelectValueState) => s.text }
+  const resolvedProps: PartProps<'span', SelectValueState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s: SelectValueState) => s.text)
+    },
+  }
 
   return renderPart('span', resolvedProps, valState, {
     attrs: () => ({
@@ -635,9 +642,12 @@ export function SelectInput(props: Omit<PartProps<'input', SelectInputState>, 't
         } else if (e.key === 'ArrowUp') {
           e.preventDefault()
           ctx.moveHighlight(-1)
-        } else if (e.key === 'Enter' && ctx.state().highlightedValue) {
-          e.preventDefault()
-          ctx.selectItem(ctx.state().highlightedValue!, 'item-press', e)
+        } else if (e.key === 'Enter') {
+          const hv = ctx.state().highlightedValue
+          if (hv) {
+            e.preventDefault()
+            ctx.selectItem(hv, 'item-press', e)
+          }
         }
       },
     },
@@ -672,27 +682,23 @@ export function SelectItems(props: {
             <SelectGroup>
               <SelectGroupLabel>{entry.label}</SelectGroupLabel>
               <For each={entry.items}>
-                {(sub) => (
-                  <Show
-                    when={sub.type === 'separator'}
-                    fallback={
-                      props.renderItem ? (
-                        props.renderItem(sub)
-                      ) : (
-                        <SelectItem
-                          value={sub.value}
-                          label={sub.label}
-                          keywords={sub.keywords}
-                          disabled={sub.disabled}
-                        >
-                          <SelectItemText>{sub.label ?? sub.value}</SelectItemText>
-                        </SelectItem>
-                      )
-                    }
-                  >
-                    <SelectSeparator />
-                  </Show>
-                )}
+                {(sub) => {
+                  if (sub.type === 'separator') {
+                    return <SelectSeparator />
+                  }
+                  return props.renderItem ? (
+                    props.renderItem(sub)
+                  ) : (
+                    <SelectItem
+                      value={sub.value}
+                      label={sub.label}
+                      keywords={sub.keywords}
+                      disabled={sub.disabled}
+                    >
+                      <SelectItemText>{sub.label ?? sub.value}</SelectItemText>
+                    </SelectItem>
+                  )
+                }}
               </For>
             </SelectGroup>
           )
