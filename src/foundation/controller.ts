@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, untrack } from 'solid-js'
+import { createEffect, createSignal, untrack } from 'solid-js'
 import type { Signal } from 'solid-js'
 
 const attachSymbol = Symbol.for('ui-sdk.controller.attach')
@@ -100,7 +100,7 @@ export function useController<Api extends object>(
       return
     }
     attachController(ctrl, api)
-    onCleanup(() => detachController(ctrl, api))
+    return () => detachController(ctrl, api)
   })
 }
 
@@ -145,10 +145,10 @@ export function useControllerEntry(controller: () => object | undefined, value: 
     }
     const [get, set] = targetSignal(ctrl)
     set(() => value)
-    onCleanup(() => {
+    return () => {
       if (untrack(get) === value) {
         set(undefined)
       }
-    })
+    }
   })
 }

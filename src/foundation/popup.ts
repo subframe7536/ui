@@ -8,7 +8,7 @@ import {
   size,
 } from '@floating-ui/dom'
 import type { Placement } from '@floating-ui/dom'
-import { createEffect, createSignal, onCleanup } from 'solid-js'
+import { createEffect, createSignal } from 'solid-js'
 
 export type Side = 'top' | 'right' | 'bottom' | 'left'
 export type Align = 'start' | 'center' | 'end'
@@ -146,8 +146,7 @@ export function usePopupPosition(options: {
         })
       }
 
-      const stop = autoUpdate(refEl, floatEl, update)
-      onCleanup(stop)
+      return autoUpdate(refEl, floatEl, update)
     },
   )
 

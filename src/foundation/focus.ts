@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from 'solid-js'
+import { createEffect, untrack } from 'solid-js'
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -102,9 +102,9 @@ export function useFocusManagement(options: {
     })
 
     document.addEventListener('keydown', onKeyDown)
-    onCleanup(() => {
+    return () => {
       document.removeEventListener('keydown', onKeyDown)
-      const finalTarget = options.finalFocus?.()
+      const finalTarget = untrack(() => options.finalFocus?.())
       if (finalTarget === false) {
         return
       }
@@ -113,7 +113,7 @@ export function useFocusManagement(options: {
       if (toFocus && typeof toFocus.focus === 'function' && document.contains(toFocus)) {
         toFocus.focus()
       }
-    })
+    }
   })
 }
 

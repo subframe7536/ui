@@ -6,7 +6,6 @@ import {
   createUniqueId,
   For,
   omit,
-  onCleanup,
   useContext,
 } from 'solid-js'
 
@@ -476,7 +475,7 @@ export function FileInputDropzone(
         return
       }
       window.addEventListener('paste', onPaste)
-      onCleanup(() => window.removeEventListener('paste', onPaste))
+      return () => window.removeEventListener('paste', onPaste)
     },
   )
 

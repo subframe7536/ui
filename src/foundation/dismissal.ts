@@ -1,4 +1,4 @@
-import { createEffect, onCleanup } from 'solid-js'
+import { createEffect } from 'solid-js'
 
 export type DismissReason = 'escape-key' | 'outside-press'
 
@@ -67,13 +67,13 @@ export function useDismissLayer(options: {
 
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('pointerdown', onPointerDown, true)
-    onCleanup(() => {
+    return () => {
       const idx = layerStack.findIndex((item) => item.id === id)
       if (idx >= 0) {
         layerStack.splice(idx, 1)
       }
       document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('pointerdown', onPointerDown, true)
-    })
+    }
   })
 }

@@ -91,6 +91,49 @@ describe('separator & Label', () => {
     expect(el.getAttribute('data-custom')).toBe('yes')
     expect(el.textContent).toBe('Email')
   })
+
+  it('preserves DOM node identity with fine-grained custom render prop and array refs', () => {
+    let refA: HTMLButtonElement | undefined
+    let refB: HTMLButtonElement | undefined
+    let renderCalls = 0
+
+    const root = mount(() => (
+      <Toggle
+        ref={[
+          (el) => {
+            refA = el
+          },
+          (el) => {
+            refB = el
+          },
+        ]}
+        render={(props, state) => {
+          renderCalls += 1
+          return <button {...props} data-pressed-flag={state.pressed ? 'yes' : 'no'} />
+        }}
+      >
+        {(state) => (state.pressed ? 'On' : 'Off')}
+      </Toggle>
+    ))
+
+    const elBefore = root.querySelector('button')!
+    expect(renderCalls).toBe(1)
+    expect(refA).toBe(elBefore)
+    expect(refB).toBe(elBefore)
+    expect(elBefore.getAttribute('data-pressed-flag')).toBe('no')
+    expect(elBefore.getAttribute('aria-pressed')).toBe('false')
+    expect(elBefore.textContent).toBe('Off')
+
+    elBefore.click()
+    flush()
+
+    const elAfter = root.querySelector('button')!
+    expect(elAfter).toBe(elBefore)
+    expect(renderCalls).toBe(1)
+    expect(elAfter.getAttribute('data-pressed-flag')).toBe('yes')
+    expect(elAfter.getAttribute('aria-pressed')).toBe('true')
+    expect(elAfter.textContent).toBe('On')
+  })
 })
 
 describe('button', () => {

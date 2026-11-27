@@ -207,10 +207,10 @@ export function NumberInput(
   let rootEl: HTMLElement | null = null
 
   createEffect(
-    () => value(),
-    (v) => {
+    () => [value(), props.locale, props.format] as const,
+    ([v, locale, format]) => {
       if (typeof document === 'undefined' || document.activeElement !== inputEl) {
-        setInputText(formatNumber(v, props.locale, props.format))
+        setInputText(formatNumber(v, locale, format))
       }
     },
   )

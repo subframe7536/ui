@@ -1,9 +1,9 @@
 import { dynamic } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createMemo, omit } from 'solid-js'
+import { isStatic, merge, omit, Show, untrack } from 'solid-js'
 
 /**
- * Custom element renderer: receives the props to spread and the part's state.
+ * Custom element renderer: receives the reactive props proxy to spread and the reactive part state.
  */
 export type RenderProp<State = object> = (
   props: Record<string, unknown>,
@@ -41,15 +41,23 @@ export function callHandler(handler: unknown, event: Event, ...extra: Array<unkn
   return undefined
 }
 
+function applyRef<T extends Element>(ref: unknown, el: T): void {
+  if (Array.isArray(ref)) {
+    for (const item of ref) {
+      applyRef(item, el)
+    }
+  } else if (typeof ref === 'function') {
+    ;(ref as (el: T) => void)(el)
+  }
+}
+
 /**
  * Composes multiple Solid ref callbacks / ref arrays into a single ref callback.
  */
 export function composeRefs<T extends Element>(...refs: Array<unknown>): (el: T) => void {
   return (el: T) => {
     for (const ref of refs) {
-      if (typeof ref === 'function') {
-        ;(ref as (el: T) => void)(el)
-      }
+      applyRef(ref, el)
     }
   }
 }
@@ -115,6 +123,8 @@ function elementForTag(tag: string) {
   return comp
 }
 
+const emptyAttrs: Record<string, unknown> = {}
+
 export type PartInternalProps = {
   attrs?: () => Record<string, unknown>
   style?: () => Record<string, string | number | undefined> | undefined
@@ -123,12 +133,9 @@ export type PartInternalProps = {
 }
 
 /**
- * Renders a component part natively in Solid 2 with full support for:
- * - `class` as value or `(state) => ClassValue`
- * - `style` as string/object or `(state) => string | CSSProperties`
- * - `children` as JSX.Element or `(state) => JSX.Element`
- * - `render` as `(props, state) => JSX.Element`
- * - Composed event handlers (user handler runs first) and refs.
+ * Renders a component part natively in Solid 2 with zero-copy `merge()`/`omit()`
+ * prop composition, native array refs, `isStatic()` fast paths, and fine-grained
+ * reactive `render` / `class` / `style` / `children` support.
  */
 export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extends object>(
   tag: Tag,
@@ -144,64 +151,125 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
     'children',
     'ref',
   )
+  const reactiveState = merge(state) as State
 
-  const mergedProps = createMemo(() => {
-    const currentState = state()
-    const attrs = internal.attrs ? internal.attrs() : {}
-    const partStyle = internal.style ? internal.style() : undefined
+  const overrides: Record<string, unknown> = {}
 
-    const rawClass = userProps.class
-    const resolvedClass = typeof rawClass === 'function' ? rawClass(currentState) : rawClass
-
-    const rawStyle = userProps.style
-    const resolvedUserStyle = typeof rawStyle === 'function' ? rawStyle(currentState) : rawStyle
-    const resolvedStyle = mergeStyleValues(resolvedUserStyle, partStyle)
-
-    const out: Record<string, unknown> = {
-      ...attrs,
-      ...passthrough,
+  if (isStatic(userProps, 'class')) {
+    const rawClass = untrack(() => userProps.class)
+    if (typeof rawClass === 'function') {
+      Object.defineProperty(overrides, 'class', {
+        enumerable: true,
+        configurable: true,
+        get: () => rawClass(state()),
+      })
+    } else if (rawClass !== undefined) {
+      overrides.class = rawClass
     }
-
-    if (resolvedClass !== undefined) {
-      out.class = resolvedClass
-    }
-    if (resolvedStyle !== undefined) {
-      out.style = resolvedStyle
-    }
-
-    // Compose event handlers so user handlers run before internal handlers.
-    if (internal.handlers) {
-      for (const [key, handler] of Object.entries(internal.handlers)) {
-        out[key] = composeHandlers((passthrough as Record<string, unknown>)[key], handler)
-      }
-    }
-
-    if (internal.ref || userProps.ref) {
-      out.ref = composeRefs(internal.ref, userProps.ref)
-    }
-
-    return out
-  })
-
-  const resolvedChildren = () => {
-    const ch = userProps.children
-    return typeof ch === 'function' ? ch(state()) : ch
+  } else {
+    Object.defineProperty(overrides, 'class', {
+      enumerable: true,
+      configurable: true,
+      get: () => {
+        const raw = userProps.class
+        return typeof raw === 'function' ? raw(state()) : raw
+      },
+    })
   }
 
-  const customRender = userProps.render
-  if (customRender) {
-    // oxlint-disable-next-line subf/solid-reactivity
-    return (() => {
-      const propsWithChildren = {
-        ...mergedProps(),
-        get children() {
-          return resolvedChildren()
-        },
+  if (!internal.style && isStatic(userProps, 'style')) {
+    const rawStyle = untrack(() => userProps.style)
+    if (typeof rawStyle === 'function') {
+      Object.defineProperty(overrides, 'style', {
+        enumerable: true,
+        configurable: true,
+        get: () => rawStyle(state()),
+      })
+    } else if (rawStyle !== undefined) {
+      overrides.style = rawStyle
+    }
+  } else {
+    Object.defineProperty(overrides, 'style', {
+      enumerable: true,
+      configurable: true,
+      get: () => {
+        const raw = userProps.style
+        const userStyle = typeof raw === 'function' ? raw(state()) : raw
+        return mergeStyleValues(userStyle, internal.style?.())
+      },
+    })
+  }
+
+  if (isStatic(userProps, 'ref')) {
+    const userRef = untrack(() => userProps.ref)
+    if (internal.ref && userRef) {
+      overrides.ref = [internal.ref, userRef]
+    } else if (internal.ref ?? userRef) {
+      overrides.ref = internal.ref ?? userRef
+    }
+  } else {
+    Object.defineProperty(overrides, 'ref', {
+      enumerable: true,
+      configurable: true,
+      get: () => {
+        const userRef = userProps.ref
+        if (internal.ref && userRef) {
+          return [internal.ref, userRef]
+        }
+        return internal.ref ?? userRef
+      },
+    })
+  }
+
+  // Stable event wrappers: read the user handler lazily at event time so
+  // handler composition never allocates per state update or tracks during render.
+  if (internal.handlers) {
+    for (const [key, handler] of Object.entries(internal.handlers)) {
+      overrides[key] = (event: Event) => {
+        const userHandler = (passthrough as Record<string, unknown>)[key]
+        if (userHandler) {
+          callHandler(userHandler, event)
+        }
+        if (!event.defaultPrevented) {
+          handler(event as never)
+        }
       }
-      return customRender(propsWithChildren, state())
-    }) as unknown as JSX.Element
+    }
+  }
+
+  const mergedProps = merge(internal.attrs ?? emptyAttrs, passthrough, overrides)
+
+  const resolveChildren = () => {
+    const ch = userProps.children
+    return typeof ch === 'function' ? ch(reactiveState) : ch
+  }
+
+  if (isStatic(userProps, 'render')) {
+    const customRender = untrack(() => userProps.render)
+    if (customRender) {
+      const propsWithChildren = merge(mergedProps, {
+        get children() {
+          return resolveChildren()
+        },
+      })
+      return customRender(propsWithChildren, reactiveState)
+    }
+    const TagComponent = elementForTag(tag)
+    return <TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>
   }
 
   const TagComponent = elementForTag(tag)
-  return <TagComponent {...mergedProps()}>{resolvedChildren()}</TagComponent>
+  const propsWithChildren = merge(mergedProps, {
+    get children() {
+      return resolveChildren()
+    },
+  })
+  return (
+    <Show
+      when={userProps.render}
+      fallback={<TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>}
+    >
+      {(renderFn) => renderFn()(propsWithChildren, reactiveState)}
+    </Show>
+  )
 }

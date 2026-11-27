@@ -4,6 +4,7 @@ import {
   createSignal,
   createUniqueId,
   omit,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -132,8 +133,7 @@ export function SegmentedControl<T extends string = string>(
     readOnly: readOnly(),
   })
 
-  const measureIndicator = () => {
-    const val = value()
+  const measureIndicator = (val: T | undefined = untrack(value)) => {
     const el = val ? itemEls.get(val) : undefined
     if (!el) {
       setIndicatorRect({ ready: false, x: 0, y: 0, width: 0, height: 0 })
@@ -150,7 +150,7 @@ export function SegmentedControl<T extends string = string>(
 
   createEffect(
     () => value(),
-    () => measureIndicator(),
+    (val) => measureIndicator(val),
   )
 
   const emitRef: {

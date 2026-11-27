@@ -4,7 +4,6 @@ import {
   createEffect,
   createSignal,
   omit,
-  onCleanup,
   Show,
   useContext,
 } from 'solid-js'
@@ -62,7 +61,7 @@ export function Avatar(
     reason: AvatarLoadingStatusChangeReason,
     event?: Event,
   ) => {
-    if (status() === next) {
+    if (untrack(status) === next) {
       return
     }
     const details = createChangeDetails(reason, event)
@@ -128,7 +127,7 @@ export function AvatarFallback(
       }
       setCanRender(false)
       const timer = setTimeout(() => setCanRender(true), delay)
-      onCleanup(() => clearTimeout(timer))
+      return () => clearTimeout(timer)
     },
   )
 

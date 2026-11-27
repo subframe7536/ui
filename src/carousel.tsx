@@ -175,7 +175,7 @@ export function Carousel(
         return
       }
       const timer = setInterval(() => goTo(currentPage() + 1, 'autoplay'), interval)
-      onCleanup(() => clearInterval(timer))
+      return () => clearInterval(timer)
     },
   )
 
