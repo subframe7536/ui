@@ -5,6 +5,7 @@ import {
   createMemo,
   createSignal,
   createUniqueId,
+  merge,
   omit,
   onSettled,
   untrack,
@@ -560,14 +561,12 @@ export function DialogClose<Result = string>(
 export function DialogShortcut(props: DialogShortcutProps & PartProps<'kbd', DialogShortcutState>) {
   const shortcut = useContext(TriggerShortcutContext)
   const formatted = () => formatDisplayShortcut(shortcut())
-  const withDefaultChildren = {
+  const merged = merge(omit(props, 'children'), {
     get children() {
       return props.children !== undefined ? props.children : formatted()
     },
-  }
-  return renderPart('kbd', Object.assign(omit(props, 'children'), withDefaultChildren), () => ({
-    shortcut: formatted(),
-  }), {
+  })
+  return renderPart('kbd', merged, () => ({ shortcut: formatted() }), {
     attrs: () => ({ 'aria-hidden': 'true', 'data-slot': 'dialog-shortcut' }),
   })
 }

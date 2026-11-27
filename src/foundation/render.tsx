@@ -6,10 +6,15 @@ import { isStatic, merge, omit, untrack } from 'solid-js'
  * Renders children in place on the server (SSR) and through a Solid `<Portal>` on the client.
  */
 export function SafePortal(props: { mount?: Node; children: JSX.Element }): JSX.Element {
-  if (typeof document === 'undefined') {
-    return props.children
-  }
-  return <Portal mount={props.mount}>{props.children}</Portal>
+  return (
+    <>
+      {typeof document === 'undefined' ? (
+        props.children
+      ) : (
+        <Portal mount={props.mount}>{props.children}</Portal>
+      )}
+    </>
+  )
 }
 
 const ARIA_MODIFIER_MAP: Record<string, string> = {

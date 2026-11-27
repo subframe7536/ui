@@ -122,6 +122,7 @@ export function Toggle(
   const group = useContext(ToggleGroupContext)
   const toolbar = useOptionalToolbar()
   let rootEl: HTMLElement | undefined
+  let claimedStop: boolean | undefined
 
   const [ownPressed, setOwnPressed] = createControlledSignal<boolean>({
     value: () => props.pressed,
@@ -132,14 +133,6 @@ export function Toggle(
     !!props.disabled || (group?.disabled() ?? false) || (toolbar?.disabled() ?? false)
   const isPressed = () =>
     group && props.value !== undefined ? group.isPressed(props.value) : ownPressed()
-
-  const claimedToolbarStop = toolbar ? !isDisabled() && toolbar.claimTabStop() : undefined
-  const claimedGroupStop =
-    !toolbar && group
-      ? group.hasValue()
-        ? isPressed() && group.claimTabStop()
-        : !isDisabled() && group.claimTabStop()
-      : undefined
 
   const applyPressed = (
     next: boolean,
@@ -223,15 +216,16 @@ export function Toggle(
           const pressed = isPressed()
           const disabled = isDisabled()
           const focusableDisabled = disabled && (props.focusableWhenDisabled || !!group)
-          const rovingTabIndex = toolbar
-            ? claimedToolbarStop
-              ? 0
-              : -1
-            : group
-              ? claimedGroupStop
-                ? 0
-                : -1
-              : undefined
+          if (claimedStop === undefined) {
+            if (toolbar) {
+              claimedStop = !disabled && toolbar.claimTabStop()
+            } else if (group) {
+              claimedStop = group.hasValue()
+                ? pressed && group.claimTabStop()
+                : !disabled && group.claimTabStop()
+            }
+          }
+          const rovingTabIndex = toolbar || group ? (claimedStop ? 0 : -1) : undefined
           return {
             type: 'button',
             tabindex: rovingTabIndex,

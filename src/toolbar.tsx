@@ -146,7 +146,7 @@ export function ToolbarButton(
 ) {
   const toolbar = useToolbar('Button')
   let elRef: HTMLElement | undefined
-  const isTabStop = !props.disabled && !toolbar.disabled() && toolbar.claimTabStop()
+  let isTabStop: boolean | undefined
   const state = (): ToolbarButtonState => ({
     disabled: !!props.disabled || toolbar.disabled(),
   })
@@ -162,6 +162,9 @@ export function ToolbarButton(
     attrs: () => {
       const disabled = state().disabled
       const focusable = disabled && !!props.focusableWhenDisabled
+      if (isTabStop === undefined) {
+        isTabStop = (!disabled || focusable) && toolbar.claimTabStop()
+      }
       return {
         type: 'button',
         tabindex: disabled && !focusable ? undefined : isTabStop ? 0 : -1,
@@ -187,7 +190,7 @@ export function ToolbarButton(
 export function ToolbarLink(props: PartProps<'a', ToolbarLinkState>) {
   const toolbar = useToolbar('Link')
   let elRef: HTMLElement | undefined
-  const isTabStop = !toolbar.disabled() && toolbar.claimTabStop()
+  let isTabStop: boolean | undefined
   const state = (): ToolbarLinkState => ({ disabled: toolbar.disabled() })
 
   return renderPart('a', props, state, {
@@ -197,11 +200,17 @@ export function ToolbarLink(props: PartProps<'a', ToolbarLinkState>) {
         toolbar.registerItem(el)
       }
     },
-    attrs: () => ({
-      tabindex: isTabStop ? 0 : -1,
-      'aria-disabled': state().disabled ? 'true' : undefined,
-      'data-disabled': state().disabled ? '' : undefined,
-    }),
+    attrs: () => {
+      const disabled = state().disabled
+      if (isTabStop === undefined) {
+        isTabStop = !disabled && toolbar.claimTabStop()
+      }
+      return {
+        tabindex: isTabStop ? 0 : -1,
+        'aria-disabled': disabled ? 'true' : undefined,
+        'data-disabled': disabled ? '' : undefined,
+      }
+    },
     handlers: {
       onKeyDown: (event: KeyboardEvent) => {
         if (!elRef) {
@@ -220,7 +229,7 @@ export function ToolbarInput(
   props: ToolbarInputProps & Omit<PartProps<'input', ToolbarInputState>, 'disabled'>,
 ) {
   const toolbar = useToolbar('Input')
-  const isTabStop = !props.disabled && !toolbar.disabled() && toolbar.claimTabStop()
+  let isTabStop: boolean | undefined
   const state = (): ToolbarInputState => ({
     disabled: !!props.disabled || toolbar.disabled(),
   })
@@ -231,11 +240,17 @@ export function ToolbarInput(
         toolbar.registerItem(el)
       }
     },
-    attrs: () => ({
-      tabindex: state().disabled ? undefined : isTabStop ? 0 : -1,
-      disabled: state().disabled || undefined,
-      'data-disabled': state().disabled ? '' : undefined,
-    }),
+    attrs: () => {
+      const disabled = state().disabled
+      if (isTabStop === undefined) {
+        isTabStop = !disabled && toolbar.claimTabStop()
+      }
+      return {
+        tabindex: disabled ? undefined : isTabStop ? 0 : -1,
+        disabled: disabled || undefined,
+        'data-disabled': disabled ? '' : undefined,
+      }
+    },
   })
 }
 
