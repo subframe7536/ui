@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -292,12 +292,11 @@ export function PaginationLink(
     }
   }
   const rest = omit(props, 'page', 'disabled')
-  const resolvedProps: PartProps<'button', PaginationLinkState> = {
-    ...rest,
+  const resolvedProps: PartProps<'button', PaginationLinkState> = merge(rest, {
     get children() {
       return props.children ?? String(props.page)
     },
-  }
+  })
 
   return renderPart('button', resolvedProps, linkState, {
     attrs: () => {
@@ -414,12 +413,11 @@ export function PaginationLast(props: Omit<PartProps<'button', PaginationStepSta
 
 export function PaginationEllipsis(props: PartProps<'span', PaginationState>) {
   const ctx = usePagination('Ellipsis')
-  const resolvedProps: PartProps<'span', PaginationState> = {
-    ...props,
+  const resolvedProps: PartProps<'span', PaginationState> = merge(props, {
     get children() {
       return props.children ?? '…'
     },
-  }
+  })
   return renderPart('span', resolvedProps, ctx.state, {
     attrs: () => ({ 'aria-hidden': true }),
   })

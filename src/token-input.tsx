@@ -1,5 +1,14 @@
 import type { JSX } from '@solidjs/web'
-import { Show, createContext, createSignal, createUniqueId, For, omit, useContext } from 'solid-js'
+import {
+  For,
+  Show,
+  createContext,
+  createSignal,
+  createUniqueId,
+  merge,
+  omit,
+  useContext,
+} from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -427,8 +436,7 @@ export function TokenInputEditor(
     }
   }
 
-  const combinedProps: PartProps<'div', TokenInputEditorState> = {
-    ...rest,
+  const combinedProps: PartProps<'div', TokenInputEditorState> = merge(rest, {
     children: (
       <>
         <For each={ctx.state().tokens}>
@@ -483,7 +491,7 @@ export function TokenInputEditor(
         </Show>
       </>
     ),
-  }
+  })
 
   return renderPart('div', combinedProps, ctx.state, {
     attrs: () => ({
@@ -515,12 +523,11 @@ export function TokenInputToken(
     disabled: ctx.state().disabled,
   })
   const rest = omit(props, 'token')
-  const resolvedProps: PartProps<'span', TokenInputTokenState> = {
-    ...rest,
+  const resolvedProps: PartProps<'span', TokenInputTokenState> = merge(rest, {
     get children() {
       return props.children ?? ((s: TokenInputTokenState) => toLabel(s.token))
     },
-  }
+  })
 
   return (
     <CurrentTokenContext value={getToken}>

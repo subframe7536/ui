@@ -1,6 +1,14 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  Show,
+  createContext,
+  createSignal,
+  createUniqueId,
+  merge,
+  omit,
+  useContext,
+} from 'solid-js'
 
 import {
   Calendar,
@@ -442,8 +450,7 @@ export function DatePickerContent(
     'keepMounted',
   )
 
-  const wrappedProps: PartProps<'div', DatePickerContentState> = {
-    ...rest,
+  const wrappedProps: PartProps<'div', DatePickerContentState> = merge(rest, {
     children: (s: DatePickerContentState) => (
       <Calendar
         mode={ctx.mode()}
@@ -465,7 +472,7 @@ export function DatePickerContent(
         {typeof props.children === 'function' ? props.children(s) : props.children}
       </Calendar>
     ),
-  }
+  })
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>

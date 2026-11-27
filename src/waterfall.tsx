@@ -1,4 +1,4 @@
-import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createSignal, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -331,12 +331,11 @@ export function WaterfallTick(
     text: ctx.formatTime(props.value),
   })
   const rest = omit(props, 'value')
-  const resolvedProps: PartProps<'span', WaterfallTimeState> = {
-    ...rest,
+  const resolvedProps: PartProps<'span', WaterfallTimeState> = merge(rest, {
     get children() {
       return props.children ?? ((s) => s.text)
     },
-  }
+  })
   return renderPart('span', resolvedProps, tickState, {
     style: () => ({ position: 'absolute', left: `${tickState().percent}%` }),
   })

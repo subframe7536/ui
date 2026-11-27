@@ -1,10 +1,11 @@
 import type { JSX } from '@solidjs/web'
 import {
+  For,
   createContext,
   createEffect,
   createSignal,
   createUniqueId,
-  For,
+  merge,
   omit,
   useContext,
 } from 'solid-js'
@@ -393,8 +394,7 @@ export function FileInput(
     'debug',
   )
 
-  const combinedProps: PartProps<'div', FileInputState> = {
-    ...rest,
+  const combinedProps: PartProps<'div', FileInputState> = merge(rest, {
     children: (s: FileInputState) => (
       <>
         <input
@@ -423,7 +423,7 @@ export function FileInput(
         {typeof props.children === 'function' ? props.children(s) : props.children}
       </>
     ),
-  }
+  })
 
   return (
     <FileInputContext
@@ -567,8 +567,7 @@ export function FileInputList(
 ) {
   const ctx = useFileInput('List')
   const rest = omit(props, 'children')
-  const combinedProps: PartProps<'ul', FileInputState> = {
-    ...rest,
+  const combinedProps: PartProps<'ul', FileInputState> = merge(rest, {
     children: (
       <For each={ctx.state().files}>
         {(file, index) => (
@@ -578,7 +577,7 @@ export function FileInputList(
         )}
       </For>
     ),
-  }
+  })
 
   return renderPart('ul', combinedProps, ctx.state, {
     attrs: () => ({
