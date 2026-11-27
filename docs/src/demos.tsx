@@ -143,6 +143,94 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
+  Autocomplete,
+  AutocompleteClear,
+  AutocompleteContent,
+  AutocompleteEmpty,
+  AutocompleteInput,
+  AutocompleteItem,
+  AutocompleteList,
+  ColorPicker,
+  ColorPickerInput,
+  ColorPickerSlider,
+  ColorPickerSliderThumb,
+  ColorPickerSwatch,
+  ColorPickerSwatchItem,
+  ColorPickerSwatches,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  DateInput,
+  DateInputSegment,
+  DatePicker,
+  DatePickerClear,
+  DatePickerContent,
+  DatePickerPreset,
+  DatePickerTrigger,
+  FileInput,
+  FileInputDropzone,
+  FileInputItem,
+  FileInputItemRemove,
+  FileInputList,
+  FileInputTrigger,
+  ImageCropper,
+  ImageCropperFlip,
+  ImageCropperGrid,
+  ImageCropperHandle,
+  ImageCropperImage,
+  ImageCropperRotate,
+  ImageCropperSelection,
+  ImageCropperViewport,
+  Menubar,
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+  OverlayHost,
+  Preferences,
+  Resizable,
+  ResizableHandle,
+  ResizablePanel,
+  ScrollArea,
+  ScrollAreaContent,
+  ScrollAreaScrollToEnd,
+  ScrollAreaViewport,
+  TimeInput,
+  TimeInputSegment,
+  TokenInput,
+  TokenInputEditor,
+  TokenInputToken,
+  TokenInputTokenRemove,
+  Tree,
+  TreeItem,
+  TreeItemIndicator,
+  TreeItemLabel,
+  TreeItems,
+  TriggerMenu,
+  TriggerMenuContent,
+  TriggerMenuEmpty,
+  TriggerMenuInput,
+  TriggerMenuItem,
+  TriggerMenuList,
+  Waterfall,
+  WaterfallAxis,
+  WaterfallBar,
+  WaterfallCell,
+  WaterfallColumnHeader,
+  WaterfallHeaderRow,
+  WaterfallRow,
+  WaterfallRowHeader,
+  createOverlays,
+  formatFileSize,
+  toText,
+  treeFromPaths,
+  usePreference,
   createToaster,
 } from '../../src'
 
@@ -861,6 +949,554 @@ function LabelDemo() {
   )
 }
 
+function TokenInputDemo() {
+  const [textPreview, setTextPreview] = createSignal('solid vite')
+  return (
+    <div class="ui-col" style={{ 'max-width': '340px' }}>
+      <TokenInput
+        defaultValue={[
+          { id: 't1', value: 'solid', label: 'solid' },
+          { id: 't2', value: 'vite', label: 'vite' },
+        ]}
+        onValueChange={(next) => {
+          setTextPreview(toText(next) || '(empty)')
+        }}
+      >
+        <TokenInputEditor class="ui-token-editor" placeholder="Type and press Enter...">
+          {(token) => (
+            <TokenInputToken token={token} class="ui-chip">
+              <span>{token.label}</span>
+              <TokenInputTokenRemove token={token} class="ui-token-remove" aria-label="Remove">
+                ×
+              </TokenInputTokenRemove>
+            </TokenInputToken>
+          )}
+        </TokenInputEditor>
+      </TokenInput>
+      <span class="ui-state-pill">serialized: {textPreview()}</span>
+    </div>
+  )
+}
+
+function FileInputDemo() {
+  const [count, setCount] = createSignal(0)
+  return (
+    <FileInput
+      class="ui-col"
+      accept="image/*,.txt,.md,.json"
+      multiple
+      maxFiles={4}
+      onValueChange={(files) => setCount(files.length)}
+    >
+      <FileInputDropzone class="ui-dropzone">
+        <span>Drop files here or browse ({count()} selected)</span>
+        <FileInputTrigger class="ui-btn">Choose Files</FileInputTrigger>
+      </FileInputDropzone>
+      <FileInputList class="ui-file-list">
+        {(file) => (
+          <FileInputItem file={file} class="ui-file-item">
+            <span>
+              {file.name} ({formatFileSize(file.size)})
+            </span>
+            <FileInputItemRemove
+              file={file}
+              class="ui-btn"
+              style={{ height: '24px', padding: '0 8px' }}
+            >
+              ×
+            </FileInputItemRemove>
+          </FileInputItem>
+        )}
+      </FileInputList>
+    </FileInput>
+  )
+}
+
+function DateInputDemo() {
+  const [val, setVal] = createSignal<string | null>('2026-11-27')
+  return (
+    <div class="ui-row">
+      <DateInput class="ui-segment-group" value={val()} onValueChange={(v) => setVal(v)}>
+        <DateInputSegment class="ui-segment" segment="year" style={{ width: '48px' }} />
+        <span class="ui-segment-sep">-</span>
+        <DateInputSegment class="ui-segment" segment="month" style={{ width: '30px' }} />
+        <span class="ui-segment-sep">-</span>
+        <DateInputSegment class="ui-segment" segment="day" style={{ width: '30px' }} />
+      </DateInput>
+      <span class="ui-state-pill">iso: {val() ?? 'null'}</span>
+    </div>
+  )
+}
+
+function TimeInputDemo() {
+  const [val, setVal] = createSignal<string | null>('09:30')
+  return (
+    <div class="ui-row">
+      <TimeInput class="ui-segment-group" value={val()} onValueChange={(v) => setVal(v)}>
+        <TimeInputSegment class="ui-segment" segment="hour" />
+        <span class="ui-segment-sep">:</span>
+        <TimeInputSegment class="ui-segment" segment="minute" />
+      </TimeInput>
+      <span class="ui-state-pill">time: {val() ?? 'null'}</span>
+    </div>
+  )
+}
+
+function ComboboxDemo() {
+  const [val, setVal] = createSignal<string | undefined>('solid')
+  return (
+    <div class="ui-col" style={{ 'max-width': '260px' }}>
+      <Combobox value={val()} onValueChange={(v) => setVal(typeof v === 'string' ? v : undefined)}>
+        <div class="ui-row" style={{ gap: '6px' }}>
+          <ComboboxInput class="ui-input" placeholder="Search tools..." />
+          <ComboboxTrigger class="ui-btn" style={{ padding: '0 10px' }}>
+            ▾
+          </ComboboxTrigger>
+        </div>
+        <ComboboxContent class="ui-select-content">
+          <ComboboxList>
+            <ComboboxItem class="ui-select-item" value="solid">
+              SolidJS 2
+            </ComboboxItem>
+            <ComboboxItem class="ui-select-item" value="vite">
+              Vite 8
+            </ComboboxItem>
+            <ComboboxItem class="ui-select-item" value="tsdown">
+              tsdown
+            </ComboboxItem>
+            <ComboboxItem class="ui-select-item" value="oxlint">
+              Oxlint
+            </ComboboxItem>
+            <ComboboxEmpty class="ui-state-pill" style={{ padding: '6px 10px' }}>
+              No match
+            </ComboboxEmpty>
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      <span class="ui-state-pill">selected: {val() ?? 'none'}</span>
+    </div>
+  )
+}
+
+function AutocompleteDemo() {
+  const [val, setVal] = createSignal('')
+  return (
+    <div class="ui-col" style={{ 'max-width': '280px' }}>
+      <Autocomplete value={val()} onValueChange={(v) => setVal(v)}>
+        <div class="ui-row" style={{ gap: '6px' }}>
+          <AutocompleteInput class="ui-input" placeholder="Type a city..." />
+          <AutocompleteClear class="ui-btn">Clear</AutocompleteClear>
+        </div>
+        <AutocompleteContent class="ui-select-content">
+          <AutocompleteList>
+            <AutocompleteItem class="ui-select-item" value="Tokyo">
+              Tokyo
+            </AutocompleteItem>
+            <AutocompleteItem class="ui-select-item" value="San Francisco">
+              San Francisco
+            </AutocompleteItem>
+            <AutocompleteItem class="ui-select-item" value="Zurich">
+              Zurich
+            </AutocompleteItem>
+            <AutocompleteItem class="ui-select-item" value="London">
+              London
+            </AutocompleteItem>
+            <AutocompleteEmpty class="ui-state-pill" style={{ padding: '6px 10px' }}>
+              No suggestions
+            </AutocompleteEmpty>
+          </AutocompleteList>
+        </AutocompleteContent>
+      </Autocomplete>
+      <span class="ui-state-pill">input: {val() || '(empty)'}</span>
+    </div>
+  )
+}
+
+function DatePickerDemo() {
+  const [val, setVal] = createSignal<string | null>('2026-11-27')
+  return (
+    <div class="ui-col">
+      <DatePicker value={val()} onValueChange={(v) => setVal(typeof v === 'string' ? v : null)}>
+        <div class="ui-row">
+          <DatePickerTrigger class="ui-btn">{val() ?? 'Pick a date'} ▾</DatePickerTrigger>
+          <DatePickerPreset class="ui-btn" value="2026-11-27">
+            Today
+          </DatePickerPreset>
+          <DatePickerClear class="ui-btn">Clear</DatePickerClear>
+        </div>
+        <DatePickerContent class="ui-popover" style={{ 'max-width': '300px', padding: '10px' }}>
+          <Calendar
+            class="ui-calendar"
+            style={{ border: 'none', padding: 0 }}
+            value={val()}
+            onValueChange={(v) => setVal(typeof v === 'string' ? v : null)}
+          >
+            <div class="ui-calendar-head">
+              <CalendarPrevious class="ui-page-btn">‹</CalendarPrevious>
+              <CalendarHeading />
+              <CalendarNext class="ui-page-btn">›</CalendarNext>
+            </div>
+            <CalendarGrid class="ui-calendar-grid">
+              <CalendarWeekdays />
+              <CalendarWeeks>
+                <CalendarDay class="ui-calendar-day" />
+              </CalendarWeeks>
+            </CalendarGrid>
+          </Calendar>
+        </DatePickerContent>
+      </DatePicker>
+      <span class="ui-state-pill">date: {val() ?? 'none'}</span>
+    </div>
+  )
+}
+
+function ColorPickerDemo() {
+  const [color, setColor] = createSignal('#006bff')
+  return (
+    <ColorPicker class="ui-col" value={color()} onValueChange={(v) => setColor(v)}>
+      <div class="ui-row">
+        <ColorPickerSwatch class="ui-color-swatch" />
+        <ColorPickerInput class="ui-input" style={{ 'max-width': '130px' }} />
+      </div>
+      <ColorPickerSlider channel="hue" class="ui-color-slider">
+        <ColorPickerSliderThumb class="ui-color-slider-thumb" />
+      </ColorPickerSlider>
+      <ColorPickerSwatches class="ui-swatches">
+        <For each={['#006bff', '#111111', '#16a34a', '#dc2626', '#d97706']}>
+          {(hex) => (
+            <ColorPickerSwatchItem class="ui-swatch-item" value={hex} style={{ background: hex }} />
+          )}
+        </For>
+      </ColorPickerSwatches>
+    </ColorPicker>
+  )
+}
+
+const CROPPER_SAMPLE_SVG = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#006bff"/><stop offset="100%" stop-color="#111827"/></linearGradient></defs><rect width="320" height="180" fill="url(#g)"/><circle cx="160" cy="90" r="46" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"/><text x="160" y="95" text-anchor="middle" fill="#ffffff" font-family="monospace" font-size="14">@subf/ui</text></svg>',
+)}`
+
+function ImageCropperDemo() {
+  const [crop, setCrop] = createSignal({ x: 15, y: 15, width: 70, height: 70 })
+  return (
+    <ImageCropper class="ui-col" crop={crop()} onCropChange={(next) => setCrop(next)}>
+      <ImageCropperViewport class="ui-cropper-viewport">
+        <ImageCropperImage class="ui-cropper-image" src={CROPPER_SAMPLE_SVG} alt="Sample crop" />
+        <ImageCropperSelection class="ui-cropper-selection">
+          <ImageCropperGrid class="ui-cropper-grid" />
+          <ImageCropperHandle class="ui-cropper-handle" position="nw" />
+          <ImageCropperHandle class="ui-cropper-handle" position="ne" />
+          <ImageCropperHandle class="ui-cropper-handle" position="sw" />
+          <ImageCropperHandle class="ui-cropper-handle" position="se" />
+        </ImageCropperSelection>
+      </ImageCropperViewport>
+      <div class="ui-row">
+        <ImageCropperRotate class="ui-btn" degrees={90}>
+          Rotate 90°
+        </ImageCropperRotate>
+        <ImageCropperFlip class="ui-btn" direction="horizontal">
+          Flip H
+        </ImageCropperFlip>
+        <span class="ui-state-pill">
+          {Math.round(crop().width)}% × {Math.round(crop().height)}%
+        </span>
+      </div>
+    </ImageCropper>
+  )
+}
+
+function TriggerMenuDemo() {
+  return (
+    <div class="ui-col" style={{ 'max-width': '320px' }}>
+      <TriggerMenu triggers={['@']}>
+        <TriggerMenuInput
+          class="ui-textarea"
+          style={{ 'min-height': '64px' }}
+          placeholder="Type @ to mention ada, grace, or linus..."
+        />
+        <TriggerMenuContent class="ui-menu-content">
+          <TriggerMenuList>
+            <TriggerMenuItem class="ui-menu-item" value="ada">
+              @ada — Ada Lovelace
+            </TriggerMenuItem>
+            <TriggerMenuItem class="ui-menu-item" value="grace">
+              @grace — Grace Hopper
+            </TriggerMenuItem>
+            <TriggerMenuItem class="ui-menu-item" value="linus">
+              @linus — Linus Torvalds
+            </TriggerMenuItem>
+            <TriggerMenuEmpty class="ui-state-pill" style={{ padding: '6px 10px' }}>
+              No matching handle
+            </TriggerMenuEmpty>
+          </TriggerMenuList>
+        </TriggerMenuContent>
+      </TriggerMenu>
+      <span class="ui-state-pill">trigger: &quot;@&quot;</span>
+    </div>
+  )
+}
+
+function OverlaysDemo() {
+  const manager = createOverlays()
+  const [result, setResult] = createSignal('none')
+
+  const openConfirm = async () => {
+    const res = await manager.open<string>((close) => (
+      <>
+        <div class="ui-backdrop" onClick={() => close('backdrop')} />
+        <div class="ui-dialog" role="dialog" aria-modal="true">
+          <div style={{ 'font-size': '17px', 'font-weight': 600 }}>Programmatic Overlay</div>
+          <div style={{ color: 'var(--subtle)', 'font-size': '13.5px' }}>
+            Launched imperatively via createOverlays().open() and awaited as a Promise.
+          </div>
+          <div class="ui-row" style={{ 'justify-content': 'flex-end', 'margin-top': '8px' }}>
+            <button type="button" class="ui-btn" onClick={() => close('canceled')}>
+              Cancel
+            </button>
+            <button type="button" class="ui-btn ui-btn-solid" onClick={() => close('confirmed')}>
+              Confirm
+            </button>
+          </div>
+        </div>
+      </>
+    ))
+    setResult(res ?? 'dismissed')
+  }
+
+  return (
+    <div class="ui-row">
+      <button type="button" class="ui-btn ui-btn-solid" onClick={() => void openConfirm()}>
+        Launch Overlay
+      </button>
+      <span class="ui-state-pill">result: {result()}</span>
+      <OverlayHost manager={manager} />
+    </div>
+  )
+}
+
+function MenubarDemo() {
+  const [cmd, setCmd] = createSignal('none')
+  return (
+    <div class="ui-col">
+      <Menubar class="ui-menubar">
+        <Menu>
+          <MenuTrigger class="ui-btn" style={{ border: 'none', height: '28px' }}>
+            File
+          </MenuTrigger>
+          <MenuContent class="ui-menu-content">
+            <MenuItem class="ui-menu-item" onSelect={() => setCmd('File → New')}>
+              New File
+            </MenuItem>
+            <MenuItem class="ui-menu-item" onSelect={() => setCmd('File → Save')}>
+              Save
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+        <Menu>
+          <MenuTrigger class="ui-btn" style={{ border: 'none', height: '28px' }}>
+            Edit
+          </MenuTrigger>
+          <MenuContent class="ui-menu-content">
+            <MenuItem class="ui-menu-item" onSelect={() => setCmd('Edit → Undo')}>
+              Undo
+            </MenuItem>
+            <MenuItem class="ui-menu-item" onSelect={() => setCmd('Edit → Redo')}>
+              Redo
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+      </Menubar>
+      <span class="ui-state-pill">command: {cmd()}</span>
+    </div>
+  )
+}
+
+function NavigationMenuDemo() {
+  return (
+    <NavigationMenu>
+      <NavigationMenuList class="ui-nav-list">
+        <NavigationMenuItem value="guides">
+          <NavigationMenuTrigger class="ui-btn">Guides ▾</NavigationMenuTrigger>
+          <NavigationMenuContent class="ui-nav-content">
+            <NavigationMenuLink class="ui-menu-item" href="#/docs/index">
+              Installation
+            </NavigationMenuLink>
+            <NavigationMenuLink class="ui-menu-item" href="#/docs/state-and-events">
+              State &amp; Events
+            </NavigationMenuLink>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+        <NavigationMenuItem value="sink">
+          <NavigationMenuLink class="ui-btn" href="#/sink">
+            Kitchen Sink
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+      </NavigationMenuList>
+    </NavigationMenu>
+  )
+}
+
+function ResizableDemo() {
+  const [layout, setLayout] = createSignal<Array<number>>([40, 60])
+  return (
+    <div class="ui-col">
+      <Resizable
+        class="ui-resizable"
+        orientation="horizontal"
+        layout={layout()}
+        onLayoutChange={(next) => setLayout(next)}
+      >
+        <ResizablePanel class="ui-resizable-panel" defaultSize={40} minSize={20}>
+          {Math.round(layout()[0] ?? 40)}%
+        </ResizablePanel>
+        <ResizableHandle class="ui-resizable-handle" aria-label="Resize panels" />
+        <ResizablePanel class="ui-resizable-panel" defaultSize={60} minSize={20}>
+          {Math.round(layout()[1] ?? 60)}%
+        </ResizablePanel>
+      </Resizable>
+      <span class="ui-state-pill">drag handle to resize</span>
+    </div>
+  )
+}
+
+function ScrollAreaDemo() {
+  const rows = Array.from({ length: 12 }, (_, i) => `Event #${i + 1} — Solid 2 fine-grained update`)
+  return (
+    <ScrollArea class="ui-scroll-area">
+      <ScrollAreaViewport class="ui-scroll-viewport">
+        <ScrollAreaContent>
+          <For each={rows}>{(line) => <div class="ui-scroll-item">{line}</div>}</For>
+        </ScrollAreaContent>
+      </ScrollAreaViewport>
+      <div style={{ padding: '6px 10px', 'border-top': '1px solid var(--hairline)' }}>
+        <ScrollAreaScrollToEnd class="ui-btn" style={{ height: '26px', 'font-size': '12px' }}>
+          Scroll to End
+        </ScrollAreaScrollToEnd>
+      </div>
+    </ScrollArea>
+  )
+}
+
+const DEMO_TREE_ITEMS = treeFromPaths([
+  'src/index.ts',
+  'src/button.tsx',
+  'src/dialog.tsx',
+  'docs/index.html',
+  'docs/src/App.tsx',
+])
+
+function TreeDemo() {
+  const [selected, setSelected] = createSignal<string>('src/button.tsx')
+  return (
+    <div class="ui-col" style={{ 'max-width': '280px' }}>
+      <Tree
+        class="ui-listbox"
+        style={{ 'max-width': '100%' }}
+        items={DEMO_TREE_ITEMS}
+        defaultExpanded={['src', 'docs']}
+        value={selected()}
+        onValueChange={(v) => setSelected(typeof v === 'string' ? v : (v?.[0] ?? ''))}
+      >
+        <TreeItems
+          renderItem={(row) => (
+            <TreeItem
+              value={row.value}
+              class="ui-tree-item"
+              style={{ 'padding-left': `${row.depth * 14 + 8}px` }}
+            >
+              <TreeItemIndicator style={{ width: '12px', display: 'inline-block' }}>
+                {row.hasChildren ? (row.expanded ? '▾' : '▸') : '·'}
+              </TreeItemIndicator>
+              <TreeItemLabel>{row.label}</TreeItemLabel>
+            </TreeItem>
+          )}
+        />
+      </Tree>
+      <span class="ui-state-pill">selected: {selected() || 'none'}</span>
+    </div>
+  )
+}
+
+const WATERFALL_SPANS = [
+  { id: 'dns', label: 'DNS Lookup', start: 0, duration: 28 },
+  { id: 'tls', label: 'TLS Handshake', start: 28, duration: 42 },
+  { id: 'ttfb', label: 'TTFB', start: 70, duration: 95 },
+  { id: 'hydrate', label: 'Hydrate Solid 2', start: 165, duration: 55 },
+]
+
+function WaterfallDemo() {
+  const [selected, setSelected] = createSignal<string | null>('ttfb')
+  return (
+    <div class="ui-col">
+      <Waterfall
+        class="ui-waterfall"
+        min={0}
+        max={240}
+        unit="ms"
+        value={selected()}
+        onValueChange={(v) => setSelected(v)}
+      >
+        <WaterfallHeaderRow class="ui-waterfall-header">
+          <WaterfallColumnHeader class="ui-waterfall-label">Span</WaterfallColumnHeader>
+          <WaterfallAxis class="ui-waterfall-label" />
+        </WaterfallHeaderRow>
+        <For each={WATERFALL_SPANS}>
+          {(span) => (
+            <WaterfallRow
+              class="ui-waterfall-row"
+              value={span.id}
+              start={span.start}
+              duration={span.duration}
+            >
+              <WaterfallRowHeader class="ui-waterfall-label">{span.label}</WaterfallRowHeader>
+              <WaterfallCell class="ui-waterfall-track">
+                <WaterfallBar class="ui-waterfall-bar" />
+              </WaterfallCell>
+            </WaterfallRow>
+          )}
+        </For>
+      </Waterfall>
+      <span class="ui-state-pill">selected span: {selected() ?? 'none'}</span>
+    </div>
+  )
+}
+
+function PreferencesControl() {
+  const [density, setDensity, reset] = usePreference<'compact' | 'comfortable' | 'spacious'>(
+    'density',
+    'comfortable',
+  )
+  return (
+    <div class="ui-col">
+      <div class="ui-row">
+        <For each={['compact', 'comfortable', 'spacious'] as const}>
+          {(mode) => (
+            <button
+              type="button"
+              class={density() === mode ? 'ui-btn ui-btn-solid' : 'ui-btn'}
+              onClick={() => setDensity(mode)}
+            >
+              {mode}
+            </button>
+          )}
+        </For>
+        <button type="button" class="ui-btn" onClick={() => reset()}>
+          Reset
+        </button>
+      </div>
+      <span class="ui-state-pill">density preference: {density()}</span>
+    </div>
+  )
+}
+
+function PreferencesDemo() {
+  return (
+    <Preferences prefix="subf-ui-demo:">
+      <PreferencesControl />
+    </Preferences>
+  )
+}
+
 export const DEMO_REGISTRY: Record<string, () => JSX.Element> = {
   button: ButtonDemo,
   switch: SwitchDemo,
@@ -900,6 +1536,24 @@ export const DEMO_REGISTRY: Record<string, () => JSX.Element> = {
   separator: SeparatorDemo,
   textarea: TextareaDemo,
   label: LabelDemo,
+  'token-input': TokenInputDemo,
+  'file-input': FileInputDemo,
+  'date-input': DateInputDemo,
+  'time-input': TimeInputDemo,
+  combobox: ComboboxDemo,
+  autocomplete: AutocompleteDemo,
+  'date-picker': DatePickerDemo,
+  'color-picker': ColorPickerDemo,
+  'image-cropper': ImageCropperDemo,
+  'trigger-menu': TriggerMenuDemo,
+  overlays: OverlaysDemo,
+  menubar: MenubarDemo,
+  'navigation-menu': NavigationMenuDemo,
+  resizable: ResizableDemo,
+  'scroll-area': ScrollAreaDemo,
+  tree: TreeDemo,
+  waterfall: WaterfallDemo,
+  preferences: PreferencesDemo,
 }
 
 export function renderComponentDemo(slug: string): JSX.Element | undefined {
