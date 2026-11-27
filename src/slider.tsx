@@ -1,4 +1,12 @@
-import { createContext, createSignal, createUniqueId, merge, omit, useContext } from 'solid-js'
+import {
+  createContext,
+  createSignal,
+  createUniqueId,
+  merge,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -76,6 +84,7 @@ export type SliderThumbProps = {
 export type SliderThumbState = {
   index: number
   value: number
+  thumbValue: number
   percent: number
   dragging: boolean
   disabled: boolean
@@ -356,6 +365,9 @@ export function Slider<T extends number | Array<number> = number>(
           }
         },
       })}
+      <Show when={props.name}>
+        <input type="hidden" name={props.name} form={props.form} value={values().join('/')} />
+      </Show>
     </SliderContext>
   )
 }
@@ -450,7 +462,7 @@ export function SliderIndicator(props: PartProps<'div', SliderState>) {
       const size = Math.max(0, end - start)
       return s.orientation === 'vertical'
         ? { bottom: `${start}%`, height: `${size}%` }
-        : { left: `${start}%`, width: `${size}%` }
+        : { 'inset-inline-start': `${start}%`, width: `${size}%` }
     },
   })
 }
@@ -467,6 +479,7 @@ export function SliderThumb(
     return {
       index: idx,
       value: val,
+      thumbValue: val,
       percent: toPercent(val, s.min, s.max),
       dragging: s.dragging && s.activeThumbIndex === idx,
       disabled: s.disabled,
@@ -474,7 +487,38 @@ export function SliderThumb(
   }
   const rest = omit(props, 'index')
 
-  return renderPart('div', rest, thumbState, {
+  const resolvedThumb: PartProps<'div', SliderThumbState> = merge(rest, {
+    get children() {
+      return (
+        <>
+          {typeof props.children === 'function' ? props.children(thumbState()) : props.children}
+          <input
+            type="range"
+            data-slot="slider-thumb-input"
+            min={ctx.state().min}
+            max={ctx.state().max}
+            step={ctx.state().step}
+            value={thumbState().value}
+            disabled={ctx.state().disabled}
+            aria-label={props['aria-label']}
+            aria-labelledby={ctx.state().values.length === 1 ? ctx.field?.labelId : undefined}
+            aria-describedby={ctx.field?.describedBy()}
+            aria-invalid={ctx.state().invalid ? 'true' : undefined}
+            tabindex={-1}
+            style={{
+              position: 'absolute',
+              opacity: 0,
+              'pointer-events': 'none',
+              width: '1px',
+              height: '1px',
+            }}
+          />
+        </>
+      )
+    },
+  })
+
+  return renderPart('div', resolvedThumb, thumbState, {
     attrs: () => {
       const ts = thumbState()
       const s = ctx.state()
@@ -501,7 +545,7 @@ export function SliderThumb(
       const s = ctx.state()
       return s.orientation === 'vertical'
         ? { bottom: `${ts.percent}%` }
-        : { left: `${ts.percent}%` }
+        : { 'inset-inline-start': `${ts.percent}%` }
     },
     handlers: {
       onKeyDown: (e: KeyboardEvent) => {

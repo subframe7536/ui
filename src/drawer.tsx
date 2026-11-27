@@ -1,4 +1,3 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
   untrack,
@@ -7,6 +6,7 @@ import {
   createContext,
   createSignal,
   createUniqueId,
+  merge,
   omit,
   Show,
   useContext,
@@ -27,11 +27,16 @@ import { useFocusManagement } from './foundation/focus'
 import type { FocusTarget } from './foundation/focus'
 import type { PortalProps } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import {
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+  SafePortal,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
-export type DrawerSide = 'top' | 'right' | 'bottom' | 'left'
+export type DrawerSide = 'top' | 'right' | 'bottom' | 'left' | 'start' | 'end'
 export type SnapPoint = number | `${number}px`
 
 export type SheetPhysics = {
@@ -93,6 +98,7 @@ export type DrawerOptions<Payload = unknown, Result = string> = PortalProps & {
   onOpenChange?: (open: boolean, details: ChangeDetails<DrawerOpenChangeReason>) => void
   side?: DrawerSide
   modal?: boolean
+  modalAbove?: SnapPoint
   closeOnEscape?: boolean
   closeOnOutsidePress?: boolean
   snapPoints?: Array<SnapPoint>
@@ -113,12 +119,12 @@ export type DrawerProps<Payload = unknown, Result = string> = DrawerOptions<Payl
   children?: JSX.Element
 }
 
-export type DrawerTriggerProps<Payload = unknown> = {
+export type DrawerTriggerProps<Payload = unknown, Result = string> = {
   disabled?: boolean
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: DrawerController<unknown, unknown>
+  controller?: DrawerController<Payload, Result>
 }
 
 export type DrawerBackdropState = { open: boolean; side: DrawerSide }
@@ -209,8 +215,28 @@ export function Drawer<Payload = unknown, Result = string>(props: DrawerProps<Pa
   let contentEl: HTMLElement | undefined
   let pendingResolve: ((result: Result | undefined) => void) | undefined
 
-  const side = (): DrawerSide => props.side ?? 'bottom'
-  const modal = () => props.modal ?? true
+  const side = (): DrawerSide => {
+    const raw = props.side ?? 'bottom'
+    if (raw === 'start') {
+      return 'left'
+    }
+    if (raw === 'end') {
+      return 'right'
+    }
+    return raw
+  }
+  const modal = () => {
+    if (props.modal !== undefined) {
+      return props.modal
+    }
+    if (props.modalAbove !== undefined) {
+      const sp = snapPoint()
+      if (typeof sp === 'number' && typeof props.modalAbove === 'number') {
+        return sp > props.modalAbove
+      }
+    }
+    return true
+  }
 
   const applyOpen = (
     next: boolean,
@@ -366,8 +392,8 @@ export function Drawer<Payload = unknown, Result = string>(props: DrawerProps<Pa
   return <DrawerContext value={ctx}>{props.children}</DrawerContext>
 }
 
-export function DrawerTrigger<Payload = unknown>(
-  props: DrawerTriggerProps<Payload> &
+export function DrawerTrigger<Payload = unknown, Result = string>(
+  props: DrawerTriggerProps<Payload, Result> &
     Omit<PartProps<'button', { open: boolean; disabled: boolean }>, 'value' | 'onChange' | 'type'>,
 ) {
   const target = useControllerTarget(() => props.controller, useContext(DrawerContext))
@@ -390,6 +416,9 @@ export function DrawerTrigger<Payload = unknown>(
             'aria-haspopup': 'dialog',
             'aria-expanded': s.open ? 'true' : 'false',
             'aria-controls': ctx?.contentId,
+            'aria-keyshortcuts': props.shortcut
+              ? formatAriaKeyShortcuts(props.shortcut)
+              : undefined,
             disabled: s.disabled && !props.focusableWhenDisabled ? true : undefined,
             'aria-disabled': s.disabled && props.focusableWhenDisabled ? 'true' : undefined,
             'data-open': s.open ? '' : undefined,
@@ -415,7 +444,7 @@ export function DrawerBackdrop(props: PartProps<'div', DrawerBackdropState>) {
   const state = (): DrawerBackdropState => ({ open: ctx.open(), side: ctx.side() })
   return (
     <Show when={ctx.open()}>
-      <Portal mount={ctx.container() ?? undefined}>
+      <SafePortal mount={ctx.container() ?? undefined}>
         {renderPart('div', props, state, {
           attrs: () => ({
             'aria-hidden': 'true',
@@ -424,7 +453,7 @@ export function DrawerBackdrop(props: PartProps<'div', DrawerBackdropState>) {
             'data-side': ctx.side(),
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }
@@ -453,7 +482,7 @@ export function DrawerContent<Payload = unknown>(
 
   return (
     <Show when={ctx.open() || !!props.keepMounted}>
-      <Portal mount={props.container ?? ctx.container() ?? undefined}>
+      <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
         {renderPart('div', rest, state, {
           ref: ctx.setContentEl,
           attrs: () => {
@@ -470,10 +499,13 @@ export function DrawerContent<Payload = unknown>(
               'data-closed': !open ? '' : undefined,
               'data-state': open ? 'open' : 'closed',
               'data-side': ctx.side(),
+              'data-snap-point':
+                ctx.snapPoint() !== undefined ? String(ctx.snapPoint()) : undefined,
+              'data-interactive': !ctx.modal() ? '' : undefined,
             }
           },
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }
@@ -572,9 +604,23 @@ export function DrawerClose<Result = string>(
   })
 }
 
-export function DrawerShortcut(props: PartProps<'kbd', { shortcut: string | undefined }>) {
+export function DrawerShortcut(props: PartProps<'span', { shortcut: string | undefined }>) {
+  const drawerCtx = useContext(DrawerContext)
   const shortcut = useContext(DrawerShortcutContext)
-  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ 'aria-hidden': 'true' }),
+  const text = () => {
+    const sc = shortcut()
+    return drawerCtx && sc ? `⁦${formatDisplayShortcut(sc)}⁩` : undefined
+  }
+  const resolvedProps: PartProps<'span', { shortcut: string | undefined }> = merge(props, {
+    get children() {
+      return props.children ?? (() => text())
+    },
   })
+  return (
+    <Show when={drawerCtx && shortcut()}>
+      {renderPart('span', resolvedProps, () => ({ shortcut: shortcut() }), {
+        attrs: () => ({ 'aria-hidden': 'true', 'data-slot': 'drawer-shortcut' }),
+      })}
+    </Show>
+  )
 }
