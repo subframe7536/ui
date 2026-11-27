@@ -57,10 +57,25 @@
       "solid": "./dist/autocomplete.jsx",
       "default": "./dist/autocomplete.mjs"
     },
+    "./avatar": {
+      "types": "./dist/avatar.d.mts",
+      "solid": "./dist/avatar.jsx",
+      "default": "./dist/avatar.mjs"
+    },
     "./button": {
       "types": "./dist/button.d.mts",
       "solid": "./dist/button.jsx",
       "default": "./dist/button.mjs"
+    },
+    "./calendar": {
+      "types": "./dist/calendar.d.mts",
+      "solid": "./dist/calendar.jsx",
+      "default": "./dist/calendar.mjs"
+    },
+    "./carousel": {
+      "types": "./dist/carousel.d.mts",
+      "solid": "./dist/carousel.jsx",
+      "default": "./dist/carousel.mjs"
     },
     "./checkbox": {
       "types": "./dist/checkbox.d.mts",
@@ -72,6 +87,11 @@
       "solid": "./dist/collapsible.jsx",
       "default": "./dist/collapsible.mjs"
     },
+    "./color-picker": {
+      "types": "./dist/color-picker.d.mts",
+      "solid": "./dist/color-picker.jsx",
+      "default": "./dist/color-picker.mjs"
+    },
     "./combobox": {
       "types": "./dist/combobox.d.mts",
       "solid": "./dist/combobox.jsx",
@@ -81,6 +101,16 @@
       "types": "./dist/command.d.mts",
       "solid": "./dist/command.jsx",
       "default": "./dist/command.mjs"
+    },
+    "./date-input": {
+      "types": "./dist/date-input.d.mts",
+      "solid": "./dist/date-input.jsx",
+      "default": "./dist/date-input.mjs"
+    },
+    "./date-picker": {
+      "types": "./dist/date-picker.d.mts",
+      "solid": "./dist/date-picker.jsx",
+      "default": "./dist/date-picker.mjs"
     },
     "./dialog": {
       "types": "./dist/dialog.d.mts",
@@ -106,6 +136,11 @@
       "types": "./dist/hover-card.d.mts",
       "solid": "./dist/hover-card.jsx",
       "default": "./dist/hover-card.mjs"
+    },
+    "./image-cropper": {
+      "types": "./dist/image-cropper.d.mts",
+      "solid": "./dist/image-cropper.jsx",
+      "default": "./dist/image-cropper.mjs"
     },
     "./input": {
       "types": "./dist/input.d.mts",
@@ -176,6 +211,11 @@
       "solid": "./dist/popover.jsx",
       "default": "./dist/popover.mjs"
     },
+    "./preferences": {
+      "types": "./dist/preferences.d.mts",
+      "solid": "./dist/preferences.jsx",
+      "default": "./dist/preferences.mjs"
+    },
     "./primitive": {
       "types": "./dist/primitive.d.mts",
       "default": "./dist/primitive.mjs"
@@ -194,6 +234,16 @@
       "types": "./dist/rating.d.mts",
       "solid": "./dist/rating.jsx",
       "default": "./dist/rating.mjs"
+    },
+    "./resizable": {
+      "types": "./dist/resizable.d.mts",
+      "solid": "./dist/resizable.jsx",
+      "default": "./dist/resizable.mjs"
+    },
+    "./scroll-area": {
+      "types": "./dist/scroll-area.d.mts",
+      "solid": "./dist/scroll-area.jsx",
+      "default": "./dist/scroll-area.mjs"
     },
     "./segmented-control": {
       "types": "./dist/segmented-control.d.mts",
@@ -230,6 +280,16 @@
       "solid": "./dist/textarea.jsx",
       "default": "./dist/textarea.mjs"
     },
+    "./time-input": {
+      "types": "./dist/time-input.d.mts",
+      "solid": "./dist/time-input.jsx",
+      "default": "./dist/time-input.mjs"
+    },
+    "./timeline": {
+      "types": "./dist/timeline.d.mts",
+      "solid": "./dist/timeline.jsx",
+      "default": "./dist/timeline.mjs"
+    },
     "./toast": {
       "types": "./dist/toast.d.mts",
       "solid": "./dist/toast.jsx",
@@ -264,6 +324,11 @@
       "types": "./dist/trigger-menu.d.mts",
       "solid": "./dist/trigger-menu.jsx",
       "default": "./dist/trigger-menu.mjs"
+    },
+    "./waterfall": {
+      "types": "./dist/waterfall.d.mts",
+      "solid": "./dist/waterfall.jsx",
+      "default": "./dist/waterfall.mjs"
     },
     "./package.json": "./package.json"
   },

@@ -1,6 +1,6 @@
-# 51-Component Alignment Roadmap (`@ui-sdk/solid` Parity)
+# Full Component Alignment Roadmap (`@ui-sdk/solid` Parity — Complete)
 
-This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github.com/vercel-labs/ui) (`@ui-sdk/solid`) using pure SolidJS 2 signals and zero `@ui-sdk/core` dependency.
+This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github.com/vercel-labs/ui) (`@ui-sdk/solid`) using pure SolidJS 2 signals and zero `@ui-sdk/core` dependency. **All 5 phases (56 component modules + foundation/observe/agent) are implemented.**
 
 ## Phase 1 — Foundation, Agent/Observe & Core Primitives (Implemented)
 
@@ -13,7 +13,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `observe` — `observe`, `elementOf`, `withSource`, `ObservedChange`, native Solid 2 component registry
 - [x] `agent` — `createAgent`, `agentTools`, `registerTools`, `AgentComponent`, `AgentStep`, `AgentAction`, `AgentChange`
 
-### Batch 1 Components (11 components)
+### Batch 1 Components (11 modules)
 - [x] `Separator` (`./separator`)
 - [x] `Label` (`./label`)
 - [x] `Button` (`./button`)
@@ -26,7 +26,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `AlertDialog` (`./alert-dialog`)
 - [x] `Popover` (`./popover`)
 
-## Phase 2 — Overlays, Menus & Selection (10 components — Implemented)
+## Phase 2 — Overlays, Menus & Selection (10 modules — Implemented)
 - [x] `Tooltip` (`./tooltip`)
 - [x] `HoverCard` (`./hover-card`)
 - [x] `Drawer` (`./drawer`)
@@ -38,7 +38,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Overlays` (`./overlays`)
 - [x] `Toolbar` (`./toolbar`)
 
-## Phase 3 — Form Controls, Inputs & Progress/Meter (15 components — Implemented)
+## Phase 3 — Form Controls, Inputs & Progress/Meter (15 modules — Implemented)
 - [x] `Field` & `FieldSet` (`./field`)
 - [x] `Checkbox` & `CheckboxGroup` (`./checkbox`)
 - [x] `Radio` & `RadioGroup` (`./radio`)
@@ -55,7 +55,7 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Progress` (`./progress`)
 - [x] `Meter` (`./meter`)
 
-## Phase 4 — Lists, Combobox & Data Selection (7 components — Implemented)
+## Phase 4 — Lists, Combobox & Data Selection (7 modules — Implemented)
 - [x] `Listbox` (`./listbox`)
 - [x] `Select` (`./select`)
 - [x] `Combobox` (`./combobox`)
@@ -64,13 +64,17 @@ This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github
 - [x] `Tree` (`./tree`)
 - [x] `Pagination` (`./pagination`)
 
-## Phase 5 — Specialized & Rich Interactive Components (8 components)
-- [ ] `Avatar` (`./avatar`)
-- [ ] `Carousel` (`./carousel`)
-- [ ] `Resizable` (`./resizable`)
-- [ ] `ScrollArea` (`./scroll-area`)
-- [ ] `Calendar` (`./calendar`)
-- [ ] `DateInput`, `TimeInput`, `DatePicker` (`./date-input`, `./time-input`, `./date-picker`)
-- [ ] `ColorPicker` (`./color-picker`)
-- [ ] `ImageCropper` (`./image-cropper`)
-- [ ] `Timeline`, `Waterfall`, `Preferences` (`./timeline`, `./waterfall`, `./preferences`)
+## Phase 5 — Specialized & Rich Interactive Components (13 modules — Implemented)
+- [x] `Avatar` (`./avatar`)
+- [x] `Carousel` (`./carousel`)
+- [x] `Resizable` (`./resizable`)
+- [x] `ScrollArea` (`./scroll-area`)
+- [x] `Preferences` (`./preferences`)
+- [x] `Calendar` (`./calendar`)
+- [x] `DateInput` (`./date-input`)
+- [x] `TimeInput` (`./time-input`)
+- [x] `DatePicker` (`./date-picker`)
+- [x] `ColorPicker` (`./color-picker`)
+- [x] `ImageCropper` (`./image-cropper`)
+- [x] `Timeline` (`./timeline`)
+- [x] `Waterfall` (`./waterfall`)
