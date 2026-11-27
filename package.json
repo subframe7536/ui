@@ -52,6 +52,11 @@
       "solid": "./dist/alert-dialog.jsx",
       "default": "./dist/alert-dialog.mjs"
     },
+    "./autocomplete": {
+      "types": "./dist/autocomplete.d.mts",
+      "solid": "./dist/autocomplete.jsx",
+      "default": "./dist/autocomplete.mjs"
+    },
     "./button": {
       "types": "./dist/button.d.mts",
       "solid": "./dist/button.jsx",
@@ -66,6 +71,16 @@
       "types": "./dist/collapsible.d.mts",
       "solid": "./dist/collapsible.jsx",
       "default": "./dist/collapsible.mjs"
+    },
+    "./combobox": {
+      "types": "./dist/combobox.d.mts",
+      "solid": "./dist/combobox.jsx",
+      "default": "./dist/combobox.mjs"
+    },
+    "./command": {
+      "types": "./dist/command.d.mts",
+      "solid": "./dist/command.jsx",
+      "default": "./dist/command.mjs"
     },
     "./dialog": {
       "types": "./dist/dialog.d.mts",
@@ -101,6 +116,11 @@
       "types": "./dist/label.d.mts",
       "solid": "./dist/label.jsx",
       "default": "./dist/label.mjs"
+    },
+    "./listbox": {
+      "types": "./dist/listbox.d.mts",
+      "solid": "./dist/listbox.jsx",
+      "default": "./dist/listbox.mjs"
     },
     "./menu": {
       "types": "./dist/menu.d.mts",
@@ -141,6 +161,11 @@
       "solid": "./dist/overlays.jsx",
       "default": "./dist/overlays.mjs"
     },
+    "./pagination": {
+      "types": "./dist/pagination.d.mts",
+      "solid": "./dist/pagination.jsx",
+      "default": "./dist/pagination.mjs"
+    },
     "./password-input": {
       "types": "./dist/password-input.d.mts",
       "solid": "./dist/password-input.jsx",
@@ -174,6 +199,11 @@
       "types": "./dist/segmented-control.d.mts",
       "solid": "./dist/segmented-control.jsx",
       "default": "./dist/segmented-control.mjs"
+    },
+    "./select": {
+      "types": "./dist/select.d.mts",
+      "solid": "./dist/select.jsx",
+      "default": "./dist/select.mjs"
     },
     "./separator": {
       "types": "./dist/separator.d.mts",
@@ -224,6 +254,11 @@
       "types": "./dist/tooltip.d.mts",
       "solid": "./dist/tooltip.jsx",
       "default": "./dist/tooltip.mjs"
+    },
+    "./tree": {
+      "types": "./dist/tree.d.mts",
+      "solid": "./dist/tree.jsx",
+      "default": "./dist/tree.mjs"
     },
     "./trigger-menu": {
       "types": "./dist/trigger-menu.d.mts",
