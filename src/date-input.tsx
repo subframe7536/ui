@@ -242,7 +242,10 @@ export function DateInput(
     getState: () => ({ value: value(), disabled: disabled() }),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(v ? String(v) : null),
+      setValue: (v) =>
+        api.setValue(
+          v ? (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '') : null,
+        ),
       clear: () => api.clear(),
     },
   })
@@ -307,8 +310,12 @@ export function DateInputSegment(
     }
   }
   const rest = omit(props, 'segment')
-  const resolvedProps: PartProps<'span', DateInputSegmentState> =
-    props.children !== undefined ? rest : { ...rest, children: (s) => s.text }
+  const resolvedProps: PartProps<'span', DateInputSegmentState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s) => s.text)
+    },
+  }
 
   return renderPart('span', resolvedProps, segState, {
     attrs: () => {

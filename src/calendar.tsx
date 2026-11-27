@@ -1,5 +1,14 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, useContext } from 'solid-js'
+import {
+  createMemo,
+  createContext,
+  createSignal,
+  createUniqueId,
+  For,
+  omit,
+  useContext,
+  Show,
+} from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -255,7 +264,7 @@ export function Calendar(
 
   const weekdays = () => {
     const start = weekStartsOn()
-    const base = new Date(2024, 0, 7 + start)
+    const base = new Date(2024, 0, 7 + start) // Sunday Jan 7, 2024
     const fmt = new Intl.DateTimeFormat(props.locale, { weekday: 'short' })
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(base)
@@ -415,8 +424,12 @@ export function CalendarHeading(props: PartProps<'div', CalendarHeadingState>) {
     }).format(d)
     return { ...s, text }
   }
-  const resolvedProps: PartProps<'div', CalendarHeadingState> =
-    props.children !== undefined ? props : { ...props, children: (s) => s.text }
+  const resolvedProps: PartProps<'div', CalendarHeadingState> = {
+    ...props,
+    get children() {
+      return props.children ?? ((s) => s.text)
+    },
+  }
   return renderPart('div', resolvedProps, headingState, {
     attrs: () => ({ 'aria-live': 'polite' }),
   })
@@ -471,17 +484,23 @@ export function CalendarMonthSelect(
     }))
     return { ...s, options }
   }
-  const resolvedProps: PartProps<'select', CalendarSelectState> =
-    props.children !== undefined
-      ? props
-      : {
-          ...props,
-          children: (
+  const resolvedProps: PartProps<'select', CalendarSelectState> = {
+    ...props,
+    get children() {
+      return (
+        <Show
+          when={props.children !== undefined}
+          fallback={
             <For each={selectState().options}>
               {(opt) => <option value={opt.value}>{opt.label}</option>}
             </For>
-          ),
-        }
+          }
+        >
+          {typeof props.children === 'function' ? props.children(selectState()) : props.children}
+        </Show>
+      )
+    },
+  }
 
   return renderPart('select', resolvedProps, selectState, {
     attrs: () => ({
@@ -516,17 +535,23 @@ export function CalendarYearSelect(
     return { ...s, options }
   }
   const rest = omit(props, 'fromYear', 'toYear')
-  const resolvedProps: PartProps<'select', CalendarSelectState> =
-    props.children !== undefined
-      ? rest
-      : {
-          ...rest,
-          children: (
+  const resolvedProps: PartProps<'select', CalendarSelectState> = {
+    ...rest,
+    get children() {
+      return (
+        <Show
+          when={props.children !== undefined}
+          fallback={
             <For each={selectState().options}>
               {(opt) => <option value={opt.value}>{opt.label}</option>}
             </For>
-          ),
-        }
+          }
+        >
+          {typeof props.children === 'function' ? props.children(selectState()) : props.children}
+        </Show>
+      )
+    },
+  }
 
   return renderPart('select', resolvedProps, selectState, {
     attrs: () => ({
@@ -562,13 +587,16 @@ export function CalendarWeekdays(props: {
     <thead>
       <tr>
         <For each={ctx.state().weekdays}>
-          {(label, idx) => (
-            <CalendarWeekdayContext value={() => ({ index: idx(), label })}>
-              {typeof props.children === 'function'
-                ? props.children(label, idx)
-                : (props.children ?? <CalendarWeekday />)}
-            </CalendarWeekdayContext>
-          )}
+          {(label, idx) => {
+            const weekdayState = createMemo(() => ({ index: idx(), label }))
+            return (
+              <CalendarWeekdayContext value={weekdayState}>
+                {typeof props.children === 'function'
+                  ? props.children(label, idx)
+                  : (props.children ?? <CalendarWeekday />)}
+              </CalendarWeekdayContext>
+            )
+          }}
         </For>
       </tr>
     </thead>
@@ -589,8 +617,12 @@ export function CalendarWeekday(
     return { index: idx, label: ctx.state().weekdays[idx] ?? '' }
   }
   const rest = omit(props, 'index')
-  const resolvedProps: PartProps<'th', CalendarWeekdayState> =
-    props.children !== undefined ? rest : { ...rest, children: (s) => s.label }
+  const resolvedProps: PartProps<'th', CalendarWeekdayState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s) => s.label)
+    },
+  }
   return renderPart('th', resolvedProps, wdState, {
     attrs: () => ({ scope: 'col' }),
   })
@@ -650,8 +682,12 @@ export function CalendarDay(
     }
   }
   const rest = omit(props, 'date', 'cell')
-  const resolvedProps: PartProps<'button', CalendarDayState> =
-    props.children !== undefined ? rest : { ...rest, children: (s) => String(s.day) }
+  const resolvedProps: PartProps<'button', CalendarDayState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s) => String(s.day))
+    },
+  }
 
   return renderPart('button', resolvedProps, dayState, {
     attrs: () => {

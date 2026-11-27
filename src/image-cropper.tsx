@@ -138,7 +138,7 @@ export function ImageCropper(
     disabled: disabled(),
   })
 
-  const updateCrop = (next: ImageCropperOptions['crop'] & ImageCrop, reason: ImageCropperCropChangeReason, event?: Event) => {
+  const updateCrop = (next: ImageCrop, reason: ImageCropperCropChangeReason, event?: Event) => {
     if (disabled()) {
       return
     }

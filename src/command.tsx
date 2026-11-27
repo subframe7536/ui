@@ -9,15 +9,9 @@ import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { defaultListFilter } from './listbox'
-import type {
-  ListAnnouncement,
-  ListFilter,
-  ListSeparator,
-  MatchSegment,
-  SearchFilter,
-} from './listbox'
+import type { ListAnnouncement, ListSeparator, MatchSegment, SearchFilter } from './listbox'
 
-export type { ListAnnouncement, ListFilter, ListSeparator, MatchSegment, SearchFilter }
+export type { ListAnnouncement, MatchSegment, SearchFilter }
 
 export type CommandQueryChangeReason = 'input' | 'clear' | 'page-change' | 'programmatic'
 export type CommandPagesChangeReason = 'push' | 'pop' | 'reset' | 'programmatic'
@@ -115,7 +109,7 @@ export type CommandItemState = {
   visible: boolean
 }
 export type CommandItemTextState = CommandItemState
-export type CommandItemIconProps = Record<string, never>
+export type CommandItemIconProps = object
 export type CommandItemIconState = CommandItemState
 export type CommandShortcutProps = { keys?: string | Array<string> }
 export type CommandShortcutState = CommandItemState
@@ -269,7 +263,8 @@ export function Command(props: CommandProps) {
     getState: () => ({ query: query(), pages: pages(), highlighted: highlighted() }),
     getItems: () => registered.map((i) => ({ value: i.value, label: i.label })),
     actions: {
-      setQuery: (q) => api.setQuery(String(q ?? '')),
+      setQuery: (q) =>
+        api.setQuery(typeof q === 'string' ? q : typeof q === 'number' ? String(q) : ''),
       select: (v) => triggerSelect(String(v)),
     },
   })
@@ -356,9 +351,12 @@ export function CommandInput(props: Omit<PartProps<'input', CommandInputState>, 
         } else if (e.key === 'ArrowUp') {
           e.preventDefault()
           ctx.moveHighlight(-1)
-        } else if (e.key === 'Enter' && ctx.state().highlightedValue) {
-          e.preventDefault()
-          ctx.triggerSelect(ctx.state().highlightedValue!, e)
+        } else if (e.key === 'Enter') {
+          const highlighted = ctx.state().highlightedValue
+          if (highlighted) {
+            e.preventDefault()
+            ctx.triggerSelect(highlighted, e)
+          }
         } else if (
           e.key === 'Backspace' &&
           ctx.state().query === '' &&
@@ -410,31 +408,27 @@ export function CommandItems(props: {
             <CommandGroup>
               <CommandGroupLabel>{entry.label}</CommandGroupLabel>
               <For each={entry.items}>
-                {(sub) => (
-                  <Show
-                    when={sub.type === 'separator'}
-                    fallback={
-                      props.renderItem ? (
-                        props.renderItem(sub)
-                      ) : (
-                        <CommandItem
-                          value={sub.value}
-                          label={sub.label}
-                          keywords={sub.keywords}
-                          disabled={sub.disabled}
-                          onSelect={sub.onSelect}
-                        >
-                          <CommandItemText>{sub.label}</CommandItemText>
-                          <Show when={sub.shortcut}>
-                            <CommandShortcut keys={sub.shortcut} />
-                          </Show>
-                        </CommandItem>
-                      )
-                    }
-                  >
-                    <CommandSeparator />
-                  </Show>
-                )}
+                {(sub) => {
+                  if (sub.type === 'separator') {
+                    return <CommandSeparator />
+                  }
+                  return props.renderItem ? (
+                    props.renderItem(sub)
+                  ) : (
+                    <CommandItem
+                      value={sub.value}
+                      label={sub.label}
+                      keywords={sub.keywords}
+                      disabled={sub.disabled}
+                      onSelect={sub.onSelect}
+                    >
+                      <CommandItemText>{sub.label}</CommandItemText>
+                      <Show when={sub.shortcut}>
+                        <CommandShortcut keys={sub.shortcut} />
+                      </Show>
+                    </CommandItem>
+                  )
+                }}
               </For>
             </CommandGroup>
           )
@@ -566,23 +560,28 @@ export function CommandItemIcon(
   return renderPart('span', props, itemState, { attrs: () => ({ 'aria-hidden': true }) })
 }
 
+const fallbackCommandItemState = (): CommandItemState => ({
+  value: '',
+  label: '',
+  highlighted: false,
+  disabled: false,
+  visible: true,
+})
+
 export function CommandShortcut(
   props: CommandShortcutProps &
     Omit<PartProps<'kbd', CommandShortcutState>, keyof CommandShortcutProps>,
 ) {
   const itemState = useContext(CommandItemContext)
-  const fallback = (): CommandItemState => ({
-    value: '',
-    label: '',
-    highlighted: false,
-    disabled: false,
-    visible: true,
-  })
-  const state = itemState ?? fallback
+  const state = itemState ?? fallbackCommandItemState
   const rest = omit(props, 'keys')
   const text = () => (Array.isArray(props.keys) ? props.keys.join('+') : (props.keys ?? ''))
-  const resolvedProps: PartProps<'kbd', CommandShortcutState> =
-    props.children !== undefined ? rest : { ...rest, children: () => text() }
+  const resolvedProps: PartProps<'kbd', CommandShortcutState> = {
+    ...rest,
+    get children() {
+      return props.children ?? text()
+    },
+  }
   return renderPart('kbd', resolvedProps, state)
 }
 

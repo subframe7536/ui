@@ -128,7 +128,7 @@ export type AutocompleteItemState = {
   visible: boolean
 }
 export type AutocompleteItemTextState = AutocompleteItemState
-export type AutocompleteItemIconProps = Record<string, never>
+export type AutocompleteItemIconProps = object
 export type AutocompleteItemIconState = AutocompleteItemState
 export type AutocompleteEmptyState = AutocompleteState
 export type AutocompleteStatusState = AutocompleteState & { count: number }
@@ -219,15 +219,15 @@ export function Autocomplete(props: AutocompleteProps) {
     invalid: invalid(),
   })
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const setOpen = (next: boolean, reason: AutocompleteOpenChangeReason, event?: Event) => {
     if (next && disabled()) {
@@ -243,7 +243,7 @@ export function Autocomplete(props: AutocompleteProps) {
       return
     }
     setRawOpen(next)
-    emitChange?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
+    emitRef.fn?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
   }
 
   const setValue = (
@@ -263,7 +263,7 @@ export function Autocomplete(props: AutocompleteProps) {
     }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
+    emitRef.fn?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
   }
 
   const isItemVisible = (label: string, keywords?: Array<string>) => {
@@ -314,11 +314,12 @@ export function Autocomplete(props: AutocompleteProps) {
     getItems: () => optionList.map((o) => ({ value: o.value, label: o.label })),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(String(v ?? '')),
+      setValue: (v) =>
+        api.setValue(typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''),
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   useDismissLayer({
     active: open,
@@ -570,27 +571,23 @@ export function AutocompleteItems(props: {
             <AutocompleteGroup>
               <AutocompleteGroupLabel>{entry.label}</AutocompleteGroupLabel>
               <For each={entry.items}>
-                {(sub) => (
-                  <Show
-                    when={sub.type === 'separator'}
-                    fallback={
-                      props.renderItem ? (
-                        props.renderItem(sub)
-                      ) : (
-                        <AutocompleteItem
-                          value={sub.value}
-                          label={sub.label}
-                          keywords={sub.keywords}
-                          disabled={sub.disabled}
-                        >
-                          <AutocompleteItemText>{sub.label ?? sub.value}</AutocompleteItemText>
-                        </AutocompleteItem>
-                      )
-                    }
-                  >
-                    <AutocompleteSeparator />
-                  </Show>
-                )}
+                {(sub) => {
+                  if (sub.type === 'separator') {
+                    return <AutocompleteSeparator />
+                  }
+                  return props.renderItem ? (
+                    props.renderItem(sub)
+                  ) : (
+                    <AutocompleteItem
+                      value={sub.value}
+                      label={sub.label}
+                      keywords={sub.keywords}
+                      disabled={sub.disabled}
+                    >
+                      <AutocompleteItemText>{sub.label ?? sub.value}</AutocompleteItemText>
+                    </AutocompleteItem>
+                  )
+                }}
               </For>
             </AutocompleteGroup>
           )

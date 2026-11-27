@@ -97,15 +97,17 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n))
 }
 
+const toHexByte = (n: number) => n.toString(16).padStart(2, '0')
+
 function hsvToHex(h: number, s: number, v: number): string {
   const sn = clamp(s, 0, 100) / 100
   const vn = clamp(v, 0, 100) / 100
   const c = vn * sn
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
   const m = vn - c
-  let r = 0
-  let g = 0
-  let b = 0
+  let r: number
+  let g: number
+  let b: number
   const hh = ((h % 360) + 360) % 360
   if (hh < 60) {
     ;[r, g, b] = [c, x, 0]
@@ -309,8 +311,7 @@ export function ColorPicker(
       const r = ch === 'red' ? clamp(Math.round(val), 0, 255) : readChannel(cur, 'red')
       const g = ch === 'green' ? clamp(Math.round(val), 0, 255) : readChannel(cur, 'green')
       const b = ch === 'blue' ? clamp(Math.round(val), 0, 255) : readChannel(cur, 'blue')
-      const toH = (n: number) => n.toString(16).padStart(2, '0')
-      setHex(`#${toH(r)}${toH(g)}${toH(b)}`, reason, event)
+      setHex(`#${toHexByte(r)}${toHexByte(g)}${toHexByte(b)}`, reason, event)
     }
   }
 
@@ -333,7 +334,8 @@ export function ColorPicker(
     getState: () => ({ value: hex(), disabled: disabled() }),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(String(v ?? '#000000')),
+      setValue: (v) =>
+        api.setValue(typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '#000000'),
     },
   })
 
