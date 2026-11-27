@@ -48,15 +48,20 @@ export type ToolbarInputState = { disabled: boolean }
 export type ToolbarLinkState = { disabled: boolean }
 export type ToolbarSeparatorState = { orientation: ToolbarOrientation }
 
-type ToolbarContextValue = {
+export type ToolbarContextValue = {
   orientation: () => ToolbarOrientation
   loop: () => boolean
   disabled: () => boolean
   registerItem: (el: HTMLElement) => void
   getItems: () => Array<HTMLElement>
+  claimTabStop: () => boolean
 }
 
 const ToolbarContext = createContext<ToolbarContextValue | null>(null)
+
+export function useOptionalToolbar(): ToolbarContextValue | null {
+  return useContext(ToolbarContext)
+}
 
 function useToolbar(part: string): ToolbarContextValue {
   const ctx = useContext(ToolbarContext)
@@ -70,11 +75,19 @@ export function Toolbar(
   props: ToolbarOptions & Omit<PartProps<'div', ToolbarState>, keyof ToolbarOptions>,
 ) {
   let rootEl: HTMLElement | undefined
+  let tabStopClaimed = false
   const items = new Set<HTMLElement>()
 
   const orientation = (): ToolbarOrientation => props.orientation ?? 'horizontal'
   const isDisabled = () => !!props.disabled
   const getItems = () => Array.from(items).filter((el) => el.isConnected)
+  const claimTabStop = () => {
+    if (tabStopClaimed) {
+      return false
+    }
+    tabStopClaimed = true
+    return true
+  }
 
   const api: ToolbarApi = {
     focusFirst: () => getItems()[0]?.focus(),
@@ -109,6 +122,7 @@ export function Toolbar(
         disabled: isDisabled,
         registerItem: (el) => items.add(el),
         getItems,
+        claimTabStop,
       }}
     >
       {renderPart('div', rest, state, {
@@ -132,6 +146,7 @@ export function ToolbarButton(
 ) {
   const toolbar = useToolbar('Button')
   let elRef: HTMLElement | undefined
+  const isTabStop = !props.disabled && !toolbar.disabled() && toolbar.claimTabStop()
   const state = (): ToolbarButtonState => ({
     disabled: !!props.disabled || toolbar.disabled(),
   })
@@ -149,6 +164,7 @@ export function ToolbarButton(
       const focusable = disabled && !!props.focusableWhenDisabled
       return {
         type: 'button',
+        tabindex: disabled && !focusable ? undefined : isTabStop ? 0 : -1,
         disabled: disabled && !focusable ? true : undefined,
         'aria-disabled': focusable ? 'true' : undefined,
         'data-disabled': disabled ? '' : undefined,
@@ -171,6 +187,7 @@ export function ToolbarButton(
 export function ToolbarLink(props: PartProps<'a', ToolbarLinkState>) {
   const toolbar = useToolbar('Link')
   let elRef: HTMLElement | undefined
+  const isTabStop = !toolbar.disabled() && toolbar.claimTabStop()
   const state = (): ToolbarLinkState => ({ disabled: toolbar.disabled() })
 
   return renderPart('a', props, state, {
@@ -181,6 +198,7 @@ export function ToolbarLink(props: PartProps<'a', ToolbarLinkState>) {
       }
     },
     attrs: () => ({
+      tabindex: isTabStop ? 0 : -1,
       'aria-disabled': state().disabled ? 'true' : undefined,
       'data-disabled': state().disabled ? '' : undefined,
     }),
@@ -202,6 +220,7 @@ export function ToolbarInput(
   props: ToolbarInputProps & Omit<PartProps<'input', ToolbarInputState>, 'disabled'>,
 ) {
   const toolbar = useToolbar('Input')
+  const isTabStop = !props.disabled && !toolbar.disabled() && toolbar.claimTabStop()
   const state = (): ToolbarInputState => ({
     disabled: !!props.disabled || toolbar.disabled(),
   })
@@ -213,6 +232,7 @@ export function ToolbarInput(
       }
     },
     attrs: () => ({
+      tabindex: state().disabled ? undefined : isTabStop ? 0 : -1,
       disabled: state().disabled || undefined,
       'data-disabled': state().disabled ? '' : undefined,
     }),
@@ -223,18 +243,28 @@ export function ToolbarGroup(
   props: ToolbarGroupProps & Omit<PartProps<'div', ToolbarGroupState>, 'disabled'>,
 ) {
   const toolbar = useToolbar('Group')
+  const isDisabled = () => !!props.disabled || toolbar.disabled()
   const state = (): ToolbarGroupState => ({
-    disabled: !!props.disabled || toolbar.disabled(),
+    disabled: isDisabled(),
     orientation: toolbar.orientation(),
   })
   const rest = omit(props, 'disabled')
-  return renderPart('div', rest, state, {
-    attrs: () => ({
-      role: 'group',
-      'data-orientation': toolbar.orientation(),
-      'data-disabled': state().disabled ? '' : undefined,
-    }),
-  })
+  return (
+    <ToolbarContext
+      value={{
+        ...toolbar,
+        disabled: isDisabled,
+      }}
+    >
+      {renderPart('div', rest, state, {
+        attrs: () => ({
+          role: 'group',
+          'data-orientation': toolbar.orientation(),
+          'data-disabled': state().disabled ? '' : undefined,
+        }),
+      })}
+    </ToolbarContext>
+  )
 }
 
 export function ToolbarSeparator(props: PartProps<'div', ToolbarSeparatorState>) {

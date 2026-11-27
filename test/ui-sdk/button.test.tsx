@@ -46,7 +46,10 @@ test("Solid's bound form runs with its data, the event on the button and how it 
 
 test("a bound handler's Promise keeps the button pending until it settles", async () => {
   let finish = () => {}
-  const wait = () => new Promise<void>((resolve) => (finish = resolve))
+  const wait = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve
+    })
   const el = mount(() => <Button onClick={[wait, undefined]}>Save</Button>)
   el.click()
   await settle()

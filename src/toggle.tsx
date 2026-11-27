@@ -9,6 +9,7 @@ import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+import { useOptionalToolbar } from './toolbar'
 
 export type TogglePressedChangeReason = 'press' | 'imperative'
 export type ToggleChangeOptions = ChangeOptions<TogglePressedChangeReason>
@@ -94,6 +95,8 @@ export type ToggleGroupState<T extends string = string> = {
 
 type GroupContextValue = {
   isPressed: (value: string) => boolean
+  hasValue: () => boolean
+  claimTabStop: () => boolean
   toggleItem: (value: string, event?: Event) => void
   disabled: () => boolean
   orientation: () => ToggleGroupOrientation
@@ -117,6 +120,7 @@ export function Toggle(
     >,
 ) {
   const group = useContext(ToggleGroupContext)
+  const toolbar = useOptionalToolbar()
   let rootEl: HTMLElement | undefined
 
   const [ownPressed, setOwnPressed] = createControlledSignal<boolean>({
@@ -124,9 +128,18 @@ export function Toggle(
     defaultValue: () => !!props.defaultPressed,
   })
 
-  const isDisabled = () => !!props.disabled || (group?.disabled() ?? false)
+  const isDisabled = () =>
+    !!props.disabled || (group?.disabled() ?? false) || (toolbar?.disabled() ?? false)
   const isPressed = () =>
     group && props.value !== undefined ? group.isPressed(props.value) : ownPressed()
+
+  const claimedToolbarStop = toolbar ? !isDisabled() && toolbar.claimTabStop() : undefined
+  const claimedGroupStop =
+    !toolbar && group
+      ? group.hasValue()
+        ? isPressed() && group.claimTabStop()
+        : !isDisabled() && group.claimTabStop()
+      : undefined
 
   const applyPressed = (
     next: boolean,
@@ -202,13 +215,26 @@ export function Toggle(
           if (group && el) {
             group.registerItem(el)
           }
+          if (toolbar && el) {
+            toolbar.registerItem(el)
+          }
         },
         attrs: () => {
           const pressed = isPressed()
           const disabled = isDisabled()
           const focusableDisabled = disabled && (props.focusableWhenDisabled || !!group)
+          const rovingTabIndex = toolbar
+            ? claimedToolbarStop
+              ? 0
+              : -1
+            : group
+              ? claimedGroupStop
+                ? 0
+                : -1
+              : undefined
           return {
             type: 'button',
+            tabindex: rovingTabIndex,
             'aria-pressed': pressed ? 'true' : 'false',
             disabled: disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
@@ -229,7 +255,17 @@ export function Toggle(
             }
           },
           onKeyDown: (event: KeyboardEvent) => {
-            if (!group || !rootEl) {
+            if (!rootEl) {
+              return
+            }
+            if (toolbar) {
+              navigateRoving(event, toolbar.getItems(), rootEl, {
+                orientation: toolbar.orientation(),
+                loop: toolbar.loop(),
+              })
+              return
+            }
+            if (!group) {
               return
             }
             navigateRoving(event, group.getItems(), rootEl, {
@@ -261,6 +297,7 @@ export function ToggleGroup<T extends string = string>(
     Omit<PartProps<'div', ToggleGroupState<T>>, 'defaultValue' | 'onChange' | 'onSelect'>,
 ) {
   let rootEl: HTMLElement | undefined
+  let tabStopClaimed = false
   const items = new Set<HTMLElement>()
 
   const [value, setValue] = createControlledSignal<T | Array<T> | undefined>({
@@ -270,6 +307,17 @@ export function ToggleGroup<T extends string = string>(
 
   const orientation = () => props.orientation ?? 'horizontal'
   const isDisabled = () => !!props.disabled
+  const hasValue = () => {
+    const current = value()
+    return Array.isArray(current) ? current.length > 0 : current !== undefined
+  }
+  const claimTabStop = () => {
+    if (tabStopClaimed) {
+      return false
+    }
+    tabStopClaimed = true
+    return true
+  }
 
   const applyValue = (
     next: T | Array<T> | undefined,
@@ -373,6 +421,8 @@ export function ToggleGroup<T extends string = string>(
     <ToggleGroupContext
       value={{
         isPressed,
+        hasValue,
+        claimTabStop,
         toggleItem,
         disabled: isDisabled,
         orientation,

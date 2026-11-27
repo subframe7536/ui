@@ -1,6 +1,76 @@
-import { dynamic } from '@solidjs/web'
+import { Portal, dynamic } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { isStatic, merge, omit, Show, untrack } from 'solid-js'
+import { isStatic, merge, omit, untrack } from 'solid-js'
+
+/**
+ * Renders children in place on the server (SSR) and through a Solid `<Portal>` on the client.
+ */
+export function SafePortal(props: { mount?: Node; children: JSX.Element }): JSX.Element {
+  if (typeof document === 'undefined') {
+    return props.children
+  }
+  return <Portal mount={props.mount}>{props.children}</Portal>
+}
+
+const ARIA_MODIFIER_MAP: Record<string, string> = {
+  mod: 'Control',
+  ctrl: 'Control',
+  control: 'Control',
+  meta: 'Meta',
+  cmd: 'Meta',
+  alt: 'Alt',
+  option: 'Alt',
+  shift: 'Shift',
+}
+
+const DISPLAY_MODIFIER_MAP: Record<string, string> = {
+  mod: 'Ctrl',
+  ctrl: 'Ctrl',
+  control: 'Ctrl',
+  meta: 'Meta',
+  cmd: 'Cmd',
+  alt: 'Alt',
+  option: 'Alt',
+  shift: 'Shift',
+}
+
+/**
+ * Formats a shortcut string (e.g. `"mod+k"`) into an ARIA `aria-keyshortcuts` value (`"Control+K"`).
+ */
+export function formatAriaKeyShortcuts(shortcut: string | undefined): string | undefined {
+  if (!shortcut) {
+    return undefined
+  }
+  return shortcut
+    .split('+')
+    .map((part) => {
+      const lower = part.trim().toLowerCase()
+      if (lower in ARIA_MODIFIER_MAP) {
+        return ARIA_MODIFIER_MAP[lower]
+      }
+      return part.trim().length === 1 ? part.trim().toUpperCase() : part.trim()
+    })
+    .join('+')
+}
+
+/**
+ * Formats a shortcut string (e.g. `"mod+k"`) into a platform-neutral display label (`"Ctrl+K"`).
+ */
+export function formatDisplayShortcut(shortcut: string | undefined): string | undefined {
+  if (!shortcut) {
+    return undefined
+  }
+  return shortcut
+    .split('+')
+    .map((part) => {
+      const lower = part.trim().toLowerCase()
+      if (lower in DISPLAY_MODIFIER_MAP) {
+        return DISPLAY_MODIFIER_MAP[lower]
+      }
+      return part.trim().length === 1 ? part.trim().toUpperCase() : part.trim()
+    })
+    .join('+')
+}
 
 /**
  * Custom element renderer: receives the reactive props proxy to spread and the reactive part state.
@@ -265,11 +335,15 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
     },
   })
   return (
-    <Show
-      when={userProps.render}
-      fallback={<TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>}
-    >
-      {(renderFn) => renderFn()(propsWithChildren, reactiveState)}
-    </Show>
+    <>
+      {(() => {
+        const fn = userProps.render
+        return fn ? (
+          fn(propsWithChildren, reactiveState)
+        ) : (
+          <TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>
+        )
+      })()}
+    </>
   )
 }

@@ -121,6 +121,7 @@ export function Button(props: ButtonProps) {
       const ariaDisabled = (disabled && props.focusableWhenDisabled) || isPending
       return {
         type: props.type ?? 'button',
+        'data-slot': 'button',
         disabled: nativeDisabled || undefined,
         'aria-disabled': ariaDisabled ? 'true' : undefined,
         'aria-busy': isPending ? 'true' : undefined,

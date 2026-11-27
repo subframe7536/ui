@@ -83,9 +83,9 @@ describe('event handlers', () => {
         </PopoverContent>
       </Popover>
     ))
-    outer.open()
+    void outer.open()
     await settle()
-    inner.open()
+    void inner.open()
     await settle()
     const dialogs = () =>
       [...document.querySelectorAll('[role="dialog"]')].map(

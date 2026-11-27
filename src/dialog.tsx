@@ -1,14 +1,13 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
-  untrack,
-  createMemo,
-  onSettled,
+  Show,
   createContext,
+  createMemo,
   createSignal,
   createUniqueId,
   omit,
-  Show,
+  onSettled,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -27,7 +26,12 @@ import { useFocusManagement } from './foundation/focus'
 import type { FocusTarget } from './foundation/focus'
 import type { PortalProps } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import {
+  SafePortal,
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
@@ -369,12 +373,14 @@ export function DialogTrigger<Payload = unknown>(
           const s = state()
           const ctx = target()
           const focusableDisabled = s.disabled && !!props.focusableWhenDisabled
+          const isModal = ctx ? ctx.modal() : true
           return {
             type: 'button',
+            'data-slot': 'dialog-trigger',
             'aria-haspopup': 'dialog',
-            'aria-expanded': s.open ? 'true' : 'false',
+            'aria-expanded': isModal ? undefined : s.open ? 'true' : 'false',
             'aria-controls': ctx?.contentId,
-            'aria-keyshortcuts': props.shortcut,
+            'aria-keyshortcuts': formatAriaKeyShortcuts(props.shortcut),
             disabled: s.disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
             'data-open': s.open ? '' : undefined,
@@ -405,15 +411,16 @@ export function DialogBackdrop(props: PartProps<'div', DialogBackdropState>) {
 
   return (
     <Show when={ctx.open()}>
-      <Portal mount={ctx.container() ?? undefined}>
+      <SafePortal mount={ctx.container() ?? undefined}>
         {renderPart('div', props, state, {
           attrs: () => ({
+            'data-slot': 'dialog-backdrop',
             'aria-hidden': 'true',
             'data-open': ctx.open() ? '' : undefined,
             'data-state': ctx.open() ? 'open' : 'closed',
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }
@@ -445,13 +452,14 @@ export function DialogContent<Payload = unknown>(
 
   return (
     <Show when={shouldRender()}>
-      <Portal mount={props.container ?? ctx.container() ?? undefined}>
+      <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
         {renderPart('div', rest, state, {
           ref: ctx.setContentEl,
           attrs: () => {
             const open = ctx.open()
             return {
               role: ctx.role,
+              'data-slot': 'dialog-content',
               id: props.id ?? ctx.contentId,
               tabindex: -1,
               'aria-modal': ctx.modal() ? 'true' : undefined,
@@ -464,7 +472,7 @@ export function DialogContent<Payload = unknown>(
             }
           },
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }
@@ -479,7 +487,7 @@ export function DialogTitle(props: PartProps<'h2'>) {
     return () => ctx.setHasTitle(false)
   })
   return renderPart('h2', props, () => ({}), {
-    attrs: () => ({ id: props.id ?? ctx.titleId }),
+    attrs: () => ({ id: props.id ?? ctx.titleId, 'data-slot': 'dialog-title' }),
   })
 }
 
@@ -493,7 +501,7 @@ export function DialogDescription(props: PartProps<'p'>) {
     return () => ctx.setHasDescription(false)
   })
   return renderPart('p', props, () => ({}), {
-    attrs: () => ({ id: props.id ?? ctx.descriptionId }),
+    attrs: () => ({ id: props.id ?? ctx.descriptionId, 'data-slot': 'dialog-description' }),
   })
 }
 
@@ -519,6 +527,7 @@ export function DialogClose<Result = string>(
   return renderPart('button', rest, state, {
     attrs: () => ({
       type: 'button',
+      'data-slot': 'dialog-close',
       disabled: props.disabled || undefined,
       'aria-busy': pending() ? 'true' : undefined,
       'aria-disabled': pending() ? 'true' : undefined,
@@ -550,7 +559,15 @@ export function DialogClose<Result = string>(
  */
 export function DialogShortcut(props: DialogShortcutProps & PartProps<'kbd', DialogShortcutState>) {
   const shortcut = useContext(TriggerShortcutContext)
-  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
-    attrs: () => ({ 'aria-hidden': 'true' }),
+  const formatted = () => formatDisplayShortcut(shortcut())
+  const withDefaultChildren = {
+    get children() {
+      return props.children !== undefined ? props.children : formatted()
+    },
+  }
+  return renderPart('kbd', Object.assign(omit(props, 'children'), withDefaultChildren), () => ({
+    shortcut: formatted(),
+  }), {
+    attrs: () => ({ 'aria-hidden': 'true', 'data-slot': 'dialog-shortcut' }),
   })
 }
