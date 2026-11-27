@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import { For, Show, createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -162,12 +162,17 @@ export function treeCheckedStates<T extends string = string>(
   const result = new Map<T, TreeCheckedState>()
 
   const visit = (node: TreeItemData<T>): TreeCheckedState => {
-    if (!node.children || node.children.length === 0 || strategy === 'independent') {
+    if (!node.children || node.children.length === 0) {
       const st: TreeCheckedState = checkedSet.has(node.value)
       result.set(node.value, st)
       return st
     }
     const childStates = node.children.map(visit)
+    if (strategy === 'independent') {
+      const st: TreeCheckedState = checkedSet.has(node.value)
+      result.set(node.value, st)
+      return st
+    }
     const allTrue = childStates.every((s) => s === true)
     const allFalse = childStates.every((s) => s === false)
     const st: TreeCheckedState = allTrue ? true : allFalse ? false : 'indeterminate'

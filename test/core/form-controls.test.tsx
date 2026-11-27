@@ -93,7 +93,7 @@ describe('core form controls migrated from ref/ui-sdk/packages/core/test', () =>
         <Checkbox value="a" disabled>
           <CheckboxIndicator />
         </Checkbox>
-        <Checkbox indeterminate aria-label="Mixed" />
+        <Checkbox checked="indeterminate" aria-label="Mixed" />
       </CheckboxGroup>
     ))
     const [disabledBox, mixedBox] = root.querySelectorAll<HTMLButtonElement>('[role="checkbox"]')
@@ -105,7 +105,7 @@ describe('core form controls migrated from ref/ui-sdk/packages/core/test', () =>
 
   it('radio group skips disabled options during keyboard navigation', () => {
     const root = mount(() => (
-      <RadioGroup defaultValue="a" aria-label="Size">
+      <RadioGroup defaultValue="a" orientation="horizontal" aria-label="Size">
         <Radio value="a">A</Radio>
         <Radio value="b" disabled>
           B
@@ -136,6 +136,7 @@ describe('core form controls migrated from ref/ui-sdk/packages/core/test', () =>
     expect(thumbs[1]!.getAttribute('aria-valuenow')).toBe('80')
 
     thumbs[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }))
+    flush()
     thumbs[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
     flush()
     expect(thumbs[0]!.getAttribute('aria-valuenow')).toBe('0')
@@ -145,7 +146,7 @@ describe('core form controls migrated from ref/ui-sdk/packages/core/test', () =>
   it('otp input fills digits across slots and fires onComplete', () => {
     const completed: Array<string> = []
     const root = mount(() => (
-      <OTPInput length={4} onComplete={(code) => completed.push(code)}>
+      <OTPInput maxLength={4} onComplete={(code) => completed.push(code)}>
         <OTPInputGroup>
           <OTPInputSlot index={0} />
           <OTPInputSlot index={1} />
@@ -154,14 +155,10 @@ describe('core form controls migrated from ref/ui-sdk/packages/core/test', () =>
         </OTPInputGroup>
       </OTPInput>
     ))
-    const inputs = root.querySelectorAll<HTMLInputElement>('input')
-    expect(inputs).toHaveLength(4)
-
-    for (const [i, ch] of ['1', '2', '3', '4'].entries()) {
-      inputs[i]!.value = ch
-      inputs[i]!.dispatchEvent(new InputEvent('input', { bubbles: true }))
-      flush()
-    }
+    const input = root.querySelector<HTMLInputElement>('input')!
+    input.value = '1234'
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }))
+    flush()
     expect(completed).toEqual(['1234'])
   })
 

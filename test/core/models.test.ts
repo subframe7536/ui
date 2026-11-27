@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { matchesDate, parseISOMonth, toISODate, toISOMonth } from '../../src/calendar'
 import { formatFileSize, relativePath } from '../../src/file-input'
-import { defaultListFilter, matchSegments } from '../../src/listbox'
+import { defaultListFilter, getMatchSegments } from '../../src/listbox'
 import { paginationRange } from '../../src/pagination'
 import { resizableStorageKey } from '../../src/resizable'
 import { defaultCodec, fromText, toLabel, toText } from '../../src/token-input'
@@ -108,10 +108,15 @@ describe('core models migrated from ref/ui-sdk/packages/core/test', () => {
       expect(formatFileSize(512)).toBe('512 B')
       expect(formatFileSize(1536)).toBe('1.5 KB')
       expect(formatFileSize(1024 * 1024 * 2)).toBe('2.0 MB')
-      expect(relativePath({ name: 'a.txt', webkitRelativePath: 'folder/a.txt' })).toBe(
-        'folder/a.txt',
-      )
-      expect(relativePath({ name: 'b.txt' })).toBe('b.txt')
+      expect(
+        relativePath({
+          name: 'a.txt',
+          size: 10,
+          type: 'text/plain',
+          webkitRelativePath: 'folder/a.txt',
+        }),
+      ).toBe('folder/a.txt')
+      expect(relativePath({ name: 'b.txt', size: 10, type: 'text/plain' })).toBe('b.txt')
     })
   })
 
@@ -150,12 +155,12 @@ describe('core models migrated from ref/ui-sdk/packages/core/test', () => {
     })
 
     it('splits text into highlighted match segments', () => {
-      expect(matchSegments('Reset settings', 'set')).toEqual([
+      expect(getMatchSegments('Reset settings', 'set')).toEqual([
         { text: 'Re', match: false },
         { text: 'set', match: true },
         { text: ' settings', match: false },
       ])
-      expect(matchSegments('Calendar', '')).toEqual([{ text: 'Calendar', match: false }])
+      expect(getMatchSegments('Calendar', '')).toEqual([{ text: 'Calendar', match: false }])
     })
   })
 

@@ -2,8 +2,13 @@ import { render } from '@solidjs/web'
 import { createSignal, flush } from 'solid-js'
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { act, snapshot } from '../../src/agent'
-import { createController } from '../../src/foundation/controller'
+import { createAgent } from '../../src/agent'
+import {
+  attachController,
+  createController,
+  detachController,
+  isControllerAttached,
+} from '../../src/foundation/controller'
 import { createChangeDetails, inferSource, withSource } from '../../src/foundation/details'
 import { useDismissLayer } from '../../src/foundation/dismissal'
 import { getFocusableElements, navigateRoving } from '../../src/foundation/focus'
@@ -53,20 +58,27 @@ describe('core foundation migrated from ref/ui-sdk/packages/core/test', () => {
     })
     expect(val()).toBe('init')
     setVal('local')
+    flush()
     expect(val()).toBe('local')
     setExternal('controlled')
+    flush()
     expect(val()).toBe('controlled')
     setVal('ignored-when-controlled')
+    flush()
     expect(val()).toBe('controlled')
   })
 
-  it('createController binds and unbinds imperative API cleanly', () => {
+  it('createController attaches, forwards calls, and detaches cleanly', () => {
     const ctrl = createController<{ ping: () => string }>()
-    expect(ctrl.current).toBeUndefined()
-    const unbind = ctrl._bind({ ping: () => 'pong' })
-    expect(ctrl.current?.ping()).toBe('pong')
-    unbind()
-    expect(ctrl.current).toBeUndefined()
+    const api = { ping: () => 'pong' }
+    expect(isControllerAttached(ctrl)).toBe(false)
+    expect(ctrl.ping()).toBeUndefined()
+    attachController(ctrl, api)
+    expect(isControllerAttached(ctrl)).toBe(true)
+    expect(ctrl.ping()).toBe('pong')
+    detachController(ctrl, api)
+    expect(isControllerAttached(ctrl)).toBe(false)
+    expect(ctrl.ping()).toBeUndefined()
   })
 
   it('useDismissLayer closes topmost layer first on Escape and outside press', () => {
@@ -148,7 +160,7 @@ describe('core foundation migrated from ref/ui-sdk/packages/core/test', () => {
     expect(document.activeElement).toBe(focusables[1])
   })
 
-  it('observe and agent snapshot/act coordinate component state changes', () => {
+  it('observe and createAgent coordinate component snapshots and actions', async () => {
     const events: Array<{ component: string; source: string; value: unknown }> = []
     const root = mount(() => <Switch aria-label="Dark mode" />)
     const stop = observe(
@@ -158,13 +170,17 @@ describe('core foundation migrated from ref/ui-sdk/packages/core/test', () => {
       { within: root },
     )
 
-    const snap = snapshot({ within: root })
-    expect(snap.components.length).toBeGreaterThanOrEqual(1)
-    const sw = snap.components.find((c) => c.component === 'switch')!
+    const agent = createAgent()
+    const snap = agent.snapshot({ within: root })
+    expect(snap.length).toBeGreaterThanOrEqual(1)
+    const sw = snap.find((c) => c.component === 'switch')!
     expect(elementOf(sw.ref)).toBe(root.querySelector('[role="switch"]'))
 
-    act(sw.ref, 'toggle')
+    const res = await agent.act({
+      steps: [{ ref: sw.ref, action: 'setChecked', args: [true] }],
+    })
     flush()
+    expect(res.ok).toBe(true)
     expect(events.at(-1)?.component).toBe('switch')
     expect(events.at(-1)?.value).toBe(true)
     stop()
