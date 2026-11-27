@@ -1,0 +1,6 @@
+publicHoistPattern:
+  - '*oxlint*'
+  - '@rolldown/pluginutils'
+
+minimumReleaseAgeExclude:
+  - '@subf/*'

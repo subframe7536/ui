@@ -2,12 +2,6 @@
   "name": "@subframe7536/ui",
   "version": "0.1.0",
   "description": "SolidJS 2 native UI SDK — API-compatible with @ui-sdk/solid, built directly on Solid 2 signals without a framework-agnostic kernel.",
-  "type": "module",
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/subframe7536/ui.git"
-  },
   "keywords": [
     "solid",
     "solid-js",
@@ -22,112 +16,130 @@
     "components",
     "agents"
   ],
-  "sideEffects": false,
+  "homepage": "https://github.com/subframe7536/ui#readme",
+  "bugs": {
+    "url": "https://github.com/subframe7536/ui/issues"
+  },
+  "license": "Apache-2.0",
+  "author": "subframe7536",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/subframe7536/ui.git"
+  },
   "files": [
-    "dist",
-    "LICENSE",
-    "README.md"
+    "dist"
   ],
+  "type": "module",
+  "sideEffects": false,
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "solid": "./dist/solid/index.js",
-      "default": "./dist/index.js"
+      "types": "./dist/index.d.mts",
+      "solid": "./dist/index.jsx",
+      "default": "./dist/index.mjs"
     },
     "./accordion": {
-      "types": "./dist/accordion.d.ts",
-      "solid": "./dist/solid/accordion.jsx",
-      "default": "./dist/accordion.js"
+      "types": "./dist/accordion.d.mts",
+      "solid": "./dist/accordion.jsx",
+      "default": "./dist/accordion.mjs"
     },
     "./agent": {
-      "types": "./dist/agent.d.ts",
-      "solid": "./dist/solid/agent.js",
-      "default": "./dist/agent.js"
+      "types": "./dist/agent.d.mts",
+      "default": "./dist/agent.mjs"
     },
     "./alert-dialog": {
-      "types": "./dist/alert-dialog.d.ts",
-      "solid": "./dist/solid/alert-dialog.jsx",
-      "default": "./dist/alert-dialog.js"
+      "types": "./dist/alert-dialog.d.mts",
+      "solid": "./dist/alert-dialog.jsx",
+      "default": "./dist/alert-dialog.mjs"
     },
     "./button": {
-      "types": "./dist/button.d.ts",
-      "solid": "./dist/solid/button.jsx",
-      "default": "./dist/button.js"
+      "types": "./dist/button.d.mts",
+      "solid": "./dist/button.jsx",
+      "default": "./dist/button.mjs"
     },
     "./collapsible": {
-      "types": "./dist/collapsible.d.ts",
-      "solid": "./dist/solid/collapsible.jsx",
-      "default": "./dist/collapsible.js"
+      "types": "./dist/collapsible.d.mts",
+      "solid": "./dist/collapsible.jsx",
+      "default": "./dist/collapsible.mjs"
     },
     "./dialog": {
-      "types": "./dist/dialog.d.ts",
-      "solid": "./dist/solid/dialog.jsx",
-      "default": "./dist/dialog.js"
+      "types": "./dist/dialog.d.mts",
+      "solid": "./dist/dialog.jsx",
+      "default": "./dist/dialog.mjs"
     },
     "./label": {
-      "types": "./dist/label.d.ts",
-      "solid": "./dist/solid/label.jsx",
-      "default": "./dist/label.js"
+      "types": "./dist/label.d.mts",
+      "solid": "./dist/label.jsx",
+      "default": "./dist/label.mjs"
     },
     "./observe": {
-      "types": "./dist/observe.d.ts",
-      "solid": "./dist/solid/observe.js",
-      "default": "./dist/observe.js"
+      "types": "./dist/observe.d.mts",
+      "default": "./dist/observe.mjs"
     },
     "./popover": {
-      "types": "./dist/popover.d.ts",
-      "solid": "./dist/solid/popover.jsx",
-      "default": "./dist/popover.js"
+      "types": "./dist/popover.d.mts",
+      "solid": "./dist/popover.jsx",
+      "default": "./dist/popover.mjs"
     },
     "./primitive": {
-      "types": "./dist/primitive.d.ts",
-      "solid": "./dist/solid/primitive.js",
-      "default": "./dist/primitive.js"
+      "types": "./dist/primitive.d.mts",
+      "default": "./dist/primitive.mjs"
     },
     "./separator": {
-      "types": "./dist/separator.d.ts",
-      "solid": "./dist/solid/separator.jsx",
-      "default": "./dist/separator.js"
+      "types": "./dist/separator.d.mts",
+      "solid": "./dist/separator.jsx",
+      "default": "./dist/separator.mjs"
     },
     "./switch": {
-      "types": "./dist/switch.d.ts",
-      "solid": "./dist/solid/switch.jsx",
-      "default": "./dist/switch.js"
+      "types": "./dist/switch.d.mts",
+      "solid": "./dist/switch.jsx",
+      "default": "./dist/switch.mjs"
     },
     "./tabs": {
-      "types": "./dist/tabs.d.ts",
-      "solid": "./dist/solid/tabs.jsx",
-      "default": "./dist/tabs.js"
+      "types": "./dist/tabs.d.mts",
+      "solid": "./dist/tabs.jsx",
+      "default": "./dist/tabs.mjs"
     },
     "./toggle": {
-      "types": "./dist/toggle.d.ts",
-      "solid": "./dist/solid/toggle.jsx",
-      "default": "./dist/toggle.js"
+      "types": "./dist/toggle.d.mts",
+      "solid": "./dist/toggle.jsx",
+      "default": "./dist/toggle.mjs"
     },
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "build": "tsdown",
+    "test": "pnpm run build && vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint --fix --max-warnings 0 --report-unused-disable-directives",
+    "format": "oxfmt",
+    "typecheck": "tsrs --noEmit --fast",
+    "oxc": "pnpm run lint && pnpm run format",
+    "qa": "pnpm run lint && pnpm run format && pnpm run typecheck",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.7.0"
+    "@floating-ui/dom": "^1.8.0"
   },
   "peerDependencies": {
-    "@solidjs/web": "^2.0.0",
-    "solid-js": "^2.0.0"
+    "@solidjs/web": "^2.0.3",
+    "solid-js": "^2.0.3"
   },
   "devDependencies": {
-    "@solidjs/compiler": "2.0.0",
+    "@solidjs/compiler": "^2.0.2",
     "@solidjs/vite-plugin": "^3.0.1",
-    "@solidjs/web": "2.0.0",
-    "esbuild": "^0.25.0",
-    "jsdom": "^25.0.1",
-    "solid-js": "2.0.0",
-    "typescript": "^5.8.2",
-    "vite": "^8.3.3",
-    "vitest": "^5.0.3"
-  }
+    "@solidjs/web": "^2.0.3",
+    "@subf/config": "^0.7.0",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^24.19.2",
+    "jsdom": "^31.0.1",
+    "oxfmt": "^0.79.0",
+    "oxlint": "^1.94.0",
+    "solid-js": "^2.0.3",
+    "tsdown": "^0.23.7",
+    "tsrs": "0.25.0-ts7.1.0-beta",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "packageManager": "pnpm@12.18.0"
 }

@@ -13,7 +13,7 @@ type LayerEntry = {
 const layerStack: LayerEntry[] = []
 
 function isTopLayer(id: symbol): boolean {
-  return layerStack.length > 0 && layerStack[layerStack.length - 1].id === id
+  return layerStack.at(-1)?.id === id
 }
 
 export function useDismissLayer(options: {

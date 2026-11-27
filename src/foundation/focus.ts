@@ -55,7 +55,7 @@ export function useFocusManagement(options: {
       }
       const focusables = getFocusableElements(container)
       if (focusables.length > 0) {
-        focusables[0].focus()
+        focusables[0]?.focus()
       } else {
         if (!container.hasAttribute("tabindex")) {
           container.setAttribute("tabindex", "-1")
@@ -80,12 +80,12 @@ export function useFocusManagement(options: {
       if (event.shiftKey) {
         if (activeEl === first || !container.contains(activeEl)) {
           event.preventDefault()
-          last.focus()
+          last?.focus()
         }
       } else {
         if (activeEl === last || !container.contains(activeEl)) {
           event.preventDefault()
-          first.focus()
+          first?.focus()
         }
       }
     }
