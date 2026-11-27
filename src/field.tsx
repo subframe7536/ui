@@ -64,6 +64,7 @@ export type FieldControlContextValue = {
   setLabelId: (id: string) => void
   hasLabel: () => boolean
   descriptionId: string
+  claimDescriptionId: () => string | undefined
   errorId: string
   name: () => string | undefined
   disabled: () => boolean
@@ -106,6 +107,7 @@ export function Field(
   const [hasDescription, setHasDescription] = createSignal(false)
   const [descriptionIds, setDescriptionIds] = createSignal<Array<string>>([])
   const ssrDescriptionIds: Array<string> = []
+  let defaultDescClaimed = false
   const [hasError, setHasError] = createSignal(false)
   const [dirty, setDirty] = createSignal(false)
   const [touched, setTouched] = createSignal(false)
@@ -172,6 +174,13 @@ export function Field(
         hasLabel: () => labelPresent,
 
         descriptionId,
+        claimDescriptionId: () => {
+          if (defaultDescClaimed) {
+            return undefined
+          }
+          defaultDescClaimed = true
+          return descriptionId
+        },
         errorId,
         name: () => props.name,
         disabled,
@@ -223,6 +232,7 @@ export function FieldLabel(props: PartProps<'label', FieldState>) {
     }
   return renderPart('label', props, state, {
     attrs: () => ({
+      'data-slot': 'field-label',
       id: props.id ?? ctx?.getLabelId(),
       for: (props as Record<string, unknown>).for ?? ctx?.getControlId(),
       'data-disabled': state().disabled ? '' : undefined,
@@ -250,7 +260,8 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
       dirty: false,
       touched: false,
     }
-  return renderPart('input', props, state, {
+  const rest = omit(props, 'aria-describedby')
+  return renderPart('input', rest, state, {
     attrs: () => ({
       id: props.id ?? ctx?.getControlId(),
       'aria-labelledby': ctx?.hasLabel() ? ctx.getLabelId() : undefined,
@@ -259,7 +270,14 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
       required: state().required || undefined,
       readonly: state().readOnly || undefined,
       'aria-invalid': state().invalid ? 'true' : undefined,
-      'aria-describedby': ctx?.describedBy(),
+      'aria-describedby': (() => {
+        const own = props['aria-describedby']
+        const fieldDesc =
+          ctx?.describedBy() ??
+          (typeof window === 'undefined' && ctx ? ctx.descriptionId : undefined)
+        const parts = [typeof own === 'string' ? own : undefined, fieldDesc].filter(Boolean)
+        return parts.length > 0 ? parts.join(' ') : undefined
+      })(),
       'data-invalid': state().invalid ? '' : undefined,
     }),
     handlers: {
@@ -271,7 +289,7 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
 
 export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
   const ctx = useContext(FieldContext)
-  const fallbackId = `ui-field-desc-${createUniqueId()}`
+  const fallbackId = ctx?.claimDescriptionId() ?? `ui-field-desc-${createUniqueId()}`
   const resolvedId = () => (typeof props.id === 'string' ? props.id : fallbackId)
   if (typeof window === 'undefined' && ctx) {
     untrack(() => {

@@ -1,4 +1,4 @@
-import { createSignal, omit } from 'solid-js'
+import { createSignal, merge, omit } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { useController } from './foundation/controller'
@@ -6,6 +6,7 @@ import { createChangeDetails } from './foundation/details'
 import type { ChangeOptions } from './foundation/details'
 import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
+import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { createInputController } from './input'
 import type {
@@ -109,11 +110,19 @@ export function Textarea(props: TextareaProps) {
     'invalid',
     'controller',
     'debug',
+    'autoResize',
     'submitOnEnter',
     'onSubmit',
   )
 
-  return renderPart('textarea', rest, state, {
+  const ssrRest = merge(rest, {
+    get children() {
+      return value()
+    },
+  })
+  const resolvedRest: PartProps<'textarea', TextareaState> =
+    typeof window === 'undefined' ? ssrRest : rest
+  return renderPart('textarea', resolvedRest, state, {
     ref: (el: HTMLTextAreaElement) => {
       elRef = el
     },
@@ -129,6 +138,7 @@ export function Textarea(props: TextareaProps) {
         'aria-invalid': s.invalid ? 'true' : undefined,
         'aria-describedby': field?.describedBy(),
         'data-slot': 'textarea',
+        'data-filled': value().length > 0 ? '' : undefined,
         'data-empty': s.empty ? '' : undefined,
         'data-focused': s.focused ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,

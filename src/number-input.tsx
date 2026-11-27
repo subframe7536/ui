@@ -401,6 +401,9 @@ export function NumberInput(
           }
         },
       })}
+      <Show when={props.name}>
+        <input type="hidden" name={props.name} form={props.form} value={value() ?? ''} />
+      </Show>
     </NumberInputContext>
   )
 }
@@ -437,7 +440,6 @@ export function NumberInputControl(
         spellcheck: false,
         role: 'spinbutton',
         value: s.inputValue,
-        name: ctx.name(),
         form: ctx.form(),
         disabled: s.disabled,
         readonly: s.readOnly,
