@@ -139,6 +139,7 @@ export type MenuItemState = {
 }
 
 export type MenuCheckboxItemProps = {
+  value?: string
   checked?: boolean
   defaultChecked?: boolean
   onCheckedChange?: (checked: boolean, details: MenuCheckedChangeDetails) => void
@@ -717,6 +718,7 @@ export function MenuCheckboxItem(
 
   const rest = omit(
     props,
+    'value',
     'checked',
     'defaultChecked',
     'onCheckedChange',
@@ -741,6 +743,7 @@ export function MenuCheckboxItem(
             'aria-checked': s.checked ? 'true' : 'false',
             'aria-disabled': s.disabled ? 'true' : undefined,
             'data-checked': s.checked ? '' : undefined,
+            'data-unchecked': !s.checked ? '' : undefined,
             'data-state': s.checked ? 'checked' : 'unchecked',
           }
         },
@@ -838,6 +841,7 @@ export function MenuRadioItem<T extends string = string>(
             'aria-checked': s.checked ? 'true' : 'false',
             'aria-disabled': s.disabled ? 'true' : undefined,
             'data-checked': s.checked ? '' : undefined,
+            'data-unchecked': !s.checked ? '' : undefined,
             'data-state': s.checked ? 'checked' : 'unchecked',
           }
         },
@@ -903,7 +907,9 @@ export function MenuItemIndicator(
       {renderPart('span', rest, state, {
         attrs: () => ({
           'aria-hidden': 'true',
+          'data-slot': 'menu-item-indicator',
           'data-checked': state().checked ? '' : undefined,
+          'data-unchecked': !state().checked ? '' : undefined,
         }),
       })}
     </Show>
