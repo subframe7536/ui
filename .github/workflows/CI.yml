@@ -7,6 +7,7 @@ on:
     paths:
       - 'src/**'
       - 'test/**'
+      - 'docs/**'
       - '.node-version'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -21,6 +22,7 @@ on:
     paths:
       - 'src/**'
       - 'test/**'
+      - 'docs/**'
       - '.node-version'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -31,6 +33,7 @@ on:
       - 'oxlint.config.ts'
       - 'oxfmt.config.ts'
       - '.github/workflows/CI.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read
