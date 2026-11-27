@@ -77,6 +77,7 @@ export function treeFromPaths(paths: Array<string>, separator = '/'): Array<Tree
       for (const child of node.children ?? []) {
         nextMap.set(child.value, child)
       }
+      // Keep direct reference to children array
       currentMap = {
         get: (k: string) => (node.children ?? []).find((c) => c.value === k),
         set: (_k: string, v: TreeItemData) => {
@@ -270,8 +271,7 @@ export type TreeItemProps<T extends string = string> = {
   disabled?: boolean
 }
 
-export type TreeItemPartProps = {}
-
+export type TreeItemPartProps = object
 export type TreeItemState = {
   value: string
   depth: number
@@ -501,7 +501,7 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
         toggleExpand,
         toggleCheck,
         setHighlighted,
-        onActivate: props.onActivate,
+        onActivate: (details) => props.onActivate?.(details),
       }}
     >
       {renderPart('div', rest, state, {
@@ -544,7 +544,7 @@ export function TreeItems(props: {
             </TreeItem>
           }
         >
-          {props.renderItem(row)}
+          {(render) => render()(row)}
         </Show>
       )}
     </For>
@@ -629,9 +629,10 @@ export function TreeGroup(
   const ctx = useTree('Group')
   const parent = useContext(TreeItemContext)
   const val = () => props.value ?? parent?.().value
-  const groupState = (): TreeGroupState => ({
-    expanded: val() ? ctx.isExpanded(val()!) : true,
-  })
+  const groupState = (): TreeGroupState => {
+    const v = val()
+    return { expanded: v ? ctx.isExpanded(v) : true }
+  }
   const rest = omit(props, 'value')
   return (
     <Show when={groupState().expanded}>

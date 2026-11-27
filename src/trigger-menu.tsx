@@ -60,9 +60,6 @@ export function textFieldAdapter(el: HTMLInputElement | HTMLTextAreaElement): Te
 export type TriggerMenuDataItem = { id?: string; value: string; label: string; disabled?: boolean }
 export type TriggerMenuDataGroup = { label: string; items: Array<TriggerMenuDataItem> }
 export type TriggerMenuData = Array<TriggerMenuDataItem | TriggerMenuDataGroup>
-export type ListItem = TriggerMenuDataItem
-export type ListSeparator = { type: 'separator' }
-export type ListFilter = (item: TriggerMenuDataItem, query: string) => boolean
 export type TriggerItemsLoader = (match: TriggerMatch) => TriggerMenuData | Promise<TriggerMenuData>
 
 export type TriggerRule = {
@@ -170,6 +167,9 @@ function findTriggerMatch(
   return null
 }
 
+/**
+ * Inline mention / slash-command trigger menu bound to a text input or editor.
+ */
 export function TriggerMenu(props: TriggerMenuProps) {
   const contentId = `ui-trigger-menu-${createUniqueId()}`
   const items = new Set<HTMLElement>()
@@ -282,7 +282,8 @@ export function TriggerMenu(props: TriggerMenuProps) {
     actions: {
       open: () => api.open(),
       close: () => api.close(),
-      setQuery: (q) => api.setQuery(String(q ?? '')),
+      setQuery: (q) =>
+        api.setQuery(typeof q === 'string' ? q : typeof q === 'number' ? String(q) : ''),
     },
   })
 

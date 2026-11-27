@@ -130,8 +130,7 @@ export type WaterfallRowProps = {
   hasChildren?: boolean
 }
 
-export type WaterfallRowPartProps = {}
-
+export type WaterfallRowPartProps = object
 export type WaterfallRowState = {
   value: string
   start: number
@@ -257,7 +256,10 @@ export function Waterfall(props: WaterfallProps) {
     getElements: () => [rootEl],
     getState: () => ({ value: value(), expanded: expanded(), min: min(), max: max() }),
     actions: {
-      select: (v) => api.setValue(v ? String(v) : null),
+      select: (v) =>
+        api.setValue(
+          v ? (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '') : null,
+        ),
     },
   })
 
@@ -329,8 +331,12 @@ export function WaterfallTick(
     text: ctx.formatTime(props.value),
   })
   const rest = omit(props, 'value')
-  const resolvedProps: PartProps<'span', WaterfallTimeState> =
-    props.children !== undefined ? rest : { ...rest, children: (s) => s.text }
+  const resolvedProps: PartProps<'span', WaterfallTimeState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s) => s.text)
+    },
+  }
   return renderPart('span', resolvedProps, tickState, {
     style: () => ({ position: 'absolute', left: `${tickState().percent}%` }),
   })

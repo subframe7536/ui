@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, useContext, Show } from 'solid-js'
+import { Show, createContext, createSignal, createUniqueId, For, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -207,15 +207,15 @@ export function TokenInput(props: TokenInputProps) {
     }
   }
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const commit = (
     next: TokenInputValue,
@@ -239,7 +239,7 @@ export function TokenInput(props: TokenInputProps) {
     }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: next,
@@ -327,12 +327,13 @@ export function TokenInput(props: TokenInputProps) {
     getState: () => ({ text: value().text, tokens: value().tokens.length, disabled: disabled() }),
     getDisabled: disabled,
     actions: {
-      setText: (t) => api.setText(String(t ?? '')),
+      setText: (t) =>
+        api.setText(typeof t === 'string' ? t : typeof t === 'number' ? String(t) : ''),
       submit: () => api.submit(),
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const rest = omit(
     props,
@@ -514,10 +515,12 @@ export function TokenInputToken(
     disabled: ctx.state().disabled,
   })
   const rest = omit(props, 'token')
-  const resolvedProps: PartProps<'span', TokenInputTokenState> =
-    props.children !== undefined
-      ? rest
-      : { ...rest, children: (s: TokenInputTokenState) => toLabel(s.token) }
+  const resolvedProps: PartProps<'span', TokenInputTokenState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s: TokenInputTokenState) => toLabel(s.token))
+    },
+  }
 
   return (
     <CurrentTokenContext value={getToken}>

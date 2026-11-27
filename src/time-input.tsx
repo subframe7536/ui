@@ -216,7 +216,10 @@ export function TimeInput(
     getState: () => ({ value: value(), disabled: disabled() }),
     getDisabled: disabled,
     actions: {
-      setValue: (v) => api.setValue(v ? String(v) : null),
+      setValue: (v) =>
+        api.setValue(
+          v ? (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '') : null,
+        ),
       clear: () => api.clear(),
     },
   })
@@ -280,8 +283,12 @@ export function TimeInputSegment(
     }
   }
   const rest = omit(props, 'segment')
-  const resolvedProps: PartProps<'span', TimeInputSegmentState> =
-    props.children !== undefined ? rest : { ...rest, children: (s) => s.text }
+  const resolvedProps: PartProps<'span', TimeInputSegmentState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s) => s.text)
+    },
+  }
 
   return renderPart('span', resolvedProps, segState, {
     attrs: () => {

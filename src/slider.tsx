@@ -188,15 +188,15 @@ export function Slider<T extends number | Array<number> = number>(
 
   const packValues = (arr: Array<number>): T => (isRange() ? (arr as T) : ((arr[0] ?? min()) as T))
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const updateValues = (
     arr: Array<number>,
@@ -216,7 +216,7 @@ export function Slider<T extends number | Array<number> = number>(
     }
     setRawValue(packed)
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: packed,
@@ -281,7 +281,7 @@ export function Slider<T extends number | Array<number> = number>(
       setValue: (v) => api.setValue(v as T),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const formatValue = (v: number): string => {
     if (!props.format && !props.locale) {
@@ -546,8 +546,12 @@ export function SliderValue(props: PartProps<'output', SliderValueState>) {
     }
   }
 
-  const resolvedProps: PartProps<'output', SliderValueState> =
-    props.children !== undefined ? props : { ...props, children: (s: SliderValueState) => s.text }
+  const resolvedProps: PartProps<'output', SliderValueState> = {
+    ...props,
+    get children() {
+      return props.children ?? ((s: SliderValueState) => s.text)
+    },
+  }
 
   return renderPart('output', resolvedProps, valueState, {
     attrs: () => ({
