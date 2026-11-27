@@ -1,5 +1,5 @@
 {
-  "name": "@subframe7536/ui",
+  "name": "@subf/ui",
   "version": "0.1.0",
   "description": "SolidJS 2 native UI SDK — API-compatible with @ui-sdk/solid, built directly on Solid 2 signals without a framework-agnostic kernel.",
   "keywords": [

@@ -1,6 +1,10 @@
-# Full Component Alignment Roadmap (`@ui-sdk/solid` Parity — Complete)
+# Full Component Alignment Roadmap (`@subf/ui` — `@ui-sdk/solid` Parity Complete)
 
-This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github.com/vercel-labs/ui) (`@ui-sdk/solid`) using pure SolidJS 2 signals and zero `@ui-sdk/core` dependency. **All 5 phases (56 component modules + foundation/observe/agent) are implemented.**
+This roadmap tracks full interface parity with [`vercel-labs/ui`](https://github.com/vercel-labs/ui) (`@ui-sdk/solid`) using pure SolidJS 2 signals and zero `@ui-sdk/core` dependency.
+
+- **Upstream Submodule**: `ref/ui-sdk` (`https://github.com/vercel-labs/ui.git`)
+- **Pinned Baseline Commit**: [`ce26b934e0b3bec982e055340ed9c47574030bf3`](https://github.com/vercel-labs/ui/commit/ce26b934e0b3bec982e055340ed9c47574030bf3)
+- **Status**: **All 5 phases (56 component modules + foundation/observe/agent) are implemented.**
 
 ## Phase 1 — Foundation, Agent/Observe & Core Primitives (Implemented)
 

@@ -23,11 +23,11 @@ import {
   TabsList,
   TabsPanel,
   TabsTab,
-} from '@subframe7536/ui'
-import { createAgent } from '@subframe7536/ui/agent'
-import { DatePicker, DatePickerInput, DatePickerTrigger } from '@subframe7536/ui/date-picker'
-import { observe } from '@subframe7536/ui/observe'
-import { createControlledSignal } from '@subframe7536/ui/primitive'
+} from '@subf/ui'
+import { createAgent } from '@subf/ui/agent'
+import { DatePicker, DatePickerInput, DatePickerTrigger } from '@subf/ui/date-picker'
+import { observe } from '@subf/ui/observe'
+import { createControlledSignal } from '@subf/ui/primitive'
 
 export function ConsumerSmoke() {
   const _checkAgent: typeof createAgent = createAgent

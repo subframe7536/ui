@@ -1,0 +1,3 @@
+[submodule "ref/ui-sdk"]
+	path = ref/ui-sdk
+	url = https://github.com/vercel-labs/ui.git
