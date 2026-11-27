@@ -2,6 +2,7 @@ import type { JSX } from '@solidjs/web'
 import {
   Show,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   createUniqueId,
@@ -82,6 +83,7 @@ export type MenuOptions<Payload = unknown> = PortalProps & {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<MenuOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   loop?: boolean
   modal?: boolean
   closeOnEscape?: boolean
@@ -313,6 +315,14 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   useDismissLayer({
     active: open,

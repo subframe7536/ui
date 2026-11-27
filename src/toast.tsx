@@ -29,12 +29,14 @@ export type ToastDismissDetails = {
 
 export type ToastActionData = {
   label: string
-  onClick: (details: ToastActionDetails) => unknown
+  onClick?: (details: ToastActionDetails) => unknown
+  onAction?: (event: Event | undefined, details: ToastActionDetails) => unknown
 }
 
 export type ToastCancel = {
   label: string
   onClick?: () => void
+  onCancel?: (event: Event | undefined, details: ToastActionDetails) => unknown
 }
 
 export type ToastOptions = {
@@ -302,7 +304,42 @@ export function ToastRegion(props: ToastRegionProps) {
                   dismiss: (reason) => toaster().dismiss(item.id, reason),
                 }}
               >
-                {typeof renderChild === 'function' ? renderChild(item) : null}
+                <Show
+                  when={typeof renderChild === 'function'}
+                  fallback={
+                    <Toast toast={item}>
+                      <Show when={item.title}>
+                        <ToastTitle>{item.title}</ToastTitle>
+                      </Show>
+                      <Show when={item.description}>
+                        <ToastDescription>{item.description}</ToastDescription>
+                      </Show>
+                      <Show when={item.action}>
+                        {(act) => <ToastAction>{act().label}</ToastAction>}
+                      </Show>
+                      <Show when={item.cancel}>
+                        {(can) => (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              const source = inferSource(event)
+                              if (can().onCancel) {
+                                can().onCancel?.(event, { source })
+                              } else {
+                                can().onClick?.()
+                              }
+                              toaster().dismiss(item.id, 'close-press')
+                            }}
+                          >
+                            {can().label}
+                          </button>
+                        )}
+                      </Show>
+                    </Toast>
+                  }
+                >
+                  {typeof renderChild === 'function' ? renderChild(item) : null}
+                </Show>
               </ToastItemContext>
             )}
           </For>
@@ -411,12 +448,17 @@ export function ToastAction(
         if (pending()) {
           return
         }
-        const fn = props.action ?? ctx?.item().action?.onClick
+        const itemAction = ctx?.item().action
+        const fn = props.action ?? itemAction?.onAction ?? itemAction?.onClick
         if (!fn) {
           return
         }
+        const wrapped = (details: ToastActionDetails) =>
+          itemAction?.onAction && fn === itemAction.onAction
+            ? itemAction.onAction(event, details)
+            : (fn as (d: ToastActionDetails) => unknown)(details)
         setError(undefined)
-        runAction(fn, inferSource(event), {
+        runAction(wrapped, inferSource(event), {
           pending: setPending,
           done: () => ctx?.dismiss('close-press'),
           failed: setError,
