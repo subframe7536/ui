@@ -119,7 +119,8 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.8.0"
+    "@floating-ui/dom": "^1.8.0",
+    "@formisch/solid": "^1.3.0"
   },
   "peerDependencies": {
     "@solidjs/web": "^2.0.3",
