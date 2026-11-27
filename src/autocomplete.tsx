@@ -1,6 +1,5 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import { For, Show, createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -10,7 +9,7 @@ import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { SafePortal, renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { defaultListFilter } from './listbox'
@@ -160,6 +159,8 @@ type AutocompleteContextValue = {
   registerOption: (opt: RegisteredAutocompleteOption) => () => void
   getOptions: () => Array<RegisteredAutocompleteOption>
   placeholder: () => string | undefined
+  name: () => string | undefined
+  required: () => boolean
   items: () => ListData | undefined
   inputEl: () => HTMLInputElement | null
   setInputEl: (el: HTMLInputElement | null) => void
@@ -356,6 +357,8 @@ export function Autocomplete(props: AutocompleteProps) {
         registerOption,
         getOptions: () => optionList,
         placeholder: () => props.placeholder,
+        name: () => props.name ?? field?.name(),
+        required: () => !!props.required || !!field?.required(),
         items: () => props.items,
         inputEl,
         setInputEl,
@@ -393,6 +396,8 @@ export function AutocompleteInput(
         autocomplete: 'off',
         value: s.value,
         placeholder: props.placeholder ?? ctx.placeholder(),
+        name: props.name ?? ctx.name(),
+        required: props.required ?? (ctx.required() || undefined),
         disabled: s.disabled,
         readonly: s.readOnly,
         'aria-expanded': s.open ? 'true' : 'false',
@@ -522,7 +527,7 @@ export function AutocompleteContent(
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <Portal mount={props.container ?? undefined}>
+      <SafePortal mount={props.container ?? undefined}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
@@ -534,7 +539,7 @@ export function AutocompleteContent(
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }

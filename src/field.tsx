@@ -228,7 +228,7 @@ export function FieldControl(props: PartProps<'input', FieldState>) {
 export function FieldDescription(props: PartProps<'p', FieldDescriptionState>) {
   const ctx = useContext(FieldContext)
   const fallbackId = `ui-field-desc-${createUniqueId()}`
-  const resolvedId = () => props.id ?? fallbackId
+  const resolvedId = () => (typeof props.id === 'string' ? props.id : fallbackId)
   onSettled(() => {
     const id = resolvedId()
     return ctx?.registerDescription(id)

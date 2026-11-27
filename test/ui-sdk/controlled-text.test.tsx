@@ -1,5 +1,5 @@
 import { render } from '@solidjs/web'
-import { createSignal, flush } from 'solid-js'
+import { createSignal, flush, untrack } from 'solid-js'
 import { expect, it } from 'vitest'
 
 import { Field, FieldLabel } from '../../src/field'
@@ -53,7 +53,7 @@ it('a controlled input shows what its parent accepts', async () => {
   for (const text of ['a', 'ab', 'abc', 'abcd']) {
     await type(input, text)
   }
-  expect(value()).toBe('abc')
+  expect(untrack(value)).toBe('abc')
   expect(input.value).toBe('abc')
   dispose()
 })
@@ -70,7 +70,7 @@ it('a controlled input with a render keeps its element as the text changes', asy
   ))
   const input = root.querySelector('input')!
   await type(input, 'ab')
-  expect(value()).toBe('ab')
+  expect(untrack(value)).toBe('ab')
   expect(root.querySelector('input')).toBe(input)
   dispose()
 })
