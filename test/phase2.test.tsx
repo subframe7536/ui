@@ -187,7 +187,7 @@ describe('triggerMenu, NavigationMenu, Toast, Overlays & Toolbar', () => {
       </TriggerMenu>
     ))
 
-    const input = root.querySelector('input')!
+    const input = root.querySelector('textarea')!
     input.value = 'Hi @al'
     input.setSelectionRange(6, 6)
     input.dispatchEvent(new Event('input', { bubbles: true }))
