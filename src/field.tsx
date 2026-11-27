@@ -67,7 +67,7 @@ const FieldContext = createContext<FieldControlContextValue | null>(null)
 const FieldSetContext = createContext<() => boolean>(() => false)
 
 /**
- * Reads the nearest `<Field>` context for form controls (including `@formisch/solid` bindings).
+ * Reads the nearest `<Field>` context for form controls.
  * @stable
  */
 export function useFieldControl(): FieldControlContextValue | null {

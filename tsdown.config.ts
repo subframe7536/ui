@@ -166,7 +166,7 @@ export default defineConfig([
     unbundle: true,
     clean: true,
     deps: {
-      neverBundle: ['solid-js', '@solidjs/web', '@floating-ui/dom', '@formisch/solid'],
+      neverBundle: ['solid-js', '@solidjs/web', '@floating-ui/dom'],
     },
     dts: {
       generator: 'tsrs',
@@ -179,7 +179,7 @@ export default defineConfig([
     clean: false,
     platform: 'neutral',
     deps: {
-      neverBundle: ['solid-js', '@solidjs/web', '@floating-ui/dom', '@formisch/solid'],
+      neverBundle: ['solid-js', '@solidjs/web', '@floating-ui/dom'],
     },
     outExtensions: () => ({ js: '.jsx' }),
     dts: false,
