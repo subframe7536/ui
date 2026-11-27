@@ -11,7 +11,12 @@ import {
 } from 'solid-js'
 
 import { useFieldControl } from './field'
-import { createController, useController } from './foundation/controller'
+import {
+  createController,
+  useController,
+  useControllerEntry,
+  useControllerTarget,
+} from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
 import type { ChangeDetails, ChangeOptions } from './foundation/details'
 import { registerComponent } from './foundation/registry'
@@ -124,6 +129,7 @@ export type FileInputDropzoneState = FileInputState & {
 }
 
 export type FileInputTriggerProps = {
+  controller?: FileInputController
   disabled?: boolean
 }
 
@@ -429,17 +435,17 @@ export function FileInput(
     ),
   })
 
+  const fiCtx: FileInputContextValue = {
+    id,
+    state,
+    api,
+    setDragging,
+    openPicker: () => api.open(),
+    field,
+  }
+  useControllerEntry(() => props.controller, fiCtx)
   return (
-    <FileInputContext
-      value={{
-        id,
-        state,
-        api,
-        setDragging,
-        openPicker: () => api.open(),
-        field,
-      }}
-    >
+    <FileInputContext value={fiCtx}>
       {renderPart('div', combinedProps, state, {
         ref: (el) => {
           rootEl = el
@@ -546,24 +552,40 @@ export function FileInputDropzone(
 
 export function FileInputTrigger(
   props: FileInputTriggerProps &
-    Omit<PartProps<'button', FileInputState>, keyof FileInputTriggerProps>,
+    Omit<PartProps<'button', FileInputState>, keyof FileInputTriggerProps | 'type'>,
 ) {
-  const ctx = useFileInput('Trigger')
-  const rest = omit(props, 'disabled')
-  return renderPart('button', rest, ctx.state, {
+  const directCtx = useContext(FileInputContext)
+  const target = useControllerTarget<FileInputContextValue>(() => props.controller, directCtx)
+  const fallbackState: FileInputState = {
+    files: [],
+    count: 0,
+    empty: true,
+    dragging: false,
+    disabled: false,
+    readOnly: false,
+    invalid: false,
+    canAddMore: true,
+  }
+  const state = () => target()?.state() ?? fallbackState
+  const rest = omit(props, 'disabled', 'controller')
+  return renderPart('button', rest, state, {
     attrs: () => {
-      const s = ctx.state()
+      const s = state()
       const isDisabled = !!props.disabled || s.disabled || s.readOnly || !s.canAddMore
       return {
-        id: props.id ?? ctx.id,
+        id: props.id ?? target()?.id,
         type: 'button',
-        disabled: isDisabled,
+        disabled: isDisabled || undefined,
         'data-slot': 'file-input-trigger',
         'data-disabled': isDisabled ? '' : undefined,
       }
     },
     handlers: {
-      onClick: () => ctx.openPicker(),
+      onClick: () => {
+        if (!props.disabled && !state().disabled) {
+          target()?.api.open()
+        }
+      },
     },
   })
 }

@@ -201,10 +201,31 @@ export function Drawer<Payload = unknown, Result = string>(props: DrawerProps<Pa
     value: () => props.open,
     defaultValue: () => !!props.defaultOpen,
   })
-  const [snapPoint, setSnapPoint] = createControlledSignal<SnapPoint | undefined>({
-    value: () => props.snapPoint,
-    defaultValue: () => props.defaultSnapPoint ?? props.snapPoints?.[0],
-  })
+  const [userSnap, setUserSnap] = createSignal<SnapPoint | undefined>(undefined)
+  const snapPoint = (): SnapPoint | undefined => {
+    if (props.snapPoint !== undefined) {
+      return props.snapPoint
+    }
+    const explicit = userSnap()
+    if (explicit !== undefined) {
+      const list = props.snapPoints
+      if (!list || list.length === 0 || list.includes(explicit)) {
+        return explicit
+      }
+    }
+    if (props.defaultSnapPoint !== undefined) {
+      return props.defaultSnapPoint
+    }
+    if (props.snapPoints && props.snapPoints.length > 0) {
+      return props.snapPoints[0]
+    }
+    return 'content' as SnapPoint
+  }
+  const setSnapPoint = (next: SnapPoint | undefined) => {
+    if (props.snapPoint === undefined) {
+      setUserSnap(next)
+    }
+  }
   const [payload, setPayload] = createSignal<Payload | undefined>(
     untrack(() => props.payload) as never,
   )
@@ -451,6 +472,7 @@ export function DrawerBackdrop(props: PartProps<'div', DrawerBackdropState>) {
             'data-open': ctx.open() ? '' : undefined,
             'data-state': ctx.open() ? 'open' : 'closed',
             'data-side': ctx.side(),
+            'data-snap-point': ctx.snapPoint() !== undefined ? String(ctx.snapPoint()) : undefined,
           }),
         })}
       </SafePortal>
@@ -543,6 +565,7 @@ export function DrawerHandle(props: PartProps<'button', DrawerHandleState>) {
     attrs: () => ({
       type: 'button',
       'data-side': ctx.side(),
+      'data-snap-point': ctx.snapPoint() !== undefined ? String(ctx.snapPoint()) : undefined,
     }),
     handlers: {
       onClick: (event: MouseEvent) => ctx.cycleSnapPoint(event),
@@ -557,6 +580,7 @@ export function DrawerOutlet(props: DrawerOutletProps & PartProps<'div', DrawerO
     attrs: () => ({
       'data-open': ctx.open() ? '' : undefined,
       'data-side': ctx.side(),
+      'data-snap-point': ctx.snapPoint() !== undefined ? String(ctx.snapPoint()) : undefined,
     }),
   })
 }
