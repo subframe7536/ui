@@ -2,6 +2,7 @@ import type { JSX } from '@solidjs/web'
 import {
   Show,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   createUniqueId,
@@ -121,7 +122,8 @@ type TooltipContextValue = {
   type: () => 'description' | 'label'
   payload: () => unknown
   container: () => HTMLElement | null | undefined
-  contentId: string
+  contentId: () => string
+  setCustomContentId: (id: string | undefined) => void
   scheduleOpen: (payload: unknown, reason: TooltipOpenChangeReason, event?: Event) => void
   scheduleClose: (reason: TooltipOpenChangeReason, event?: Event) => void
   closeImmediate: (reason: TooltipOpenChangeReason, event?: Event) => void
@@ -154,7 +156,9 @@ function useTooltipContext(part: string): TooltipContextValue {
  * A small floating label describing a trigger on hover or focus.
  */
 export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
-  const contentId = `ui-tooltip-${createUniqueId()}-content`
+  const defaultContentId = `ui-tooltip-${createUniqueId()}-content`
+  const [customContentId, setCustomContentId] = createSignal<string | undefined>(undefined)
+  const contentId = () => customContentId() ?? defaultContentId
 
   const [open, setOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -298,6 +302,7 @@ export function Tooltip<Payload = unknown>(props: TooltipProps<Payload>) {
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
+    setCustomContentId,
     scheduleOpen,
     scheduleClose,
     closeImmediate: (reason, event) => {
@@ -351,8 +356,12 @@ export function TooltipTrigger<Payload = unknown>(
           const isLabel = ctx?.type() === 'label'
           return {
             type: 'button',
-            'aria-describedby': isLabel ? undefined : ctx?.contentId,
-            'aria-labelledby': isLabel ? ctx?.contentId : undefined,
+            'aria-describedby': isLabel
+              ? undefined
+              : s.open || typeof window === 'undefined'
+                ? ctx?.contentId()
+                : undefined,
+            'aria-labelledby': isLabel ? ctx?.contentId() : undefined,
             'aria-keyshortcuts': formatAriaKeyShortcuts(shortcutVal),
             'data-open': s.open ? '' : undefined,
             'data-closed': !s.open ? '' : undefined,
@@ -392,6 +401,13 @@ export function TooltipContent<Payload = unknown>(
     Omit<PartProps<'div', TooltipContentState<Payload>>, keyof TooltipContentProps>,
 ) {
   const ctx = useTooltipContext('Content')
+  createEffect(
+    () => (typeof props.id === 'string' ? props.id : undefined),
+    (id) => {
+      ctx.setCustomContentId(id)
+      return () => ctx.setCustomContentId(undefined)
+    },
+  )
   const rest = omit(
     props,
     'container',
@@ -438,7 +454,7 @@ export function TooltipContent<Payload = unknown>(
         const open = ctx.open()
         return {
           role: 'tooltip',
-          id: props.id ?? ctx.contentId,
+          id: props.id ?? ctx.contentId(),
           hidden: open ? undefined : true,
           'data-open': open ? '' : undefined,
           'data-closed': !open ? '' : undefined,

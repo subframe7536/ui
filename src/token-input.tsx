@@ -185,7 +185,33 @@ export const defaultCodec: TokenCodec = {
 }
 
 export function fromText(text: string): TokenInputValue {
-  return { text, tokens: [] }
+  const tokens: Array<Token> = []
+  const segments: Array<string | Token> = []
+  const re = /\[@([^\]]+)\]\(([^:)]+):([^)]+)\)/g
+  let lastIndex = 0
+  let plainText = ''
+  let seq = 0
+  for (const match of text.matchAll(re)) {
+    const idx = match.index ?? 0
+    if (idx > lastIndex) {
+      const before = text.slice(lastIndex, idx)
+      plainText += before
+      segments.push(before)
+    }
+    const label = match[1] ?? ''
+    const type = match[2] ?? ''
+    const value = match[3] ?? label
+    const tok: Token = { id: `tok-${++seq}`, label, value, type }
+    tokens.push(tok)
+    segments.push(tok)
+    lastIndex = idx + match[0].length
+  }
+  if (lastIndex < text.length) {
+    const rest = text.slice(lastIndex)
+    plainText += rest
+    segments.push(rest)
+  }
+  return { text: plainText, tokens, segments: tokens.length > 0 ? segments : undefined }
 }
 
 export function toLabel(token: Pick<Token, 'label' | 'value'>): string {
@@ -208,6 +234,7 @@ type TokenInputContextValue = {
   state: () => TokenInputEditorState
   api: TokenInputApi
   placeholder: () => string | undefined
+  renderToken: () => ((token: Token) => JSX.Element) | undefined
   multiline: () => boolean
   setFocused: (v: boolean) => void
   registerEditor: (el: HTMLInputElement | HTMLTextAreaElement | null) => void
@@ -400,6 +427,7 @@ export function TokenInput(props: TokenInputProps) {
     'onSubmit',
     'renderToken',
     'codec',
+    'renderToken',
     'undo',
     'multiline',
     'disabled',
@@ -418,6 +446,7 @@ export function TokenInput(props: TokenInputProps) {
         state,
         api,
         placeholder: () => props.placeholder,
+        renderToken: () => props.renderToken,
         multiline: () => !!props.multiline,
         setFocused,
         registerEditor: (el) => {
@@ -528,7 +557,18 @@ export function TokenInputEditor(
             <For each={ctx.state().tokens}>
               {(token) => (
                 <CurrentTokenContext value={() => token}>
-                  {typeof props.children === 'function' ? props.children(token) : props.children}
+                  <span data-slot="token-input-host">
+                    {(() => {
+                      const renderFn = ctx.renderToken()
+                      if (renderFn) {
+                        return renderFn(token)
+                      }
+                      return typeof props.children === 'function'
+                        ? props.children(token)
+                        : (props.children ?? toLabel(token))
+                    })()}
+                    {token.type ? ` ${token.type}` : ''}
+                  </span>
                 </CurrentTokenContext>
               )}
             </For>
@@ -656,6 +696,7 @@ export function TokenInputToken(
         attrs: () => {
           const s = tokenState()
           return {
+            'data-slot': 'token-input-token',
             'data-token-id': s.token.id,
             'data-disabled': s.disabled ? '' : undefined,
           }

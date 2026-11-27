@@ -1,6 +1,15 @@
 import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, omit, Show, useContext } from 'solid-js'
+import {
+  createContext,
+  createSignal,
+  createUniqueId,
+  omit,
+  For,
+  Show,
+  useContext,
+  onSettled,
+} from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -133,7 +142,10 @@ type TriggerMenuContextValue = {
   setContentEl: (el: HTMLElement) => void
   registerItem: (el: HTMLElement) => void
   getItems: () => Array<HTMLElement>
+  triggers: () => Array<string | TriggerDefinition> | undefined
+  registerExplicitContent: () => () => void
 }
+const AutoTriggerMenuContentContext = createContext(false)
 
 const TriggerMenuContext = createContext<TriggerMenuContextValue | null>(null)
 
@@ -188,6 +200,8 @@ export function TriggerMenu(props: TriggerMenuProps) {
     undefined,
   )
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
+  const [explicitContentCount, setExplicitContentCount] = createSignal(0)
+  let ssrExplicitContent = false
 
   const triggerChars = (): Array<string> => {
     if (!props.triggers || props.triggers.length === 0) {
@@ -305,9 +319,99 @@ export function TriggerMenu(props: TriggerMenuProps) {
         setContentEl: (el) => setContentEl(el),
         registerItem: (el) => items.add(el),
         getItems: () => Array.from(items).filter((el) => el.isConnected),
+        triggers: () => props.triggers,
+        registerExplicitContent: () => {
+          if (typeof window === 'undefined') {
+            ssrExplicitContent = true
+            return () => {}
+          }
+          setExplicitContentCount((c) => c + 1)
+          return () => setExplicitContentCount((c) => Math.max(0, c - 1))
+        },
       }}
     >
       {props.children}
+      <Show
+        when={
+          props.triggers &&
+          props.triggers.length > 0 &&
+          explicitContentCount() === 0 &&
+          !ssrExplicitContent
+        }
+      >
+        <AutoTriggerMenuContentContext value={true}>
+          <TriggerMenuContent>
+            <TriggerMenuList>
+              <For
+                each={(() => {
+                  const m = match()
+                  const active = m
+                    ? props.triggers?.find(
+                        (t): t is TriggerDefinition =>
+                          typeof t !== 'string' &&
+                          (t.char === m.trigger || t.trigger === m.trigger),
+                      )
+                    : props.triggers?.[0]
+                  const rawItems =
+                    active && typeof active !== 'string' && Array.isArray(active.items)
+                      ? active.items
+                      : []
+                  return rawItems
+                })()}
+              >
+                {(entry) => (
+                  <Show
+                    when={typeof entry === 'string' || !('items' in entry)}
+                    fallback={
+                      <TriggerMenuGroup>
+                        <TriggerMenuGroupLabel>
+                          {(entry as TriggerMenuDataGroup).label}
+                        </TriggerMenuGroupLabel>
+                        <For each={(entry as TriggerMenuDataGroup).items}>
+                          {(sub) => (
+                            <TriggerMenuItem
+                              value={typeof sub === 'string' ? sub : sub.value}
+                              disabled={typeof sub === 'string' ? undefined : sub.disabled}
+                            >
+                              <Show
+                                when={typeof sub === 'string'}
+                                fallback={sub.label ?? sub.value}
+                              >
+                                {sub}
+                              </Show>
+                            </TriggerMenuItem>
+                          )}
+                        </For>
+                      </TriggerMenuGroup>
+                    }
+                  >
+                    <TriggerMenuItem
+                      value={
+                        typeof entry === 'string' ? entry : (entry as TriggerMenuDataItem).value
+                      }
+                      disabled={
+                        typeof entry === 'string'
+                          ? undefined
+                          : (entry as TriggerMenuDataItem).disabled
+                      }
+                    >
+                      <Show
+                        when={typeof entry === 'string'}
+                        fallback={
+                          (entry as TriggerMenuDataItem).label ??
+                          (entry as TriggerMenuDataItem).value
+                        }
+                      >
+                        {entry}
+                      </Show>
+                    </TriggerMenuItem>
+                  </Show>
+                )}
+              </For>
+            </TriggerMenuList>
+          </TriggerMenuContent>
+        </AutoTriggerMenuContentContext>
+      </Show>
     </TriggerMenuContext>
   )
 }
@@ -346,6 +450,14 @@ export function TriggerMenuContent(
     Omit<PartProps<'div', TriggerMenuContentState>, keyof TriggerMenuContentProps>,
 ) {
   const ctx = useTriggerMenu('Content')
+  const isAuto = useContext(AutoTriggerMenuContentContext)
+  if (!isAuto) {
+    if (typeof window === 'undefined') {
+      ctx.registerExplicitContent()
+    } else {
+      onSettled(() => ctx.registerExplicitContent())
+    }
+  }
   const rest = omit(
     props,
     'container',
