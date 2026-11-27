@@ -375,6 +375,7 @@ export function OTPInputSlot(
     attrs: () => {
       const s = slotState()
       return {
+        'data-slot': 'otp-input-slot',
         'data-slot-index': s.index,
         'data-active': s.active ? '' : undefined,
         'data-caret': s.caret ? '' : undefined,

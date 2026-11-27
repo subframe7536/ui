@@ -41,6 +41,7 @@ export type AccordionOptions<T extends string = string> = {
   collapsible?: boolean
   disabled?: boolean
   orientation?: Orientation
+  hiddenUntilFound?: boolean
   loop?: boolean
   controller?: AccordionController<T>
   debug?: boolean
@@ -79,6 +80,7 @@ type AccordionContextValue = {
   openFromFind: (value: string, event?: Event) => void
   disabled: () => boolean
   orientation: () => Orientation
+  hiddenUntilFound: () => boolean
   loop: () => boolean
   registerTrigger: (el: HTMLElement) => void
   getTriggers: () => Array<HTMLElement>
@@ -254,6 +256,7 @@ export function Accordion<T extends string = string>(
     'collapsible',
     'disabled',
     'orientation',
+    'hiddenUntilFound',
     'loop',
     'controller',
     'debug',
@@ -267,6 +270,7 @@ export function Accordion<T extends string = string>(
         openFromFind: (v, event) => openItem(v as T, 'find-in-page', event),
         disabled: isDisabled,
         orientation,
+        hiddenUntilFound: () => !!props.hiddenUntilFound,
         loop: () => props.loop ?? true,
         registerTrigger: (el) => triggers.add(el),
         getTriggers: () => Array.from(triggers).filter((el) => el.isConnected),
@@ -412,7 +416,8 @@ export function AccordionPanel(
   const accordion = useAccordion('Panel')
   const item = useAccordionItem('Panel')
   const rest = omit(props, 'keepMounted', 'hiddenUntilFound')
-  const shouldRender = () => item.state().open || !!props.keepMounted || !!props.hiddenUntilFound
+  const isFindable = () => !!props.hiddenUntilFound || accordion.hiddenUntilFound()
+  const shouldRender = () => item.state().open || !!props.keepMounted || isFindable()
 
   return (
     <Show when={shouldRender()}>
@@ -423,7 +428,7 @@ export function AccordionPanel(
             role: 'region',
             id: props.id ?? item.panelId,
             'aria-labelledby': item.triggerId,
-            hidden: s.open ? undefined : props.hiddenUntilFound ? 'until-found' : true,
+            hidden: s.open ? undefined : isFindable() ? 'until-found' : true,
             'data-open': s.open ? '' : undefined,
             'data-closed': !s.open ? '' : undefined,
             'data-state': s.open ? 'open' : 'closed',

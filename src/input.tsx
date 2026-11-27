@@ -1,4 +1,4 @@
-import { createContext, createSignal, omit, Show, useContext } from 'solid-js'
+import { Show, createContext, createSignal, omit, useContext } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -63,6 +63,7 @@ export type InputGroupState = {
 export type TextareaSubmitDetails = { value: string; event: KeyboardEvent }
 
 export type TextareaOptions = InputOptions & {
+  autoResize?: boolean
   submitOnEnter?: boolean
   onSubmit?: (details: TextareaSubmitDetails) => void
 }
@@ -131,6 +132,7 @@ export function InputGroup(
         attrs: () => {
           const s = state()
           return {
+            'data-slot': 'input-group',
             'data-empty': s.empty ? '' : undefined,
             'data-focused': s.focused ? '' : undefined,
             'data-disabled': s.disabled ? '' : undefined,
@@ -231,6 +233,8 @@ export function Input(props: InputProps) {
 
   const rest = omit(
     props,
+    'name',
+    'aria-describedby',
     'value',
     'defaultValue',
     'onValueChange',
@@ -255,8 +259,18 @@ export function Input(props: InputProps) {
         disabled: s.disabled || undefined,
         readonly: s.readOnly || undefined,
         required: s.required || undefined,
+        'aria-labelledby': field?.hasLabel() ? field.getLabelId() : undefined,
         'aria-invalid': s.invalid ? 'true' : undefined,
-        'aria-describedby': field?.describedBy(),
+        'aria-describedby': (() => {
+          const own = props['aria-describedby']
+          const fieldDesc =
+            field?.describedBy() ??
+            (typeof window === 'undefined' && field ? field.descriptionId : undefined)
+          const parts = [typeof own === 'string' ? own : undefined, fieldDesc].filter(Boolean)
+          return parts.length > 0 ? parts.join(' ') : undefined
+        })(),
+        'data-slot': 'input',
+        'data-filled': value().length > 0 ? '' : undefined,
         'data-empty': s.empty ? '' : undefined,
         'data-focused': s.focused ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,
@@ -267,6 +281,9 @@ export function Input(props: InputProps) {
       onInput: (event: Event) => {
         const target = event.currentTarget as HTMLInputElement
         applyValue(target.value, 'input-change', event)
+        if (props.value !== undefined && target.value !== props.value) {
+          target.value = props.value
+        }
       },
       onFocus: () => setFocused(true),
       onBlur: () => {
@@ -289,7 +306,7 @@ export function InputClear(props: Omit<PartProps<'button', InputGroupState>, 'ty
     invalid: group.invalid(),
   })
   return (
-    <Show when={!state().empty}>
+    <Show when={typeof window !== 'undefined' && !state().empty}>
       {renderPart('button', props, state, {
         attrs: () => ({
           type: 'button',

@@ -17,6 +17,7 @@ export type ProgressOptions = {
   value?: number | null
   min?: number
   max?: number
+  locale?: string
   format?: NumberFormat
   getValueLabel?: (details: GaugeLabelDetails) => string
   debug?: boolean
@@ -86,12 +87,13 @@ export function Progress(
     if (s.percent === null) {
       return ''
     }
-    return new Intl.NumberFormat(undefined, props.format ?? { style: 'percent' }).format(
+    const locale = props.locale ?? (typeof document === 'undefined' ? 'en' : undefined)
+    return new Intl.NumberFormat(locale, props.format ?? { style: 'percent' }).format(
       s.percent / 100,
     )
   }
 
-  const rest = omit(props, 'value', 'min', 'max', 'format', 'getValueLabel', 'debug')
+  const rest = omit(props, 'value', 'min', 'max', 'locale', 'format', 'getValueLabel', 'debug')
 
   return (
     <ProgressContext value={{ state, labelId, formattedValue }}>
@@ -100,6 +102,7 @@ export function Progress(
           const s = state()
           return {
             role: 'progressbar',
+            'data-slot': 'progress',
             'aria-valuemin': s.min,
             'aria-valuemax': s.max,
             'aria-valuenow': s.value ?? undefined,
@@ -110,6 +113,10 @@ export function Progress(
             'data-complete': s.status === 'complete' ? '' : undefined,
           }
         },
+        style: () => {
+          const pct = state().percent
+          return pct === null ? undefined : { '--progress-value': `${pct}%` }
+        },
       })}
     </ProgressContext>
   )
@@ -118,14 +125,14 @@ export function Progress(
 export function ProgressTrack(props: PartProps<'div', ProgressState>) {
   const ctx = useProgress('Track')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ 'data-status': ctx.state().status }),
+    attrs: () => ({ 'data-slot': 'progress-track', 'data-status': ctx.state().status }),
   })
 }
 
 export function ProgressIndicator(props: PartProps<'div', ProgressState>) {
   const ctx = useProgress('Indicator')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ 'data-status': ctx.state().status }),
+    attrs: () => ({ 'data-slot': 'progress-indicator', 'data-status': ctx.state().status }),
     style: () => {
       const pct = ctx.state().percent
       return pct === null ? undefined : { width: `${pct}%` }
@@ -136,7 +143,7 @@ export function ProgressIndicator(props: PartProps<'div', ProgressState>) {
 export function ProgressLabel(props: PartProps<'span', ProgressState>) {
   const ctx = useProgress('Label')
   return renderPart('span', props, ctx.state, {
-    attrs: () => ({ id: props.id ?? ctx.labelId }),
+    attrs: () => ({ id: props.id ?? ctx.labelId, 'data-slot': 'progress-label' }),
   })
 }
 
@@ -152,7 +159,7 @@ export function ProgressValue(props: PartProps<'span', ProgressValueState>) {
     }),
     state,
     {
-      attrs: () => ({ 'aria-hidden': 'true' }),
+      attrs: () => ({ 'aria-hidden': 'true', 'data-slot': 'progress-value' }),
     },
   )
 }

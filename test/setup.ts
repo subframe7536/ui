@@ -1,5 +1,5 @@
 // Provide minimal browser APIs and exit animation support in jsdom,
-// matching Moraine's jsdom test environment conventions.
+// matching Moraine's jsdom test environment conventions and @ui-sdk/solid tests.
 if (typeof document !== 'undefined') {
   const style = document.createElement('style')
   style.textContent = `
@@ -39,6 +39,20 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
   })
 }
 
-if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !== 'function') {
-  Element.prototype.scrollIntoView = () => {}
+if (typeof Element !== 'undefined') {
+  if (typeof Element.prototype.scrollIntoView !== 'function') {
+    Element.prototype.scrollIntoView = () => {}
+  }
+  if (typeof Element.prototype.getAnimations !== 'function') {
+    Element.prototype.getAnimations = () => []
+  }
+}
+
+if (typeof HTMLElement !== 'undefined') {
+  if (typeof HTMLElement.prototype.showPopover !== 'function') {
+    HTMLElement.prototype.showPopover = () => {}
+  }
+  if (typeof HTMLElement.prototype.hidePopover !== 'function') {
+    HTMLElement.prototype.hidePopover = () => {}
+  }
 }

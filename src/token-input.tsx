@@ -27,9 +27,12 @@ export type TokenDeletion = {
   reason: 'backspace' | 'remove' | 'programmatic'
 }
 
+export type TokenInputSegment = string | (Omit<Token, 'id'> & { id?: string })
+
 export type TokenInputValue = {
   text: string
   tokens: Array<Token>
+  segments?: Array<string | Token>
 }
 
 export type TokenCodec = {
@@ -83,10 +86,11 @@ export function createTokenInputController() {
 export type TokenInputController = ReturnType<typeof createTokenInputController>
 
 export type TokenInputOptions = {
-  value?: TokenInputValue
-  defaultValue?: TokenInputValue
+  value?: TokenInputValue | Array<TokenInputSegment>
+  defaultValue?: TokenInputValue | Array<TokenInputSegment>
   onValueChange?: (value: TokenInputValue, details: TokenInputValueChangeDetails) => void
   onSubmit?: (details: TokenInputSubmitDetails) => void
+  renderToken?: (token: Token) => JSX.Element
   codec?: TokenCodec
   undo?: boolean | UndoStackOptions
   multiline?: boolean
@@ -131,13 +135,83 @@ export type TokenInputTokenState = {
   disabled: boolean
 }
 
+function formatToken(token: Token): string {
+  const label = toLabel(token)
+  if (token.type) {
+    return `[@${label}](${token.type}:${token.value ?? label})`
+  }
+  return label
+}
+
+function normalizeTokenInputValue(
+  input: TokenInputValue | Array<TokenInputSegment> | undefined,
+): TokenInputValue | undefined {
+  if (!input) {
+    return undefined
+  }
+  if (!Array.isArray(input)) {
+    return input
+  }
+  const tokens: Array<Token> = []
+  const segments: Array<string | Token> = []
+  let text = ''
+  let idx = 0
+  for (const item of input) {
+    if (typeof item === 'string') {
+      text += item
+      segments.push(item)
+    } else {
+      const tok: Token = {
+        id: item.id || `tok-${++idx}`,
+        label: item.label,
+        value: item.value,
+        type: item.type,
+      }
+      tokens.push(tok)
+      segments.push(tok)
+    }
+  }
+  return { text, tokens, segments }
+}
+
 export const defaultCodec: TokenCodec = {
-  serialize: (val) => toText(val),
+  serialize: (val) => {
+    if (val.segments) {
+      return val.segments.map((seg) => (typeof seg === 'string' ? seg : formatToken(seg))).join('')
+    }
+    return toText(val)
+  },
   deserialize: (text) => fromText(text),
 }
 
 export function fromText(text: string): TokenInputValue {
-  return { text, tokens: [] }
+  const tokens: Array<Token> = []
+  const segments: Array<string | Token> = []
+  const re = /\[@([^\]]+)\]\(([^:)]+):([^)]+)\)/g
+  let lastIndex = 0
+  let plainText = ''
+  let seq = 0
+  for (const match of text.matchAll(re)) {
+    const idx = match.index ?? 0
+    if (idx > lastIndex) {
+      const before = text.slice(lastIndex, idx)
+      plainText += before
+      segments.push(before)
+    }
+    const label = match[1] ?? ''
+    const type = match[2] ?? ''
+    const value = match[3] ?? label
+    const tok: Token = { id: `tok-${++seq}`, label, value, type }
+    tokens.push(tok)
+    segments.push(tok)
+    lastIndex = idx + match[0].length
+  }
+  if (lastIndex < text.length) {
+    const rest = text.slice(lastIndex)
+    plainText += rest
+    segments.push(rest)
+  }
+  return { text: plainText, tokens, segments: tokens.length > 0 ? segments : undefined }
 }
 
 export function toLabel(token: Pick<Token, 'label' | 'value'>): string {
@@ -160,6 +234,7 @@ type TokenInputContextValue = {
   state: () => TokenInputEditorState
   api: TokenInputApi
   placeholder: () => string | undefined
+  renderToken: () => ((token: Token) => JSX.Element) | undefined
   multiline: () => boolean
   setFocused: (v: boolean) => void
   registerEditor: (el: HTMLInputElement | HTMLTextAreaElement | null) => void
@@ -182,8 +257,8 @@ export function TokenInput(props: TokenInputProps) {
   const id = field?.controlId ?? `ui-token-input-${createUniqueId()}`
 
   const [value, setRawValue] = createControlledSignal<TokenInputValue>({
-    value: () => props.value,
-    defaultValue: () => props.defaultValue ?? { text: '', tokens: [] },
+    value: () => normalizeTokenInputValue(props.value),
+    defaultValue: () => normalizeTokenInputValue(props.defaultValue) ?? { text: '', tokens: [] },
   })
 
   const [focused, setFocused] = createSignal(false)
@@ -350,7 +425,9 @@ export function TokenInput(props: TokenInputProps) {
     'defaultValue',
     'onValueChange',
     'onSubmit',
+    'renderToken',
     'codec',
+    'renderToken',
     'undo',
     'multiline',
     'disabled',
@@ -369,6 +446,7 @@ export function TokenInput(props: TokenInputProps) {
         state,
         api,
         placeholder: () => props.placeholder,
+        renderToken: () => props.renderToken,
         multiline: () => !!props.multiline,
         setFocused,
         registerEditor: (el) => {
@@ -392,6 +470,28 @@ export function TokenInput(props: TokenInputProps) {
           }
         },
       })}
+      <Show when={props.name ?? field?.name()}>
+        {(formName) => (
+          <textarea
+            name={formName()}
+            readonly
+            tabindex={-1}
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: '1px',
+              margin: '-1px',
+              padding: '0',
+              overflow: 'hidden',
+              border: '0',
+              clip: 'rect(0 0 0 0)',
+            }}
+          >
+            {(props.codec ?? defaultCodec).serialize(value())}
+          </textarea>
+        )}
+      </Show>
     </TokenInputContext>
   )
 }
@@ -436,67 +536,128 @@ export function TokenInputEditor(
     }
   }
 
+  const ssrSegments = (): Array<string | Token> => {
+    const val = ctx.state().value
+    if (val.segments) {
+      return val.segments
+    }
+    const list: Array<string | Token> = [...val.tokens]
+    if (val.text) {
+      list.push(val.text)
+    }
+    return list
+  }
+
   const combinedProps: PartProps<'div', TokenInputEditorState> = merge(rest, {
     children: (
-      <>
-        <For each={ctx.state().tokens}>
-          {(token) => (
-            <CurrentTokenContext value={() => token}>
-              {typeof props.children === 'function' ? props.children(token) : props.children}
-            </CurrentTokenContext>
-          )}
+      <Show
+        when={typeof window === 'undefined'}
+        fallback={
+          <>
+            <For each={ctx.state().tokens}>
+              {(token) => (
+                <CurrentTokenContext value={() => token}>
+                  <span data-slot="token-input-host">
+                    {(() => {
+                      const renderFn = ctx.renderToken()
+                      if (renderFn) {
+                        return renderFn(token)
+                      }
+                      return typeof props.children === 'function'
+                        ? props.children(token)
+                        : (props.children ?? toLabel(token))
+                    })()}
+                    {token.type ? ` ${token.type}` : ''}
+                  </span>
+                </CurrentTokenContext>
+              )}
+            </For>
+            <Show
+              when={ctx.multiline()}
+              fallback={
+                <input
+                  ref={(el) => ctx.registerEditor(el)}
+                  id={ctx.id}
+                  type="text"
+                  value={ctx.state().text}
+                  placeholder={props.placeholder ?? ctx.placeholder()}
+                  disabled={ctx.state().disabled}
+                  readonly={ctx.state().readOnly}
+                  aria-labelledby={ctx.field?.labelId}
+                  aria-describedby={ctx.field?.describedBy()}
+                  aria-invalid={ctx.state().invalid ? 'true' : undefined}
+                  onFocus={() => ctx.setFocused(true)}
+                  onBlur={() => {
+                    ctx.setFocused(false)
+                    ctx.field?.setTouched(true)
+                  }}
+                  onInput={(e) =>
+                    ctx.api.setText(e.currentTarget.value, { reason: 'input', event: e })
+                  }
+                  onKeyDown={handleKeyDown}
+                />
+              }
+            >
+              <textarea
+                ref={(el) => ctx.registerEditor(el)}
+                id={ctx.id}
+                value={ctx.state().text}
+                placeholder={props.placeholder ?? ctx.placeholder()}
+                disabled={ctx.state().disabled}
+                readonly={ctx.state().readOnly}
+                aria-labelledby={ctx.field?.labelId}
+                aria-describedby={ctx.field?.describedBy()}
+                aria-invalid={ctx.state().invalid ? 'true' : undefined}
+                onFocus={() => ctx.setFocused(true)}
+                onBlur={() => {
+                  ctx.setFocused(false)
+                  ctx.field?.setTouched(true)
+                }}
+                onInput={(e) =>
+                  ctx.api.setText(e.currentTarget.value, { reason: 'input', event: e })
+                }
+                onKeyDown={handleKeyDown}
+              />
+            </Show>
+          </>
+        }
+      >
+        <For each={ssrSegments()}>
+          {(seg) => {
+            if (typeof seg === 'string') {
+              return seg
+            }
+            const tok: Token = seg
+            return (
+              <>
+                {'\u200B'}
+                <span
+                  data-token-type={tok.type}
+                  data-token-value={tok.value}
+                  data-token-id={tok.id}
+                >
+                  <span>{toLabel(tok)}</span>
+                </span>
+              </>
+            )
+          }}
         </For>
-        <Show
-          when={ctx.multiline()}
-          fallback={
-            <input
-              ref={(el) => ctx.registerEditor(el)}
-              id={ctx.id}
-              type="text"
-              value={ctx.state().text}
-              placeholder={props.placeholder ?? ctx.placeholder()}
-              disabled={ctx.state().disabled}
-              readonly={ctx.state().readOnly}
-              aria-labelledby={ctx.field?.labelId}
-              aria-describedby={ctx.field?.describedBy()}
-              aria-invalid={ctx.state().invalid ? 'true' : undefined}
-              onFocus={() => ctx.setFocused(true)}
-              onBlur={() => {
-                ctx.setFocused(false)
-                ctx.field?.setTouched(true)
-              }}
-              onInput={(e) => ctx.api.setText(e.currentTarget.value, { reason: 'input', event: e })}
-              onKeyDown={handleKeyDown}
-            />
-          }
-        >
-          <textarea
-            ref={(el) => ctx.registerEditor(el)}
-            id={ctx.id}
-            value={ctx.state().text}
-            placeholder={props.placeholder ?? ctx.placeholder()}
-            disabled={ctx.state().disabled}
-            readonly={ctx.state().readOnly}
-            aria-labelledby={ctx.field?.labelId}
-            aria-describedby={ctx.field?.describedBy()}
-            aria-invalid={ctx.state().invalid ? 'true' : undefined}
-            onFocus={() => ctx.setFocused(true)}
-            onBlur={() => {
-              ctx.setFocused(false)
-              ctx.field?.setTouched(true)
-            }}
-            onInput={(e) => ctx.api.setText(e.currentTarget.value, { reason: 'input', event: e })}
-            onKeyDown={handleKeyDown}
-          />
-        </Show>
-      </>
+      </Show>
     ),
   })
 
   return renderPart('div', combinedProps, ctx.state, {
-    attrs: () => ({
-      'data-focused': ctx.state().focused ? '' : undefined,
-    }),
+    attrs: () => {
+      const s = ctx.state()
+      const ph = props.placeholder ?? ctx.placeholder()
+      return {
+        role: 'textbox',
+        contenteditable: s.disabled || s.readOnly ? 'false' : 'true',
+        'aria-placeholder': ph,
+        'data-empty': s.empty ? '' : undefined,
+        'data-focused': s.focused ? '' : undefined,
+      }
+    },
     handlers: {
       onClick: () => ctx.api.focus(),
     },
@@ -535,6 +696,7 @@ export function TokenInputToken(
         attrs: () => {
           const s = tokenState()
           return {
+            'data-slot': 'token-input-token',
             'data-token-id': s.token.id,
             'data-disabled': s.disabled ? '' : undefined,
           }

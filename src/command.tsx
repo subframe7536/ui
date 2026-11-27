@@ -1,14 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import {
-  For,
-  Show,
-  createContext,
-  createSignal,
-  createUniqueId,
-  merge,
-  omit,
-  useContext,
-} from 'solid-js'
+import { For, Show, createContext, createUniqueId, merge, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -50,7 +41,7 @@ export type CommandDataGroup = {
   items: Array<CommandDataItem | ListSeparator>
 }
 
-export type CommandData = Array<CommandDataItem | CommandDataGroup | ListSeparator>
+export type CommandData = Array<string | CommandDataItem | CommandDataGroup | ListSeparator>
 
 export type CommandApi = {
   setQuery: (query: string) => void
@@ -75,6 +66,12 @@ export type CommandOptions = {
   query?: string
   defaultQuery?: string
   onQueryChange?: (query: string, details: ChangeDetails<CommandQueryChangeReason>) => void
+  value?: string | null
+  defaultValue?: string | null
+  onValueChange?: (
+    value: string | null,
+    details: ChangeDetails<'input' | 'keyboard' | 'pointer' | 'programmatic'>,
+  ) => void
   pages?: Array<string>
   defaultPages?: Array<string>
   onPagesChange?: (pages: Array<string>, details: ChangeDetails<CommandPagesChangeReason>) => void
@@ -102,9 +99,10 @@ export type CommandInputState = CommandState
 export type CommandListState = CommandState
 export type CommandEmptyState = CommandState
 export type CommandStatusState = CommandState & { count: number }
-export type CommandPageProps = { name: string }
+export type CommandPageProps = { name?: string; value?: string }
 export type CommandItemProps = {
   value: string
+  shortcut?: string
   label?: string
   keywords?: Array<string>
   disabled?: boolean
@@ -143,6 +141,7 @@ type CommandContextValue = {
   registerItem: (item: RegisteredCommandItem) => () => void
   getItems: () => Array<RegisteredCommandItem>
   items: () => CommandData | undefined
+  markComposedList: () => void
   setInputEl: (el: HTMLInputElement | null) => void
 }
 
@@ -169,11 +168,30 @@ export function Command(props: CommandProps) {
     value: () => props.pages,
     defaultValue: () => props.defaultPages ?? [],
   })
-  const [highlighted, setHighlighted] = createSignal<string | null>(null)
+  const [highlighted, setRawHighlighted] = createControlledSignal<string | null>({
+    value: () => props.value,
+    defaultValue: () => props.defaultValue ?? null,
+  })
+  const setHighlighted = (
+    next: string | null,
+    reason: 'input' | 'keyboard' | 'pointer' | 'programmatic' = 'programmatic',
+    event?: Event,
+  ) => {
+    if (highlighted() === next) {
+      return
+    }
+    const details = createChangeDetails(reason, event)
+    props.onValueChange?.(next, details)
+    if (details.canceled) {
+      return
+    }
+    setRawHighlighted(next)
+  }
 
   let rootEl: HTMLElement | null = null
   let inputEl: HTMLInputElement | null = null
   const registered: Array<RegisteredCommandItem> = []
+  let hasComposedList = false
 
   const filterFn = () => props.filter ?? defaultListFilter
 
@@ -203,6 +221,10 @@ export function Command(props: CommandProps) {
       return
     }
     setRawQuery(next)
+    const firstMatch = registered.find(
+      (i) => !i.disabled && (next ? filterFn()(i.label, next, i.keywords) : true),
+    )
+    setHighlighted(firstMatch?.value ?? null, 'input', event)
   }
 
   const setPages = (next: Array<string>, reason: CommandPagesChangeReason, event?: Event) => {
@@ -293,6 +315,9 @@ export function Command(props: CommandProps) {
     'query',
     'defaultQuery',
     'onQueryChange',
+    'value',
+    'defaultValue',
+    'onValueChange',
     'pages',
     'defaultPages',
     'onPagesChange',
@@ -318,20 +343,87 @@ export function Command(props: CommandProps) {
         registerItem,
         getItems: () => registered,
         items: () => props.items,
+        markComposedList: () => {
+          hasComposedList = true
+        },
         setInputEl: (el) => {
           inputEl = el
         },
       }}
     >
-      {renderPart('div', rest, state, {
-        ref: (el) => {
-          rootEl = el
-        },
-        attrs: () => ({
-          'data-page': state().page,
-          'data-empty': state().empty ? '' : undefined,
+      {renderPart(
+        'div',
+        merge(rest, {
+          get children() {
+            const rendered =
+              typeof props.children === 'function' ? props.children(state()) : props.children
+            const itemEntries = () => {
+              const dataItems = props.items
+              if (!dataItems || hasComposedList) {
+                return []
+              }
+              const q = query().trim().toLowerCase()
+              const valid = dataItems.filter(
+                (entry): entry is string | CommandDataItem =>
+                  typeof entry === 'string' ||
+                  ((!('type' in entry) || entry.type !== 'separator') && !('items' in entry)),
+              )
+              if (!q) {
+                return valid
+              }
+              return valid
+                .filter((item) => {
+                  const lbl = typeof item === 'string' ? item : (item.label ?? item.value)
+                  const val = typeof item === 'string' ? item : item.value
+                  return lbl.toLowerCase().includes(q) || val.toLowerCase().includes(q)
+                })
+                .toSorted((a, b) => {
+                  const aLbl = typeof a === 'string' ? a : (a.label ?? a.value)
+                  const bLbl = typeof b === 'string' ? b : (b.label ?? b.value)
+                  const aStart = aLbl.toLowerCase().startsWith(q) ? 0 : 1
+                  const bStart = bLbl.toLowerCase().startsWith(q) ? 0 : 1
+                  return aStart - bStart
+                })
+            }
+            return (
+              <>
+                {rendered}
+                <Show when={props.items && !hasComposedList}>
+                  <div id={listId} role="listbox">
+                    <For each={itemEntries()}>
+                      {(item) => (
+                        <CommandItem
+                          value={typeof item === 'string' ? item : item.value}
+                          disabled={typeof item === 'string' ? undefined : item.disabled}
+                          shortcut={
+                            typeof item === 'string'
+                              ? undefined
+                              : Array.isArray(item.shortcut)
+                                ? item.shortcut[0]
+                                : item.shortcut
+                          }
+                        >
+                          {(() => (typeof item === 'string' ? item : (item.label ?? item.value)))()}
+                        </CommandItem>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </>
+            )
+          },
         }),
-      })}
+        state,
+        {
+          ref: (el) => {
+            rootEl = el
+          },
+          attrs: () => ({
+            'data-page': state().page,
+            'data-empty': state().empty ? '' : undefined,
+          }),
+        },
+      )}
     </CommandContext>
   )
 }
@@ -381,8 +473,9 @@ export function CommandInput(props: Omit<PartProps<'input', CommandInputState>, 
 
 export function CommandList(props: PartProps<'div', CommandListState>) {
   const ctx = useCommand('List')
+  ctx.markComposedList()
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ id: ctx.listId, role: 'listbox' }),
+    attrs: () => ({ id: ctx.listId, role: 'listbox', 'data-slot': 'command-list' }),
   })
 }
 
@@ -390,11 +483,12 @@ export function CommandPage(
   props: CommandPageProps & Omit<PartProps<'div', CommandState>, keyof CommandPageProps>,
 ) {
   const ctx = useCommand('Page')
-  const rest = omit(props, 'name')
+  const pageId = () => props.value ?? props.name
+  const rest = omit(props, 'name', 'value')
   return (
-    <Show when={ctx.state().page === props.name}>
+    <Show when={ctx.state().page === pageId()}>
       {renderPart('div', rest, ctx.state, {
-        attrs: () => ({ 'data-page': props.name }),
+        attrs: () => ({ 'data-page': pageId() }),
       })}
     </Show>
   )
@@ -409,6 +503,9 @@ export function CommandItems(props: {
   return (
     <For each={list()}>
       {(entry) => {
+        if (typeof entry === 'string') {
+          return <CommandItem value={entry}>{entry}</CommandItem>
+        }
         if (entry.type === 'separator') {
           return <CommandSeparator />
         }

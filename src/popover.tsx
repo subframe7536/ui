@@ -1,12 +1,13 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
   untrack,
   createMemo,
   onSettled,
   createContext,
+  createEffect,
   createSignal,
   createUniqueId,
+  merge,
   omit,
   Show,
   useContext,
@@ -27,7 +28,12 @@ import type { FocusTarget } from './foundation/focus'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import {
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+  SafePortal,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
@@ -73,6 +79,7 @@ export type PopoverOptions<Payload = unknown, Result = string> = PortalProps & {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<PopoverOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   modal?: boolean
   closeOnEscape?: boolean
   closeOnOutsidePress?: boolean
@@ -85,12 +92,12 @@ export type PopoverProps<Payload = unknown, Result = string> = PopoverOptions<Pa
   children?: JSX.Element
 }
 
-export type PopoverTriggerProps<Payload = unknown> = {
+export type PopoverTriggerProps<Payload = unknown, Result = string> = {
   disabled?: boolean
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: PopoverController<unknown, unknown>
+  controller?: PopoverController<Payload, Result>
 }
 
 export type PopoverTriggerState = {
@@ -126,7 +133,10 @@ type PopoverContextValue = {
   modal: () => boolean
   payload: () => unknown
   container: () => HTMLElement | null | undefined
-  contentId: string
+  contentId: () => string
+  setCustomContentId: (id: string | undefined) => void
+  triggerId: () => string | undefined
+  setTriggerId: (id: string) => void
   titleId: string
   descriptionId: string
   hasTitle: () => boolean
@@ -164,7 +174,9 @@ function usePopoverContext(part: string): PopoverContextValue {
  */
 export function Popover<Payload = unknown, Result = string>(props: PopoverProps<Payload, Result>) {
   const uid = createUniqueId()
-  const contentId = `ui-popover-${uid}`
+  const defaultContentId = `ui-popover-${uid}`
+  const [customContentId, setCustomContentId] = createSignal<string | undefined>(undefined)
+  const contentId = () => customContentId() ?? defaultContentId
   const titleId = `ui-popover-title-${uid}`
   const descriptionId = `ui-popover-desc-${uid}`
 
@@ -178,6 +190,7 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
   const [hasTitle, setHasTitle] = createSignal(false)
   const [hasDescription, setHasDescription] = createSignal(false)
   const [triggerEl, setTriggerEl] = createSignal<HTMLElement | undefined>(undefined)
+  let customTriggerId: string | undefined
   const [contentEl, setContentEl] = createSignal<HTMLElement | undefined>(undefined)
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | undefined>(undefined)
 
@@ -241,6 +254,14 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   useDismissLayer({
     active: open,
@@ -268,6 +289,11 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
+    setCustomContentId,
+    triggerId: () => customTriggerId,
+    setTriggerId: (id) => {
+      customTriggerId = id
+    },
     titleId,
     descriptionId,
     hasTitle,
@@ -308,11 +334,19 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
 /**
  * Trigger button that toggles the popover. Supports external `controller`.
  */
-export function PopoverTrigger<Payload = unknown>(
-  props: PopoverTriggerProps<Payload> &
+export function PopoverTrigger<Payload = unknown, Result = string>(
+  props: PopoverTriggerProps<Payload, Result> &
     Omit<PartProps<'button', PopoverTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(() => props.controller, useContext(PopoverContext))
+  const directCtx = useContext(PopoverContext)
+  if (directCtx) {
+    untrack(() => {
+      if (typeof props.id === 'string') {
+        directCtx.setTriggerId(props.id)
+      }
+    })
+  }
+  const target = useControllerTarget(() => props.controller, directCtx)
   const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = (): PopoverTriggerState => ({
     open: target()?.open() ?? false,
@@ -332,8 +366,8 @@ export function PopoverTrigger<Payload = unknown>(
             type: 'button',
             'aria-haspopup': 'dialog',
             'aria-expanded': s.open ? 'true' : 'false',
-            'aria-controls': ctx?.contentId,
-            'aria-keyshortcuts': props.shortcut,
+            'aria-controls': ctx?.contentId(),
+            'aria-keyshortcuts': formatAriaKeyShortcuts(props.shortcut),
             disabled: s.disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
             'data-open': s.open ? '' : undefined,
@@ -363,6 +397,13 @@ export function PopoverContent<Payload = unknown>(
     Omit<PartProps<'div', PopoverContentState<Payload>>, keyof PopoverContentProps>,
 ) {
   const ctx = usePopoverContext('Content')
+  createEffect(
+    () => (typeof props.id === 'string' ? props.id : undefined),
+    (id) => {
+      ctx.setCustomContentId(id)
+      return () => ctx.setCustomContentId(undefined)
+    },
+  )
   const rest = omit(
     props,
     'container',
@@ -399,7 +440,7 @@ export function PopoverContent<Payload = unknown>(
     active: ctx.open,
     container: ctx.contentEl,
     trap: ctx.modal,
-    initialFocus: () => props.initialFocus ?? false,
+    initialFocus: () => props.initialFocus ?? true,
     finalFocus: () => props.finalFocus,
   })
 
@@ -419,9 +460,10 @@ export function PopoverContent<Payload = unknown>(
         const open = ctx.open()
         return {
           role: 'dialog',
-          id: props.id ?? ctx.contentId,
+          'data-slot': 'popover-content',
+          id: props.id ?? ctx.contentId(),
           tabindex: -1,
-          'aria-labelledby': ctx.hasTitle() ? ctx.titleId : undefined,
+          'aria-labelledby': ctx.hasTitle() ? ctx.titleId : ctx.triggerId(),
           'aria-describedby': ctx.hasDescription() ? ctx.descriptionId : undefined,
           hidden: open ? undefined : true,
           'data-open': open ? '' : undefined,
@@ -437,7 +479,9 @@ export function PopoverContent<Payload = unknown>(
   return (
     <Show when={shouldRender()}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
+        <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+          {renderSurface()}
+        </SafePortal>
       </Show>
     </Show>
   )
@@ -493,10 +537,19 @@ export function PopoverArrow(props: PartProps<'div', PopoverArrowState>) {
 }
 
 export function PopoverShortcut(
-  props: PopoverShortcutProps & PartProps<'kbd', PopoverShortcutState>,
+  props: PopoverShortcutProps & PartProps<'span', PopoverShortcutState>,
 ) {
   const shortcut = useContext(PopoverShortcutContext)
-  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
+  const resolvedProps: PartProps<'span', PopoverShortcutState> = merge(props, {
+    get children() {
+      if (props.children !== undefined) {
+        return props.children
+      }
+      const display = formatDisplayShortcut(shortcut())
+      return display ? `\u2066${display}\u2069` : undefined
+    },
+  })
+  return renderPart('span', resolvedProps, () => ({ shortcut: shortcut() }), {
     attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }

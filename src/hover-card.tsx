@@ -1,13 +1,12 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
-  untrack,
+  Show,
   createContext,
   createSignal,
   createUniqueId,
   omit,
   onCleanup,
-  Show,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -23,7 +22,7 @@ import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { SafePortal, renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
@@ -417,7 +416,9 @@ export function HoverCardContent<Payload = unknown>(
   return (
     <Show when={shouldRender()}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
+        <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+          {renderSurface()}
+        </SafePortal>
       </Show>
     </Show>
   )

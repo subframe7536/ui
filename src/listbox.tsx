@@ -1,5 +1,15 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import {
+  untrack,
+  createContext,
+  createSignal,
+  createUniqueId,
+  For,
+  merge,
+  omit,
+  Show,
+  useContext,
+} from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -111,6 +121,7 @@ export type ListboxOptions<T extends string = string> = {
   onValueChange?: (value: ListboxValue<T>, details: ChangeDetails<ListboxValueChangeReason>) => void
   onHighlightChange?: (details: ListHighlightDetails) => void
   multiple?: boolean
+  name?: string
   deselectable?: boolean
   disabled?: boolean
   readOnly?: boolean
@@ -156,9 +167,9 @@ export type ListboxItemIconProps = object
 export type ListboxItemIconState = ListboxItemState
 
 type RegisteredOption = {
-  value: string
-  label: string
-  disabled: boolean
+  getValue: () => string
+  getLabel: () => string
+  getDisabled: () => boolean
   el: HTMLElement
 }
 
@@ -168,6 +179,9 @@ type ListboxContextValue = {
   isSelected: (val: string) => boolean
   selectItem: (val: string, reason: ListboxValueChangeReason, event?: Event) => void
   setHighlighted: (val: string | null, reason?: ListHighlightDetails['reason']) => void
+  focusedEl: () => HTMLElement | null
+  setFocusedEl: (el: HTMLElement | null) => void
+  claimInitialTabStop: (disabled: boolean) => boolean
   registerOption: (opt: RegisteredOption) => () => void
   items: () => ListData | undefined
 }
@@ -194,6 +208,8 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     defaultValue: () => props.defaultValue ?? (isMultiple() ? ([] as Array<T>) : null),
   })
   const [highlighted, setHighlightedRaw] = createSignal<string | null>(null)
+  const [focusedEl, setFocusedEl] = createSignal<HTMLElement | null>(null)
+  let initialTabStopClaimed = false
 
   let rootEl: HTMLElement | null = null
   const options: Array<RegisteredOption> = []
@@ -306,7 +322,7 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     component: 'listbox',
     getElements: () => [rootEl],
     getState: () => ({ value: value(), multiple: isMultiple(), disabled: disabled() }),
-    getItems: () => options.map((o) => ({ value: o.value, label: o.label })),
+    getItems: () => options.map((o) => ({ value: o.getValue(), label: o.getLabel() })),
     getDisabled: disabled,
     actions: {
       select: (v) => api.select(String(v) as T),
@@ -325,26 +341,38 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     }
   }
 
+  const focusOption = (opt: RegisteredOption) => {
+    setFocusedEl(opt.el)
+    setHighlighted(opt.getValue(), 'keyboard')
+    opt.el.focus()
+  }
+
   const moveHighlight = (delta: 1 | -1 | 'first' | 'last') => {
-    const enabled = options.filter((o) => !o.disabled)
+    const enabled = options.filter((o) => !o.getDisabled() && o.el.isConnected)
     if (enabled.length === 0) {
       return
     }
     if (delta === 'first') {
       const first = enabled[0]
       if (first) {
-        setHighlighted(first.value, 'keyboard')
+        focusOption(first)
       }
       return
     }
     if (delta === 'last') {
       const last = enabled.at(-1)
       if (last) {
-        setHighlighted(last.value, 'keyboard')
+        focusOption(last)
       }
       return
     }
-    const curIdx = enabled.findIndex((o) => o.value === highlighted())
+    const active =
+      focusedEl() ??
+      (typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null)
+    let curIdx = active ? enabled.findIndex((o) => o.el === active) : -1
+    if (curIdx === -1) {
+      curIdx = enabled.findIndex((o) => o.getValue() === highlighted())
+    }
     const loop = props.loop ?? true
     let nextIdx = curIdx === -1 ? (delta === 1 ? 0 : enabled.length - 1) : curIdx + delta
     if (nextIdx < 0) {
@@ -355,7 +383,7 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     }
     const target = enabled[nextIdx]
     if (target) {
-      setHighlighted(target.value, 'keyboard')
+      focusOption(target)
     }
   }
 
@@ -366,6 +394,7 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     'onValueChange',
     'onHighlightChange',
     'multiple',
+    'name',
     'deselectable',
     'disabled',
     'readOnly',
@@ -384,57 +413,118 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
         isSelected,
         selectItem,
         setHighlighted,
+        focusedEl,
+        setFocusedEl,
+        claimInitialTabStop: (isItemDisabled: boolean) => {
+          if (isItemDisabled || initialTabStopClaimed) {
+            return false
+          }
+          initialTabStopClaimed = true
+          return true
+        },
         registerOption,
         items: () => props.items,
       }}
     >
-      {renderPart('div', rest, state, {
-        ref: (el) => {
-          rootEl = el
-        },
-        attrs: () => {
-          const s = state()
-          return {
-            id,
-            role: 'listbox',
-            tabindex: s.disabled ? -1 : 0,
-            'aria-multiselectable': s.multiple ? 'true' : undefined,
-            'aria-disabled': s.disabled ? 'true' : undefined,
-            'aria-orientation': props.orientation ?? 'vertical',
-            'aria-labelledby': field?.labelId,
-            'aria-describedby': field?.describedBy(),
-            'data-disabled': s.disabled ? '' : undefined,
-            'data-readonly': s.readOnly ? '' : undefined,
-          }
-        },
-        handlers: {
-          onKeyDown: (e: KeyboardEvent) => {
-            if (disabled()) {
-              return
-            }
-            const horiz = props.orientation === 'horizontal'
-            if ((horiz && e.key === 'ArrowRight') || (!horiz && e.key === 'ArrowDown')) {
-              e.preventDefault()
-              moveHighlight(1)
-            } else if ((horiz && e.key === 'ArrowLeft') || (!horiz && e.key === 'ArrowUp')) {
-              e.preventDefault()
-              moveHighlight(-1)
-            } else if (e.key === 'Home') {
-              e.preventDefault()
-              moveHighlight('first')
-            } else if (e.key === 'End') {
-              e.preventDefault()
-              moveHighlight('last')
-            } else if (e.key === 'Enter' || e.key === ' ') {
-              const cur = highlighted()
-              if (cur !== null) {
-                e.preventDefault()
-                selectItem(cur, 'keyboard', e)
-              }
+      {renderPart(
+        'div',
+        merge(rest, {
+          get children() {
+            return (
+              <Show
+                when={props.children !== undefined}
+                fallback={
+                  <Show when={props.items}>
+                    <ListboxItems />
+                  </Show>
+                }
+              >
+                {typeof props.children === 'function' ? props.children(state()) : props.children}
+              </Show>
+            )
+          },
+        }),
+        state,
+        {
+          ref: (el) => {
+            rootEl = el
+          },
+          attrs: () => {
+            const s = state()
+            return {
+              id,
+              role: 'listbox',
+              tabindex: s.disabled ? -1 : 0,
+              'aria-multiselectable': s.multiple ? 'true' : undefined,
+              'aria-disabled': s.disabled ? 'true' : undefined,
+              'aria-orientation': props.orientation ?? 'vertical',
+              'aria-labelledby': field?.labelId,
+              'aria-describedby': field?.describedBy(),
+              'data-disabled': s.disabled ? '' : undefined,
+              'data-readonly': s.readOnly ? '' : undefined,
             }
           },
+          handlers: {
+            onKeyDown: (e: KeyboardEvent) => {
+              if (disabled()) {
+                return
+              }
+              const horiz = props.orientation === 'horizontal'
+              if ((horiz && e.key === 'ArrowRight') || (!horiz && e.key === 'ArrowDown')) {
+                e.preventDefault()
+                moveHighlight(1)
+              } else if ((horiz && e.key === 'ArrowLeft') || (!horiz && e.key === 'ArrowUp')) {
+                e.preventDefault()
+                moveHighlight(-1)
+              } else if (e.key === 'Home') {
+                e.preventDefault()
+                moveHighlight('first')
+              } else if (e.key === 'End') {
+                e.preventDefault()
+                moveHighlight('last')
+              } else if (e.key === 'Enter' || e.key === ' ') {
+                const cur = highlighted()
+                if (cur !== null) {
+                  e.preventDefault()
+                  selectItem(cur, 'keyboard', e)
+                }
+              } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                const ch = e.key.toLowerCase()
+                const enabled = options.filter((o) => !o.getDisabled() && o.el.isConnected)
+                if (enabled.length > 0) {
+                  const curVal = highlighted()
+                  const startIdx =
+                    curVal !== null ? enabled.findIndex((o) => o.getValue() === curVal) : -1
+                  for (let step = 1; step <= enabled.length; step++) {
+                    const candidate = enabled[(startIdx + step + enabled.length) % enabled.length]
+                    if (candidate && candidate.getLabel().toLowerCase().startsWith(ch)) {
+                      e.preventDefault()
+                      setHighlighted(candidate.getValue())
+                      candidate.el.focus()
+                      break
+                    }
+                  }
+                }
+              }
+            },
+          },
         },
-      })}
+      )}
+      <Show when={props.name ?? field?.name()}>
+        {(formName) => (
+          <For
+            each={(() => {
+              const cur = value()
+              if (Array.isArray(cur)) {
+                return cur
+              }
+              return cur !== null ? [cur] : []
+            })()}
+          >
+            {(v) => <input type="hidden" name={formName()} value={v} />}
+          </For>
+        )}
+      </Show>
     </ListboxContext>
   )
 }
@@ -522,6 +612,10 @@ export function ListboxItem<T extends string = string>(
 ) {
   const ctx = useListbox('Item')
   let cleanup: (() => void) | undefined
+  let elRef: HTMLElement | null = null
+  const isInitialStop = ctx.claimInitialTabStop(
+    untrack(() => ctx.state().disabled || !!props.disabled),
+  )
 
   const itemState = (): ListboxItemState => ({
     value: props.value,
@@ -536,20 +630,24 @@ export function ListboxItem<T extends string = string>(
     <ListboxItemContext value={itemState}>
       {renderPart('div', rest, itemState, {
         ref: (el: HTMLElement | null) => {
+          elRef = el
           cleanup?.()
           if (el) {
             cleanup = ctx.registerOption({
-              value: props.value,
-              label: props.label ?? el.textContent?.trim() ?? props.value,
-              disabled: !!props.disabled,
+              getValue: () => props.value,
+              getLabel: () => props.label ?? el.textContent?.trim() ?? props.value,
+              getDisabled: () => !!props.disabled,
               el,
             })
           }
         },
         attrs: () => {
           const s = itemState()
+          const focused = ctx.focusedEl()
+          const isTabStop = !s.disabled && (focused ? focused === elRef : isInitialStop)
           return {
             role: 'option',
+            tabindex: s.disabled ? undefined : isTabStop ? 0 : -1,
             'aria-selected': s.selected ? 'true' : 'false',
             'aria-disabled': s.disabled ? 'true' : undefined,
             'data-value': s.value,
@@ -559,6 +657,12 @@ export function ListboxItem<T extends string = string>(
           }
         },
         handlers: {
+          onFocus: () => {
+            if (!itemState().disabled && elRef) {
+              ctx.setFocusedEl(elRef)
+              ctx.setHighlighted(props.value, 'keyboard')
+            }
+          },
           onPointerMove: () => {
             if (!itemState().disabled) {
               ctx.setHighlighted(props.value, 'pointer')

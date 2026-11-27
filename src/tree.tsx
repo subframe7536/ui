@@ -1,5 +1,15 @@
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import {
+  For,
+  Show,
+  createContext,
+  createSignal,
+  createUniqueId,
+  merge,
+  omit,
+  onSettled,
+  useContext,
+} from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -162,12 +172,17 @@ export function treeCheckedStates<T extends string = string>(
   const result = new Map<T, TreeCheckedState>()
 
   const visit = (node: TreeItemData<T>): TreeCheckedState => {
-    if (!node.children || node.children.length === 0 || strategy === 'independent') {
+    if (!node.children || node.children.length === 0) {
       const st: TreeCheckedState = checkedSet.has(node.value)
       result.set(node.value, st)
       return st
     }
     const childStates = node.children.map(visit)
+    if (strategy === 'independent') {
+      const st: TreeCheckedState = checkedSet.has(node.value)
+      result.set(node.value, st)
+      return st
+    }
     const allTrue = childStates.every((s) => s === true)
     const allFalse = childStates.every((s) => s === false)
     const st: TreeCheckedState = allTrue ? true : allFalse ? false : 'indeterminate'
@@ -302,6 +317,7 @@ type TreeContextValue = {
 
 const TreeContext = createContext<TreeContextValue | null>(null)
 const TreeItemContext = createContext<(() => TreeItemState) | null>(null)
+const TreeItemBranchContext = createContext<((hasGroup: boolean) => void) | null>(null)
 
 function useTree(part: string): TreeContextValue {
   const ctx = useContext(TreeContext)
@@ -504,19 +520,89 @@ export function Tree<T extends string = string>(props: TreeProps<T>) {
         onActivate: (details) => props.onActivate?.(details),
       }}
     >
-      {renderPart('div', rest, state, {
-        ref: (el) => {
-          rootEl = el
-        },
-        attrs: () => ({
-          id,
-          role: 'tree',
-          'aria-multiselectable': isMultiple() ? 'true' : undefined,
-          'aria-disabled': disabled() ? 'true' : undefined,
-          'data-disabled': disabled() ? '' : undefined,
+      {renderPart(
+        'div',
+        merge(rest, {
+          get children() {
+            return (
+              <Show
+                when={props.children !== undefined}
+                fallback={
+                  <Show when={props.items}>
+                    <TreeItems />
+                  </Show>
+                }
+              >
+                {typeof props.children === 'function' ? props.children(state()) : props.children}
+              </Show>
+            )
+          },
         }),
-      })}
+        state,
+        {
+          ref: (el) => {
+            rootEl = el
+          },
+          attrs: () => ({
+            id,
+            role: 'tree',
+            'aria-multiselectable': isMultiple() ? 'true' : undefined,
+            'aria-disabled': disabled() ? 'true' : undefined,
+            'data-disabled': disabled() ? '' : undefined,
+          }),
+        },
+      )}
     </TreeContext>
+  )
+}
+
+function TreeBranchItems(props: {
+  items: Array<TreeItemData>
+  depth: number
+  renderItem?: (row: TreeRow) => JSX.Element
+}) {
+  const ctx = useTree('Items')
+  return (
+    <For each={props.items}>
+      {(item) => {
+        const makeRow = (): TreeRow => ({
+          value: item.value,
+          label: item.label ?? item.value,
+          depth: props.depth,
+          hasChildren: !!(item.children && item.children.length > 0),
+          disabled: !!item.disabled,
+          expanded: ctx.isExpanded(item.value),
+        })
+        return (
+          <>
+            <Show
+              when={props.renderItem}
+              fallback={
+                <TreeItem
+                  value={item.value}
+                  label={item.label ?? item.value}
+                  depth={props.depth}
+                  hasChildren={!!(item.children && item.children.length > 0)}
+                  disabled={item.disabled}
+                >
+                  <TreeItemIndicator />
+                  <TreeItemLabel>{item.label ?? item.value}</TreeItemLabel>
+                </TreeItem>
+              }
+            >
+              {(render) => render()(makeRow())}
+            </Show>
+            <Show when={item.children && item.children.length > 0 && ctx.isExpanded(item.value)}>
+              <TreeBranchItems
+                items={item.children ?? []}
+                depth={props.depth + 1}
+                renderItem={props.renderItem}
+              />
+            </Show>
+          </>
+        )
+      }}
+    </For>
   )
 }
 
@@ -525,29 +611,8 @@ export function TreeItems(props: {
   renderItem?: (row: TreeRow) => JSX.Element
 }) {
   const ctx = useTree('Items')
-  const rows = () => visibleTreeRows(props.items ?? ctx.items(), ctx.state().expanded)
   return (
-    <For each={rows()}>
-      {(row) => (
-        <Show
-          when={props.renderItem}
-          fallback={
-            <TreeItem
-              value={row.value}
-              label={row.label}
-              depth={row.depth}
-              hasChildren={row.hasChildren}
-              disabled={row.disabled}
-            >
-              <TreeItemIndicator />
-              <TreeItemLabel>{row.label}</TreeItemLabel>
-            </TreeItem>
-          }
-        >
-          {(render) => render()(row)}
-        </Show>
-      )}
-    </For>
+    <TreeBranchItems items={props.items ?? ctx.items()} depth={0} renderItem={props.renderItem} />
   )
 }
 
@@ -555,6 +620,7 @@ export function TreeItem<T extends string = string>(
   props: TreeItemProps<T> & Omit<PartProps<'div', TreeItemState>, keyof TreeItemProps<T>>,
 ) {
   const ctx = useTree('Item')
+  const [hasGroup, setHasGroup] = createSignal(false)
   const itemState = (): TreeItemState => ({
     value: props.value,
     depth: props.depth ?? 0,
@@ -562,64 +628,99 @@ export function TreeItem<T extends string = string>(
     expanded: ctx.isExpanded(props.value),
     checked: ctx.getCheckedState(props.value),
     highlighted: ctx.state().highlightedValue === props.value,
-    hasChildren: !!props.hasChildren,
+    hasChildren: !!props.hasChildren || hasGroup(),
     disabled: ctx.state().disabled || !!props.disabled,
   })
   const rest = omit(props, 'value', 'label', 'depth', 'hasChildren', 'disabled')
 
   return (
-    <TreeItemContext value={itemState}>
-      {renderPart('div', rest, itemState, {
-        attrs: () => {
-          const s = itemState()
-          return {
-            role: 'treeitem',
-            tabindex: s.disabled ? -1 : 0,
-            'aria-level': s.depth + 1,
-            'aria-selected': s.selected ? 'true' : 'false',
-            'aria-expanded': s.hasChildren ? (s.expanded ? 'true' : 'false') : undefined,
-            'aria-disabled': s.disabled ? 'true' : undefined,
-            'data-value': s.value,
-            'data-depth': s.depth,
-            'data-selected': s.selected ? '' : undefined,
-            'data-expanded': s.expanded ? '' : undefined,
-            'data-highlighted': s.highlighted ? '' : undefined,
-            'data-disabled': s.disabled ? '' : undefined,
-          }
-        },
-        handlers: {
-          onClick: (e: MouseEvent) => {
+    <TreeItemBranchContext value={setHasGroup}>
+      <TreeItemContext value={itemState}>
+        {renderPart('div', rest, itemState, {
+          attrs: () => {
             const s = itemState()
-            if (s.disabled) {
-              return
+            return {
+              role: 'treeitem',
+              tabindex: s.disabled ? -1 : 0,
+              'aria-level': s.depth + 1,
+              'aria-selected': s.selected ? 'true' : 'false',
+              'aria-expanded': s.hasChildren ? (s.expanded ? 'true' : 'false') : undefined,
+              'aria-disabled': s.disabled ? 'true' : undefined,
+              'data-value': s.value,
+              'data-depth': s.depth,
+              'data-selected': s.selected ? '' : undefined,
+              'data-expanded': s.expanded ? '' : undefined,
+              'data-highlighted': s.highlighted ? '' : undefined,
+              'data-disabled': s.disabled ? '' : undefined,
             }
-            ctx.setHighlighted(s.value)
-            ctx.selectItem(s.value, 'click', e)
-            if (s.hasChildren) {
-              ctx.toggleExpand(s.value, 'click', e)
-            }
-            ctx.onActivate?.({ value: s.value, event: e })
           },
-          onKeyDown: (e: KeyboardEvent) => {
-            const s = itemState()
-            if (s.disabled) {
-              return
-            }
-            if (e.key === 'ArrowRight' && s.hasChildren && !s.expanded) {
-              e.preventDefault()
-              ctx.toggleExpand(s.value, 'keyboard', e)
-            } else if (e.key === 'ArrowLeft' && s.hasChildren && s.expanded) {
-              e.preventDefault()
-              ctx.toggleExpand(s.value, 'keyboard', e)
-            } else if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              ctx.selectItem(s.value, 'keyboard', e)
+          handlers: {
+            onClick: (e: MouseEvent) => {
+              const s = itemState()
+              if (s.disabled) {
+                return
+              }
+              ctx.setHighlighted(s.value)
+              ctx.selectItem(s.value, 'click', e)
+              if (s.hasChildren) {
+                ctx.toggleExpand(s.value, 'click', e)
+              }
               ctx.onActivate?.({ value: s.value, event: e })
-            }
+            },
+            onKeyDown: (e: KeyboardEvent) => {
+              const s = itemState()
+              if (s.disabled) {
+                return
+              }
+              if (
+                e.key === 'ArrowDown' ||
+                e.key === 'ArrowUp' ||
+                e.key === 'Home' ||
+                e.key === 'End'
+              ) {
+                const tree = (e.currentTarget as HTMLElement | null)?.closest('[role="tree"]')
+                if (tree) {
+                  const nodes = Array.from(
+                    tree.querySelectorAll<HTMLElement>(
+                      '[role="treeitem"]:not([aria-disabled="true"])',
+                    ),
+                  )
+                  const curIdx = nodes.indexOf(e.currentTarget as HTMLElement)
+                  let nextNode: HTMLElement | undefined
+                  if (e.key === 'ArrowDown' && curIdx >= 0 && curIdx + 1 < nodes.length) {
+                    nextNode = nodes[curIdx + 1]
+                  } else if (e.key === 'ArrowUp' && curIdx > 0) {
+                    nextNode = nodes[curIdx - 1]
+                  } else if (e.key === 'Home') {
+                    nextNode = nodes[0]
+                  } else if (e.key === 'End') {
+                    nextNode = nodes.at(-1)
+                  }
+                  if (nextNode) {
+                    e.preventDefault()
+                    const nextVal = nextNode.getAttribute('data-value')
+                    if (nextVal !== null) {
+                      ctx.setHighlighted(nextVal)
+                    }
+                    nextNode.focus()
+                  }
+                }
+              } else if (e.key === 'ArrowRight' && s.hasChildren && !s.expanded) {
+                e.preventDefault()
+                ctx.toggleExpand(s.value, 'keyboard', e)
+              } else if (e.key === 'ArrowLeft' && s.hasChildren && s.expanded) {
+                e.preventDefault()
+                ctx.toggleExpand(s.value, 'keyboard', e)
+              } else if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                ctx.selectItem(s.value, 'keyboard', e)
+                ctx.onActivate?.({ value: s.value, event: e })
+              }
+            },
           },
-        },
-      })}
-    </TreeItemContext>
+        })}
+      </TreeItemContext>
+    </TreeItemBranchContext>
   )
 }
 
@@ -628,6 +729,11 @@ export function TreeGroup(
 ) {
   const ctx = useTree('Group')
   const parent = useContext(TreeItemContext)
+  const setParentBranch = useContext(TreeItemBranchContext)
+  onSettled(() => {
+    setParentBranch?.(true)
+    return () => setParentBranch?.(false)
+  })
   const val = () => props.value ?? parent?.().value
   const groupState = (): TreeGroupState => {
     const v = val()
@@ -649,11 +755,17 @@ export function TreeItemIndicator(props: TreeItemPartProps & PartProps<'span', T
     throw new Error('<TreeItemIndicator> must be used inside <TreeItem>.')
   }
   return renderPart('span', props, itemState, {
-    attrs: () => ({
-      'aria-hidden': true,
-      'data-expanded': itemState().expanded ? '' : undefined,
-      'data-leaf': !itemState().hasChildren ? '' : undefined,
-    }),
+    attrs: () => {
+      const s = itemState()
+      return {
+        'data-slot': 'tree-indicator',
+        'aria-hidden': true,
+        'data-branch': s.hasChildren ? '' : undefined,
+        'data-expanded': s.hasChildren && s.expanded ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-leaf': !s.hasChildren ? '' : undefined,
+      }
+    },
   })
 }
 
@@ -662,7 +774,17 @@ export function TreeItemLabel(props: TreeItemPartProps & PartProps<'span', TreeI
   if (!itemState) {
     throw new Error('<TreeItemLabel> must be used inside <TreeItem>.')
   }
-  return renderPart('span', props, itemState)
+  return renderPart('span', props, itemState, {
+    attrs: () => {
+      const s = itemState()
+      return {
+        'data-slot': 'tree-label',
+        'data-branch': s.hasChildren ? '' : undefined,
+        'data-expanded': s.hasChildren && s.expanded ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+      }
+    },
+  })
 }
 
 export function TreeItemCheckbox(

@@ -76,6 +76,8 @@ export type CalendarOptions = {
   max?: string
   disabledDates?: DateMatchers
   weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
+  months?: number
+  showOutsideDays?: boolean
   locale?: string
   disabled?: boolean
   controller?: CalendarController
@@ -104,8 +106,8 @@ export type CalendarGridState = CalendarState & {
 }
 export type CalendarWeekdayProps = { index?: number }
 export type CalendarWeekdayState = { index: number; label: string }
-export type CalendarDayProps = { date?: string; cell?: CalendarGridCell }
-export type CalendarDayState = CalendarGridCell & { focused: boolean }
+export type CalendarDayProps = { date?: string; value?: string; cell?: CalendarGridCell }
+export type CalendarDayState = CalendarGridCell & { label: string; focused: boolean }
 export type CalendarSelectState = CalendarState & { options: Array<CalendarSelectOption> }
 
 function pad2(n: number): string {
@@ -164,7 +166,7 @@ function buildMonthWeeks(
   const firstOfMonth = new Date(year, monthIndex, 1)
   const startOffset = (firstOfMonth.getDay() - weekStartsOn + 7) % 7
   const gridStart = new Date(year, monthIndex, 1 - startOffset)
-  const todayStr = toISODate(new Date())
+  const todayStr = typeof window === 'undefined' ? '' : toISODate(new Date())
 
   const weeks: Array<Array<CalendarGridCell>> = []
   const cursor = new Date(gridStart)
@@ -224,6 +226,8 @@ type CalendarContextValue = {
   setMonth: (month: ISOMonth, reason: CalendarMonthChangeReason, event?: Event) => void
   setFocusedDate: (date: string | null) => void
   locale: () => string | undefined
+  months: () => number
+  showOutsideDays: () => boolean
 }
 
 const CalendarContext = createContext<CalendarContextValue | null>(null)
@@ -246,19 +250,46 @@ export function Calendar(
   const mode = (): CalendarMode => props.mode ?? 'single'
   const weekStartsOn = () => props.weekStartsOn ?? 0
 
-  const today = new Date()
-  const defaultMonth = (): ISOMonth =>
-    props.defaultMonth ?? toISOMonth(today.getFullYear(), today.getMonth())
-
   const [value, setRawValue] = createControlledSignal<CalendarValue>({
     value: () => props.value,
     defaultValue: () => props.defaultValue ?? (mode() === 'multiple' ? [] : null),
   })
   const [month, setRawMonth] = createControlledSignal<ISOMonth>({
     value: () => props.month,
-    defaultValue: defaultMonth,
+    defaultValue: () => {
+      if (props.defaultMonth) {
+        return props.defaultMonth
+      }
+      const v = props.value ?? props.defaultValue
+      const first =
+        typeof v === 'string'
+          ? v
+          : Array.isArray(v)
+            ? v[0]
+            : v && typeof v === 'object' && 'start' in v
+              ? v.start
+              : null
+      if (first && /^\d{4}-\d{2}/.test(first)) {
+        return first.slice(0, 7) as ISOMonth
+      }
+      const d = new Date()
+      return toISOMonth(d.getFullYear(), d.getMonth())
+    },
   })
-  const [focusedDate, setFocusedDate] = createSignal<string | null>(null)
+  const initialFocus = (): string | null => {
+    const v = props.value ?? props.defaultValue
+    if (typeof v === 'string') {
+      return v
+    }
+    if (Array.isArray(v) && v.length > 0) {
+      return v[0] ?? null
+    }
+    if (v && typeof v === 'object' && 'start' in v && v.start) {
+      return v.start
+    }
+    return null
+  }
+  const [focusedDate, setFocusedDate] = createSignal<string | null>(initialFocus())
   let rootEl: HTMLElement | null = null
 
   const disabled = () => !!props.disabled
@@ -381,6 +412,8 @@ export function Calendar(
     'max',
     'disabledDates',
     'weekStartsOn',
+    'months',
+    'showOutsideDays',
     'locale',
     'disabled',
     'controller',
@@ -397,19 +430,49 @@ export function Calendar(
         setMonth,
         setFocusedDate,
         locale: () => props.locale,
+        months: () => Math.max(1, props.months ?? 1),
+        showOutsideDays: () => props.showOutsideDays ?? true,
       }}
     >
-      {renderPart('div', rest, state, {
-        ref: (el) => {
-          rootEl = el
-        },
-        attrs: () => ({
-          id,
-          role: 'application',
-          'aria-label': props['aria-label'] ?? 'Calendar',
-          'data-disabled': disabled() ? '' : undefined,
+      {renderPart(
+        'div',
+        merge(rest, {
+          get children() {
+            return (
+              <Show
+                when={props.children !== undefined}
+                fallback={
+                  <>
+                    <CalendarHeading />
+                    <For each={Array.from({ length: Math.max(1, props.months ?? 1) }, (_, i) => i)}>
+                      {(offset) => (
+                        <CalendarGrid offset={offset}>
+                          <CalendarWeekdays />
+                          <CalendarWeeks />
+                        </CalendarGrid>
+                      )}
+                    </For>
+                  </>
+                }
+              >
+                {typeof props.children === 'function' ? props.children(state()) : props.children}
+              </Show>
+            )
+          },
         }),
-      })}
+        state,
+        {
+          ref: (el) => {
+            rootEl = el
+          },
+          attrs: () => ({
+            id,
+            role: 'application',
+            'aria-label': props['aria-label'] ?? 'Calendar',
+            'data-disabled': disabled() ? '' : undefined,
+          }),
+        },
+      )}
     </CalendarContext>
   )
 }
@@ -418,11 +481,23 @@ export function CalendarHeading(props: PartProps<'div', CalendarHeadingState>) {
   const ctx = useCalendar('Heading')
   const headingState = (): CalendarHeadingState => {
     const s = ctx.state()
-    const d = new Date(s.year, s.monthIndex, 1)
-    const text = new Intl.DateTimeFormat(ctx.locale(), {
-      month: 'long',
-      year: 'numeric',
-    }).format(d)
+    const count = ctx.months()
+    const d1 = new Date(s.year, s.monthIndex, 1)
+    let text: string
+    if (count > 1) {
+      const d2 = new Date(s.year, s.monthIndex + count - 1, 1)
+      const m1 = new Intl.DateTimeFormat(ctx.locale(), { month: 'long' }).format(d1)
+      const m2 = new Intl.DateTimeFormat(ctx.locale(), {
+        month: 'long',
+        year: 'numeric',
+      }).format(d2)
+      text = `${m1} – ${m2}`
+    } else {
+      text = new Intl.DateTimeFormat(ctx.locale(), {
+        month: 'long',
+        year: 'numeric',
+      }).format(d1)
+    }
     return { ...s, text }
   }
   const resolvedProps: PartProps<'div', CalendarHeadingState> = merge(props, {
@@ -441,9 +516,11 @@ export function CalendarPrevious(props: Omit<PartProps<'button', CalendarStepSta
     ...ctx.state(),
     disabled: ctx.state().disabled,
   })
-  return renderPart('button', props, stepState, {
+  const rest = omit(props, 'data-slot' as never)
+  return renderPart('button', rest, stepState, {
     attrs: () => ({
       type: 'button',
+      'data-slot': 'calendar-previous',
       disabled: stepState().disabled,
       'aria-label': 'Previous month',
     }),
@@ -459,9 +536,11 @@ export function CalendarNext(props: Omit<PartProps<'button', CalendarStepState>,
     ...ctx.state(),
     disabled: ctx.state().disabled,
   })
-  return renderPart('button', props, stepState, {
+  const rest = omit(props, 'data-slot' as never)
+  return renderPart('button', rest, stepState, {
     attrs: () => ({
       type: 'button',
+      'data-slot': 'calendar-next',
       disabled: stepState().disabled,
       'aria-label': 'Next month',
     }),
@@ -578,7 +657,7 @@ export function CalendarGrid(
 }
 
 export function CalendarWeekdays(props: {
-  children?: JSX.Element | ((label: string, index: () => number) => JSX.Element)
+  children?: JSX.Element | ((index: number, label: string) => JSX.Element)
 }) {
   const ctx = useCalendar('Weekdays')
   return (
@@ -590,7 +669,7 @@ export function CalendarWeekdays(props: {
             return (
               <CalendarWeekdayContext value={weekdayState}>
                 {typeof props.children === 'function'
-                  ? props.children(label, idx)
+                  ? props.children(idx(), label)
                   : (props.children ?? <CalendarWeekday />)}
               </CalendarWeekdayContext>
             )
@@ -631,18 +710,26 @@ export function CalendarWeeks(props: {
   const ctx = useCalendar('Weeks')
   return (
     <tbody>
-      <For each={ctx.state().weeks}>
+      <For
+        each={
+          ctx.showOutsideDays()
+            ? ctx.state().weeks
+            : ctx.state().weeks.filter((w) => w.some((c) => !c.outside))
+        }
+      >
         {(week) => (
           <tr>
             <For each={week}>
               {(cell) => (
-                <td role="gridcell">
-                  <CalendarCellContext value={() => cell}>
-                    {typeof props.children === 'function'
-                      ? props.children(cell)
-                      : (props.children ?? <CalendarDay />)}
-                  </CalendarCellContext>
-                </td>
+                <Show when={!cell.outside || ctx.showOutsideDays()} fallback={<td />}>
+                  <td role="gridcell">
+                    <CalendarCellContext value={() => cell}>
+                      {typeof props.children === 'function'
+                        ? props.children(cell)
+                        : (props.children ?? <CalendarDay />)}
+                    </CalendarCellContext>
+                  </td>
+                </Show>
               )}
             </For>
           </tr>
@@ -659,10 +746,11 @@ export function CalendarDay(
   const ctx = useCalendar('Day')
   const cellCtx = useContext(CalendarCellContext)
   const dayState = (): CalendarDayState => {
+    const targetDate = props.value ?? props.date ?? ''
     const cell = props.cell ??
       cellCtx?.() ?? {
-        date: props.date ?? '',
-        day: Number((props.date ?? '').split('-')[2]) || 1,
+        date: targetDate,
+        day: Number(targetDate.split('-')[2]) || 1,
         month: 0,
         year: 2024,
         outside: false,
@@ -675,10 +763,11 @@ export function CalendarDay(
       }
     return {
       ...cell,
+      label: String(cell.day),
       focused: ctx.state().focusedDate === cell.date,
     }
   }
-  const rest = omit(props, 'date', 'cell')
+  const rest = omit(props, 'date', 'value', 'cell')
   const resolvedProps: PartProps<'button', CalendarDayState> = merge(rest, {
     get children() {
       return props.children ?? ((s) => String(s.day))
@@ -688,12 +777,16 @@ export function CalendarDay(
   return renderPart('button', resolvedProps, dayState, {
     attrs: () => {
       const s = dayState()
+      const focusTarget = ctx.state().focusedDate
+      const isTabStop = focusTarget ? focusTarget === s.date : s.selected
       return {
         type: 'button',
+        tabindex: isTabStop ? 0 : -1,
         disabled: s.disabled,
         'aria-selected': s.selected ? 'true' : 'false',
         'aria-current': s.today ? 'date' : undefined,
         'data-date': s.date,
+        'data-value': s.date,
         'data-today': s.today ? '' : undefined,
         'data-outside': s.outside ? '' : undefined,
         'data-selected': s.selected ? '' : undefined,

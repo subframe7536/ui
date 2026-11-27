@@ -1,4 +1,4 @@
-import { createContext, createSignal, createUniqueId, omit, useContext } from 'solid-js'
+import { createContext, createSignal, createUniqueId, omit, useContext, untrack } from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -560,9 +560,33 @@ export function ColorPickerSwatch(props: PartProps<'span', ColorPickerState>) {
   })
 }
 
+type SwatchesContextValue = {
+  registerValue: (value: string) => number
+  hasSelected: () => boolean
+}
+
+const ColorSwatchesContext = createContext<SwatchesContextValue | null>(null)
+
 export function ColorPickerSwatches(props: PartProps<'div', ColorPickerState>) {
   const ctx = useColorPicker('Swatches')
-  return renderPart('div', props, ctx.state, { attrs: () => ({ role: 'group' }) })
+  const values: Array<string> = []
+  return (
+    <ColorSwatchesContext
+      value={{
+        registerValue: (value: string) => {
+          const idx = values.length
+          values.push(value.toLowerCase())
+          return idx
+        },
+        hasSelected: () => {
+          const cur = ctx.state().value.toLowerCase()
+          return values.includes(cur)
+        },
+      }}
+    >
+      {renderPart('div', props, ctx.state, { attrs: () => ({ role: 'listbox' }) })}
+    </ColorSwatchesContext>
+  )
 }
 
 export function ColorPickerSwatchItem(
@@ -573,6 +597,8 @@ export function ColorPickerSwatchItem(
     >,
 ) {
   const ctx = useColorPicker('SwatchItem')
+  const swatches = useContext(ColorSwatchesContext)
+  const index = swatches ? swatches.registerValue(untrack(() => props.value)) : 0
   const itemState = (): ColorPickerSwatchItemState => ({
     value: props.value,
     selected: ctx.state().value.toLowerCase() === props.value.toLowerCase(),
@@ -580,13 +606,19 @@ export function ColorPickerSwatchItem(
   })
   const rest = omit(props, 'value', 'label')
   return renderPart('button', rest, itemState, {
-    attrs: () => ({
-      type: 'button',
-      disabled: itemState().disabled,
-      'aria-label': props.label ?? props.value,
-      'aria-pressed': itemState().selected ? 'true' : 'false',
-      'data-selected': itemState().selected ? '' : undefined,
-    }),
+    attrs: () => {
+      const s = itemState()
+      const isTabStop = !s.disabled && (s.selected || (!swatches?.hasSelected() && index === 0))
+      return {
+        type: 'button',
+        role: 'option',
+        tabindex: isTabStop ? 0 : -1,
+        disabled: s.disabled,
+        'aria-label': props.label ?? props.value,
+        'aria-selected': s.selected ? 'true' : 'false',
+        'data-selected': s.selected ? '' : undefined,
+      }
+    },
     style: () => ({ background: props.value }),
     handlers: {
       onClick: (e: MouseEvent) => ctx.setHex(props.value, 'swatch', e),

@@ -1,4 +1,4 @@
-import { createContext, omit, useContext } from 'solid-js'
+import { createContext, omit, untrack, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
@@ -9,6 +9,7 @@ import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+import { useOptionalToolbar } from './toolbar'
 
 export type TogglePressedChangeReason = 'press' | 'imperative'
 export type ToggleChangeOptions = ChangeOptions<TogglePressedChangeReason>
@@ -94,6 +95,9 @@ export type ToggleGroupState<T extends string = string> = {
 
 type GroupContextValue = {
   isPressed: (value: string) => boolean
+  hasValue: () => boolean
+  claimTabStop: () => boolean
+  ownsToolbarStop: boolean
   toggleItem: (value: string, event?: Event) => void
   disabled: () => boolean
   orientation: () => ToggleGroupOrientation
@@ -117,14 +121,17 @@ export function Toggle(
     >,
 ) {
   const group = useContext(ToggleGroupContext)
+  const toolbar = useOptionalToolbar()
   let rootEl: HTMLElement | undefined
+  let claimedStop: boolean | undefined
 
   const [ownPressed, setOwnPressed] = createControlledSignal<boolean>({
     value: () => props.pressed,
     defaultValue: () => !!props.defaultPressed,
   })
 
-  const isDisabled = () => !!props.disabled || (group?.disabled() ?? false)
+  const isDisabled = () =>
+    !!props.disabled || (group?.disabled() ?? false) || (toolbar?.disabled() ?? false)
   const isPressed = () =>
     group && props.value !== undefined ? group.isPressed(props.value) : ownPressed()
 
@@ -202,13 +209,29 @@ export function Toggle(
           if (group && el) {
             group.registerItem(el)
           }
+          if (toolbar && el) {
+            toolbar.registerItem(el)
+          }
         },
         attrs: () => {
           const pressed = isPressed()
           const disabled = isDisabled()
           const focusableDisabled = disabled && (props.focusableWhenDisabled || !!group)
+          if (claimedStop === undefined) {
+            if (toolbar && group) {
+              claimedStop = group.ownsToolbarStop && !disabled && group.claimTabStop()
+            } else if (toolbar) {
+              claimedStop = !disabled && toolbar.claimTabStop()
+            } else if (group) {
+              claimedStop = group.hasValue()
+                ? pressed && group.claimTabStop()
+                : !disabled && group.claimTabStop()
+            }
+          }
+          const rovingTabIndex = toolbar || group ? (claimedStop ? 0 : -1) : undefined
           return {
             type: 'button',
+            tabindex: rovingTabIndex,
             'aria-pressed': pressed ? 'true' : 'false',
             disabled: disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
@@ -229,7 +252,17 @@ export function Toggle(
             }
           },
           onKeyDown: (event: KeyboardEvent) => {
-            if (!group || !rootEl) {
+            if (!rootEl) {
+              return
+            }
+            if (toolbar) {
+              navigateRoving(event, toolbar.getItems(), rootEl, {
+                orientation: toolbar.orientation(),
+                loop: toolbar.loop(),
+              })
+              return
+            }
+            if (!group) {
               return
             }
             navigateRoving(event, group.getItems(), rootEl, {
@@ -260,8 +293,11 @@ export function ToggleGroup<T extends string = string>(
   props: ToggleGroupOptions<T> &
     Omit<PartProps<'div', ToggleGroupState<T>>, 'defaultValue' | 'onChange' | 'onSelect'>,
 ) {
+  const toolbar = useOptionalToolbar()
   let rootEl: HTMLElement | undefined
+  let tabStopClaimed = false
   const items = new Set<HTMLElement>()
+  const ownsToolbarStop = toolbar ? untrack(() => !props.disabled) && toolbar.claimTabStop() : false
 
   const [value, setValue] = createControlledSignal<T | Array<T> | undefined>({
     value: () => props.value,
@@ -270,6 +306,17 @@ export function ToggleGroup<T extends string = string>(
 
   const orientation = () => props.orientation ?? 'horizontal'
   const isDisabled = () => !!props.disabled
+  const hasValue = () => {
+    const current = value()
+    return Array.isArray(current) ? current.length > 0 : current !== undefined
+  }
+  const claimTabStop = () => {
+    if (tabStopClaimed) {
+      return false
+    }
+    tabStopClaimed = true
+    return true
+  }
 
   const applyValue = (
     next: T | Array<T> | undefined,
@@ -373,6 +420,9 @@ export function ToggleGroup<T extends string = string>(
     <ToggleGroupContext
       value={{
         isPressed,
+        hasValue,
+        claimTabStop,
+        ownsToolbarStop,
         toggleItem,
         disabled: isDisabled,
         orientation,

@@ -35,16 +35,19 @@ export type ButtonApi = {
   isDisabled: () => boolean
 }
 
-type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLElement, MouseEvent>>[0]
+type ButtonClickEvent = Parameters<JSX.EventHandler<HTMLButtonElement, MouseEvent>>[0]
 
-type ButtonClickHandlers = {
-  handler: (event: ButtonClickEvent, details: ButtonActionDetails) => unknown
-  bound: (data: unknown, event: ButtonClickEvent, details: ButtonActionDetails) => unknown
-}
+type ButtonBoundClickHandler = readonly [
+  (data: never, event: ButtonClickEvent, details: ButtonActionDetails) => unknown,
+  unknown,
+]
 
 export type ButtonProps = Omit<PartProps<'button', ButtonState>, 'type' | 'onClick'> &
   ButtonOptions & {
-    onClick?: ButtonClickHandlers['handler'] | { 0: ButtonClickHandlers['bound']; 1: unknown }
+    onClick?:
+      | ((event: ButtonClickEvent, details: ButtonActionDetails) => unknown)
+      | ButtonBoundClickHandler
+      | JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent>
   }
 
 /**
@@ -121,6 +124,7 @@ export function Button(props: ButtonProps) {
       const ariaDisabled = (disabled && props.focusableWhenDisabled) || isPending
       return {
         type: props.type ?? 'button',
+        'data-slot': 'button',
         disabled: nativeDisabled || undefined,
         'aria-disabled': ariaDisabled ? 'true' : undefined,
         'aria-busy': isPending ? 'true' : undefined,

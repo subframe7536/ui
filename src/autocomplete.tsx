@@ -1,6 +1,16 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
-import { createContext, createSignal, createUniqueId, For, omit, Show, useContext } from 'solid-js'
+import {
+  untrack,
+  For,
+  Show,
+  createContext,
+  createEffect,
+  createSignal,
+  createUniqueId,
+  omit,
+  useContext,
+  onSettled,
+} from 'solid-js'
 
 import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
@@ -10,7 +20,7 @@ import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { SafePortal, renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { defaultListFilter } from './listbox'
@@ -83,6 +93,7 @@ export type AutocompleteOptions = {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<AutocompleteOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   disabled?: boolean
   readOnly?: boolean
   required?: boolean
@@ -90,7 +101,7 @@ export type AutocompleteOptions = {
   placeholder?: string
   name?: string
   filter?: SearchFilter
-  items?: ListData
+  items?: Array<string | ListData[number]>
   controller?: AutocompleteController
   debug?: boolean
 }
@@ -160,6 +171,8 @@ type AutocompleteContextValue = {
   registerOption: (opt: RegisteredAutocompleteOption) => () => void
   getOptions: () => Array<RegisteredAutocompleteOption>
   placeholder: () => string | undefined
+  name: () => string | undefined
+  required: () => boolean
   items: () => ListData | undefined
   inputEl: () => HTMLInputElement | null
   setInputEl: (el: HTMLInputElement | null) => void
@@ -168,7 +181,9 @@ type AutocompleteContextValue = {
   arrowEl: () => HTMLElement | null
   setArrowEl: (el: HTMLElement | null) => void
   field: ReturnType<typeof useFieldControl>
+  registerExplicitContent: () => () => void
 }
+const AutoAutocompleteContentContext = createContext(false)
 
 const AutocompleteContext = createContext<AutocompleteContextValue | null>(null)
 const AutocompleteItemContext = createContext<(() => AutocompleteItemState) | null>(null)
@@ -200,6 +215,8 @@ export function Autocomplete(props: AutocompleteProps) {
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | null>(null)
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
+  const [explicitContentCount, setExplicitContentCount] = createSignal(0)
+  let ssrExplicitContent = false
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
   const optionList: Array<RegisteredAutocompleteOption> = []
@@ -306,6 +323,14 @@ export function Autocomplete(props: AutocompleteProps) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   const reg = registerComponent({
     component: 'autocomplete',
@@ -356,7 +381,12 @@ export function Autocomplete(props: AutocompleteProps) {
         registerOption,
         getOptions: () => optionList,
         placeholder: () => props.placeholder,
-        items: () => props.items,
+        name: () => props.name ?? field?.name(),
+        required: () => !!props.required || !!field?.required(),
+        items: () =>
+          props.items?.map((entry) =>
+            typeof entry === 'string' ? { value: entry, label: entry } : entry,
+          ),
         inputEl,
         setInputEl,
         contentEl,
@@ -364,9 +394,26 @@ export function Autocomplete(props: AutocompleteProps) {
         arrowEl,
         setArrowEl,
         field,
+        registerExplicitContent: () => {
+          if (typeof window === 'undefined') {
+            ssrExplicitContent = true
+            return () => {}
+          }
+          setExplicitContentCount((c) => c + 1)
+          return () => setExplicitContentCount((c) => Math.max(0, c - 1))
+        },
       }}
     >
       {props.children}
+      <Show when={props.items && explicitContentCount() === 0 && !ssrExplicitContent}>
+        <AutoAutocompleteContentContext value={true}>
+          <AutocompleteContent>
+            <AutocompleteList>
+              <AutocompleteItems />
+            </AutocompleteList>
+          </AutocompleteContent>
+        </AutoAutocompleteContentContext>
+      </Show>
     </AutocompleteContext>
   )
 }
@@ -379,7 +426,7 @@ export function AutocompleteLabel(props: PartProps<'label', AutocompleteState>) 
 }
 
 export function AutocompleteInput(
-  props: Omit<PartProps<'input', AutocompleteInputState>, 'type' | 'value'>,
+  props: Omit<PartProps<'input', AutocompleteInputState>, 'type' | 'value' | 'readonly'>,
 ) {
   const ctx = useAutocomplete('Input')
   return renderPart('input', props, ctx.state, {
@@ -393,6 +440,8 @@ export function AutocompleteInput(
         autocomplete: 'off',
         value: s.value,
         placeholder: props.placeholder ?? ctx.placeholder(),
+        name: props.name ?? ctx.name(),
+        required: props.required ?? (ctx.required() || undefined),
         disabled: s.disabled,
         readonly: s.readOnly,
         'aria-expanded': s.open ? 'true' : 'false',
@@ -492,6 +541,14 @@ export function AutocompleteContent(
     Omit<PartProps<'div', AutocompleteContentState>, keyof AutocompleteContentProps>,
 ) {
   const ctx = useAutocomplete('Content')
+  const isAuto = useContext(AutoAutocompleteContentContext)
+  if (!isAuto) {
+    if (typeof window === 'undefined') {
+      ctx.registerExplicitContent()
+    } else {
+      onSettled(() => ctx.registerExplicitContent())
+    }
+  }
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.inputEl() ?? undefined,
@@ -522,10 +579,11 @@ export function AutocompleteContent(
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <Portal mount={props.container ?? undefined}>
+      <SafePortal mount={props.container ?? undefined}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
+            'data-slot': 'autocomplete-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
           }),
@@ -534,7 +592,7 @@ export function AutocompleteContent(
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }

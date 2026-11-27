@@ -401,6 +401,9 @@ export function NumberInput(
           }
         },
       })}
+      <Show when={props.name}>
+        <input type="hidden" name={props.name} form={props.form} value={value() ?? ''} />
+      </Show>
     </NumberInputContext>
   )
 }
@@ -421,7 +424,7 @@ export function NumberInputGroup(props: PartProps<'div', NumberInputState>) {
 }
 
 export function NumberInputControl(
-  props: Omit<PartProps<'input', NumberInputState>, 'type' | 'value' | 'defaultValue'>,
+  props: Omit<PartProps<'input', NumberInputState>, 'type' | 'value' | 'defaultValue' | 'readonly'>,
 ) {
   const ctx = useNumberInput('Control')
   return renderPart('input', props, ctx.state, {
@@ -437,7 +440,6 @@ export function NumberInputControl(
         spellcheck: false,
         role: 'spinbutton',
         value: s.inputValue,
-        name: ctx.name(),
         form: ctx.form(),
         disabled: s.disabled,
         readonly: s.readOnly,

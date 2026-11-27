@@ -1,4 +1,4 @@
-import { createContext, omit } from 'solid-js'
+import { createContext, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { navigateRoving } from './foundation/focus'
@@ -32,15 +32,30 @@ export type MenubarState = {
   orientation: MenubarOrientation
 }
 
-const MenubarContext = createContext<{
+type MenubarContextValue = {
   orientation: () => MenubarOrientation
   loop: () => boolean
-} | null>(null)
+  claimTabStop: (disabled: boolean) => boolean
+}
+
+const MenubarContext = createContext<MenubarContextValue | null>(null)
+
+export function useOptionalMenubar(): MenubarContextValue | null {
+  return useContext(MenubarContext)
+}
 
 export function Menubar(
   props: MenubarOptions & Omit<PartProps<'div', MenubarState>, keyof MenubarOptions>,
 ) {
   let rootEl: HTMLElement | undefined
+  let claimedInitialStop = false
+  const claimTabStop = (disabled: boolean) => {
+    if (disabled || claimedInitialStop) {
+      return false
+    }
+    claimedInitialStop = true
+    return true
+  }
   const orientation = (): MenubarOrientation => props.orientation ?? 'horizontal'
   const loop = () => props.loop ?? true
 
@@ -68,7 +83,7 @@ export function Menubar(
   const rest = omit(props, 'orientation', 'loop', 'controller', 'debug')
 
   return (
-    <MenubarContext value={{ orientation, loop }}>
+    <MenubarContext value={{ orientation, loop, claimTabStop }}>
       {renderPart('div', rest, state, {
         ref: (el: HTMLElement) => {
           rootEl = el

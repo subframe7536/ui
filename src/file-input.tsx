@@ -11,7 +11,12 @@ import {
 } from 'solid-js'
 
 import { useFieldControl } from './field'
-import { createController, useController } from './foundation/controller'
+import {
+  createController,
+  useController,
+  useControllerEntry,
+  useControllerTarget,
+} from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
 import type { ChangeDetails, ChangeOptions } from './foundation/details'
 import { registerComponent } from './foundation/registry'
@@ -92,6 +97,7 @@ export type FileInputOptions = FileRules & {
   onReject?: (rejections: Array<FileRejection>) => void
   multiple?: boolean
   directory?: boolean
+  capture?: 'user' | 'environment'
   disabled?: boolean
   readOnly?: boolean
   required?: boolean
@@ -123,6 +129,7 @@ export type FileInputDropzoneState = FileInputState & {
 }
 
 export type FileInputTriggerProps = {
+  controller?: FileInputController
   disabled?: boolean
 }
 
@@ -199,6 +206,7 @@ type FileInputContextValue = {
 
 const FileInputContext = createContext<FileInputContextValue | null>(null)
 const FileItemContext = createContext<(() => File) | null>(null)
+const FileItemIndexContext = createContext<(() => number) | null>(null)
 
 function useFileInput(part: string): FileInputContextValue {
   const ctx = useContext(FileInputContext)
@@ -384,6 +392,7 @@ export function FileInput(
     'validate',
     'multiple',
     'directory',
+    'capture',
     'disabled',
     'readOnly',
     'required',
@@ -401,10 +410,11 @@ export function FileInput(
           ref={(el) => {
             inputEl = el
           }}
-          id={id}
           type="file"
           accept={acceptAttr()}
           multiple={multiple()}
+          capture={props.capture}
+          {...(props.directory ? { webkitdirectory: true } : {})}
           name={props.name ?? field?.name()}
           form={props.form}
           disabled={disabled()}
@@ -425,17 +435,17 @@ export function FileInput(
     ),
   })
 
+  const fiCtx: FileInputContextValue = {
+    id,
+    state,
+    api,
+    setDragging,
+    openPicker: () => api.open(),
+    field,
+  }
+  useControllerEntry(() => props.controller, fiCtx)
   return (
-    <FileInputContext
-      value={{
-        id,
-        state,
-        api,
-        setDragging,
-        openPicker: () => api.open(),
-        field,
-      }}
-    >
+    <FileInputContext value={fiCtx}>
       {renderPart('div', combinedProps, state, {
         ref: (el) => {
           rootEl = el
@@ -443,6 +453,7 @@ export function FileInput(
         attrs: () => {
           const s = state()
           return {
+            'data-slot': 'file-input',
             'data-empty': s.empty ? '' : undefined,
             'data-dragging': s.dragging ? '' : undefined,
             'data-disabled': s.disabled ? '' : undefined,
@@ -488,6 +499,7 @@ export function FileInputDropzone(
         'aria-disabled': s.disabled ? 'true' : undefined,
         'aria-labelledby': ctx.field?.labelId,
         'aria-describedby': ctx.field?.describedBy(),
+        'data-slot': 'file-input-dropzone',
         'data-dragging': s.dragging ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,
         'data-empty': s.empty ? '' : undefined,
@@ -540,22 +552,40 @@ export function FileInputDropzone(
 
 export function FileInputTrigger(
   props: FileInputTriggerProps &
-    Omit<PartProps<'button', FileInputState>, keyof FileInputTriggerProps>,
+    Omit<PartProps<'button', FileInputState>, keyof FileInputTriggerProps | 'type'>,
 ) {
-  const ctx = useFileInput('Trigger')
-  const rest = omit(props, 'disabled')
-  return renderPart('button', rest, ctx.state, {
+  const directCtx = useContext(FileInputContext)
+  const target = useControllerTarget<FileInputContextValue>(() => props.controller, directCtx)
+  const fallbackState: FileInputState = {
+    files: [],
+    count: 0,
+    empty: true,
+    dragging: false,
+    disabled: false,
+    readOnly: false,
+    invalid: false,
+    canAddMore: true,
+  }
+  const state = () => target()?.state() ?? fallbackState
+  const rest = omit(props, 'disabled', 'controller')
+  return renderPart('button', rest, state, {
     attrs: () => {
-      const s = ctx.state()
+      const s = state()
       const isDisabled = !!props.disabled || s.disabled || s.readOnly || !s.canAddMore
       return {
+        id: props.id ?? target()?.id,
         type: 'button',
-        disabled: isDisabled,
+        disabled: isDisabled || undefined,
+        'data-slot': 'file-input-trigger',
         'data-disabled': isDisabled ? '' : undefined,
       }
     },
     handlers: {
-      onClick: () => ctx.openPicker(),
+      onClick: () => {
+        if (!props.disabled && !state().disabled) {
+          target()?.api.open()
+        }
+      },
     },
   })
 }
@@ -572,7 +602,9 @@ export function FileInputList(
       <For each={ctx.state().files}>
         {(file, index) => (
           <FileItemContext value={() => file}>
-            {typeof props.children === 'function' ? props.children(file, index) : props.children}
+            <FileItemIndexContext value={index}>
+              {typeof props.children === 'function' ? props.children(file, index) : props.children}
+            </FileItemIndexContext>
           </FileItemContext>
         )}
       </For>
@@ -582,6 +614,7 @@ export function FileInputList(
   return renderPart('ul', combinedProps, ctx.state, {
     attrs: () => ({
       role: 'list',
+      'data-slot': 'file-input-list',
       'data-empty': ctx.state().empty ? '' : undefined,
     }),
   })
@@ -592,6 +625,7 @@ export function FileInputItem(
 ) {
   const ctx = useFileInput('Item')
   const getFile = useItemFile('Item', () => props.file)
+  const index = useContext(FileItemIndexContext)
   const itemState = (): FileInputItemState => {
     const f = getFile()
     return {
@@ -609,6 +643,9 @@ export function FileInputItem(
     <FileItemContext value={getFile}>
       {renderPart('li', rest, itemState, {
         attrs: () => ({
+          role: 'listitem',
+          tabindex: index ? (index() === 0 ? 0 : -1) : undefined,
+          'data-slot': 'file-input-item',
           'data-disabled': itemState().disabled ? '' : undefined,
         }),
       })}
@@ -642,6 +679,7 @@ export function FileInputItemRemove(
         type: 'button',
         disabled: s.disabled,
         'aria-label': `Remove ${s.name}`,
+        'data-slot': 'file-input-item-remove',
         'data-disabled': s.disabled ? '' : undefined,
       }
     },

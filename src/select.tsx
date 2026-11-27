@@ -1,25 +1,32 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
   For,
   Show,
   createContext,
+  createEffect,
   createSignal,
   createUniqueId,
   merge,
   omit,
+  untrack,
   useContext,
+  onSettled,
 } from 'solid-js'
 
 import { useFieldControl } from './field'
-import { createController, useController } from './foundation/controller'
+import {
+  createController,
+  useController,
+  useControllerEntry,
+  useControllerTarget,
+} from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
 import type { ChangeDetails, ChangeOptions } from './foundation/details'
 import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { renderPart, SafePortal } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { defaultListFilter } from './listbox'
@@ -85,6 +92,7 @@ export type SelectOptions<T extends string = string> = {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<SelectOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   query?: string
   defaultQuery?: string
   onQueryChange?: (query: string, details: ChangeDetails<SelectQueryChangeReason>) => void
@@ -96,7 +104,8 @@ export type SelectOptions<T extends string = string> = {
   placeholder?: string
   name?: string
   filter?: ListFilter
-  items?: ListData<T>
+  items?: Array<T | ListData<T>[number]>
+  itemToLabel?: (value: T) => string
   controller?: SelectController<T>
   debug?: boolean
 }
@@ -121,7 +130,13 @@ export type SelectProps<T extends string = string> = SelectOptions<T> & {
 export type SelectTriggerProps = { disabled?: boolean }
 export type SelectTriggerState = SelectState
 export type SelectValueProps = { placeholder?: string }
-export type SelectValueState = SelectState & { text: string; hasValue: boolean }
+export type SelectValueState = SelectState & {
+  text: string
+  hasValue: boolean
+  label: string
+  labels: Array<string>
+  placeholder: boolean
+}
 export type SelectClearProps = { disabled?: boolean }
 export type SelectClearState = SelectState
 export type SelectContentProps = PositionProps & PortalProps & { keepMounted?: boolean }
@@ -184,9 +199,14 @@ type SelectContextValue = {
   arrowEl: () => HTMLElement | null
   setArrowEl: (el: HTMLElement | null) => void
   field: ReturnType<typeof useFieldControl>
+  registerExplicitContent: () => () => void
 }
+const AutoSelectContentContext = createContext(false)
 
 const SelectContext = createContext<SelectContextValue | null>(null)
+const SelectTargetContext = createContext<(() => SelectContextValue | null | undefined) | null>(
+  null,
+)
 const SelectItemContext = createContext<(() => SelectItemState) | null>(null)
 const SelectGroupLabelIdContext = createContext<string | undefined>(undefined)
 
@@ -225,6 +245,28 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
 
   const optionList: Array<RegisteredSelectOption> = []
   const labelMap = new Map<string, string>()
+  const seedLabels = () => {
+    const raw = props.items
+    if (!raw) {
+      return
+    }
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        labelMap.set(entry, entry)
+      } else if ('items' in entry) {
+        for (const sub of entry.items) {
+          if (typeof sub === 'string') {
+            labelMap.set(sub, sub)
+          } else if ('value' in sub) {
+            labelMap.set(sub.value, sub.label ?? sub.value)
+          }
+        }
+      } else if ('value' in entry) {
+        labelMap.set(entry.value, entry.label ?? entry.value)
+      }
+    }
+  }
+  untrack(seedLabels)
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -376,6 +418,14 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   const reg = registerComponent({
     component: 'select',
@@ -411,39 +461,124 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     }
   }
 
-  const getLabelFor = (val: string) => labelMap.get(val) ?? val
+  const [explicitContentCount, setExplicitContentCount] = createSignal(0)
+  let ssrExplicitContent = false
+  const registerExplicitContent = () => {
+    if (typeof window === 'undefined') {
+      ssrExplicitContent = true
+      return () => {}
+    }
+    setExplicitContentCount((c) => c + 1)
+    return () => setExplicitContentCount((c) => Math.max(0, c - 1))
+  }
+  const findItemLabel = (val: string): string | undefined => {
+    const raw = props.items
+    if (!raw) {
+      return undefined
+    }
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        if (entry === val) {
+          return entry
+        }
+      } else if ('items' in entry) {
+        for (const sub of entry.items) {
+          if (typeof sub === 'string') {
+            if (sub === val) {
+              return sub
+            }
+          } else if ('value' in sub && sub.value === val) {
+            return sub.label ?? sub.value
+          }
+        }
+      } else if ('value' in entry && entry.value === val) {
+        return entry.label ?? entry.value
+      }
+    }
+    return undefined
+  }
+  const getLabelFor = (val: string) =>
+    props.itemToLabel?.(val as T) ?? findItemLabel(val) ?? labelMap.get(val) ?? val
 
+  const selectCtx: SelectContextValue = {
+    id,
+    listId,
+    labelId,
+    state,
+    api: api as unknown as SelectApi,
+    setOpen,
+    setQuery,
+    selectItem,
+    selectAll,
+    isSelected,
+    isItemVisible,
+    setHighlighted,
+    moveHighlight,
+    registerOption,
+    getOptions: () => optionList,
+    getLabelFor,
+    placeholder: () => props.placeholder,
+    items: () =>
+      props.items?.map((entry) =>
+        typeof entry === 'string' ? { value: entry, label: entry } : entry,
+      ),
+    triggerEl,
+    setTriggerEl,
+    contentEl,
+    setContentEl,
+    arrowEl,
+    setArrowEl,
+    field,
+    registerExplicitContent,
+  }
+  useControllerEntry(() => props.controller, selectCtx)
   return (
-    <SelectContext
-      value={{
-        id,
-        listId,
-        labelId,
-        state,
-        api: api as unknown as SelectApi,
-        setOpen,
-        setQuery,
-        selectItem,
-        selectAll,
-        isSelected,
-        isItemVisible,
-        setHighlighted,
-        moveHighlight,
-        registerOption,
-        getOptions: () => optionList,
-        getLabelFor,
-        placeholder: () => props.placeholder,
-        items: () => props.items,
-        triggerEl,
-        setTriggerEl,
-        contentEl,
-        setContentEl,
-        arrowEl,
-        setArrowEl,
-        field,
-      }}
-    >
+    <SelectContext value={selectCtx}>
       {props.children}
+      <Show when={props.items && explicitContentCount() === 0 && !ssrExplicitContent}>
+        <AutoSelectContentContext value={true}>
+          <SelectContent>
+            <SelectList>
+              <SelectItems />
+            </SelectList>
+          </SelectContent>
+        </AutoSelectContentContext>
+      </Show>
+      <Show when={props.name}>
+        {(formName) => (
+          <Show
+            when={isMultiple()}
+            fallback={
+              <textarea
+                name={formName()}
+                required={props.required || undefined}
+                readonly
+                tabindex={-1}
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  width: '1px',
+                  height: '1px',
+                  margin: '-1px',
+                  padding: '0',
+                  overflow: 'hidden',
+                  border: '0',
+                  clip: 'rect(0 0 0 0)',
+                }}
+              >
+                {(() => {
+                  const cur = value()
+                  return typeof cur === 'string' ? cur : ''
+                })()}
+              </textarea>
+            }
+          >
+            <For each={Array.isArray(value()) ? (value() as Array<T>) : []}>
+              {(v) => <input type="hidden" name={formName()} value={v} />}
+            </For>
+          </Show>
+        )}
+      </Show>
     </SelectContext>
   )
 }
@@ -455,75 +590,136 @@ export function SelectLabel(props: PartProps<'label', SelectState>) {
   })
 }
 
-export function SelectTrigger(
-  props: SelectTriggerProps &
-    Omit<PartProps<'button', SelectTriggerState>, keyof SelectTriggerProps | 'type'>,
+export function SelectTrigger<T extends string = string>(
+  props: SelectTriggerProps & { controller?: SelectController<T> } & Omit<
+      PartProps<'button', SelectTriggerState>,
+      keyof SelectTriggerProps | 'type' | 'controller'
+    >,
 ) {
-  const ctx = useSelect('Trigger')
-  const rest = omit(props, 'disabled')
-  return renderPart('button', rest, ctx.state, {
-    ref: (el: HTMLElement) => ctx.setTriggerEl(el),
-    attrs: () => {
-      const s = ctx.state()
-      const isDisabled = !!props.disabled || s.disabled
-      return {
-        id: ctx.id,
-        type: 'button',
-        role: 'combobox',
-        disabled: isDisabled,
-        'aria-expanded': s.open ? 'true' : 'false',
-        'aria-haspopup': 'listbox',
-        'aria-controls': ctx.listId,
-        'aria-labelledby': ctx.labelId,
-        'aria-describedby': ctx.field?.describedBy(),
-        'aria-invalid': s.invalid ? 'true' : undefined,
-        'data-open': s.open ? '' : undefined,
-        'data-empty': s.empty ? '' : undefined,
-        'data-disabled': isDisabled ? '' : undefined,
-      }
-    },
-    handlers: {
-      onClick: (e: MouseEvent) => {
-        if (props.disabled || ctx.state().disabled) {
-          return
-        }
-        ctx.setOpen(!ctx.state().open, 'trigger-press', e)
-      },
-      onKeyDown: (e: KeyboardEvent) => {
-        if (props.disabled || ctx.state().disabled) {
-          return
-        }
-        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-          e.preventDefault()
-          if (!ctx.state().open) {
-            ctx.setOpen(true, 'trigger-press', e)
-          }
-          ctx.moveHighlight(e.key === 'ArrowDown' ? 1 : -1)
-        } else if (e.key === 'Enter' && ctx.state().open) {
-          const hv = ctx.state().highlightedValue
-          if (hv) {
-            e.preventDefault()
-            ctx.selectItem(hv, 'item-press', e)
-          }
-        }
-      },
+  const directCtx = useContext(SelectContext)
+  const target = useControllerTarget<SelectContextValue>(() => props.controller, directCtx)
+  const triggerState = (): SelectTriggerState => {
+    const ctx = target()
+    if (ctx) {
+      return ctx.state()
+    }
+    return {
+      open: false,
+      value: null,
+      highlightedValue: null,
+      query: '',
+      multiple: false,
+      disabled: !!props.disabled,
+      readOnly: false,
+      invalid: false,
+      empty: true,
+    }
+  }
+  const rest = omit(props, 'disabled', 'controller')
+  const resolvedTrigger: PartProps<'button', SelectTriggerState> = merge(rest, {
+    get children() {
+      return (
+        <Show when={props.children !== undefined} fallback={<SelectValue />}>
+          {typeof props.children === 'function' ? props.children(triggerState()) : props.children}
+        </Show>
+      )
     },
   })
+  return (
+    <SelectTargetContext value={target}>
+      {renderPart('button', resolvedTrigger, triggerState, {
+        ref: (el: HTMLElement) => target()?.setTriggerEl(el),
+        attrs: () => {
+          const ctx = target()
+          const s = triggerState()
+          const isDisabled = !!props.disabled || s.disabled
+          return {
+            id: ctx?.id,
+            type: 'button',
+            role: 'combobox',
+            disabled: isDisabled || undefined,
+            'aria-expanded': s.open ? 'true' : 'false',
+            'aria-haspopup': 'listbox',
+            'aria-controls': ctx?.listId,
+            'aria-labelledby': ctx?.labelId,
+            'aria-describedby':
+              ctx?.field?.describedBy() ??
+              (typeof window === 'undefined' && ctx?.field ? ctx.field.descriptionId : undefined),
+            'aria-invalid': s.invalid ? 'true' : undefined,
+            'data-open': s.open ? '' : undefined,
+            'data-empty': s.empty ? '' : undefined,
+            'data-disabled': isDisabled ? '' : undefined,
+          }
+        },
+        handlers: {
+          onClick: (e: MouseEvent) => {
+            const ctx = target()
+            if (!ctx || props.disabled || ctx.state().disabled) {
+              return
+            }
+            ctx.setOpen(!ctx.state().open, 'trigger-press', e)
+          },
+          onKeyDown: (e: KeyboardEvent) => {
+            const ctx = target()
+            if (!ctx || props.disabled || ctx.state().disabled) {
+              return
+            }
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              e.preventDefault()
+              if (!ctx.state().open) {
+                ctx.setOpen(true, 'trigger-press', e)
+              }
+              ctx.moveHighlight(e.key === 'ArrowDown' ? 1 : -1)
+            } else if (e.key === 'Enter' && ctx.state().open) {
+              const hv = ctx.state().highlightedValue
+              if (hv) {
+                e.preventDefault()
+                ctx.selectItem(hv, 'item-press', e)
+              }
+            }
+          },
+        },
+      })}
+    </SelectTargetContext>
+  )
 }
 
 export function SelectValue(
   props: SelectValueProps & Omit<PartProps<'span', SelectValueState>, keyof SelectValueProps>,
 ) {
-  const ctx = useSelect('Value')
+  const directCtx = useContext(SelectContext)
+  const targetCtx = useContext(SelectTargetContext)
   const valState = (): SelectValueState => {
+    const ctx = targetCtx ? targetCtx() : directCtx
+    if (!ctx) {
+      const ph = props.placeholder ?? ''
+      return {
+        open: false,
+        value: null,
+        highlightedValue: null,
+        query: '',
+        multiple: false,
+        disabled: false,
+        readOnly: false,
+        invalid: false,
+        empty: true,
+        text: ph,
+        label: '',
+        labels: [],
+        placeholder: true,
+        hasValue: false,
+      }
+    }
     const s = ctx.state()
     const val = s.value
-    const text = Array.isArray(val)
-      ? val.map((v) => ctx.getLabelFor(v)).join(', ')
+    const labels = Array.isArray(val)
+      ? val.map((v) => ctx.getLabelFor(v))
       : val !== null
-        ? ctx.getLabelFor(val)
-        : (props.placeholder ?? ctx.placeholder() ?? '')
-    return { ...s, text, hasValue: !s.empty }
+        ? [ctx.getLabelFor(val)]
+        : []
+    const label = labels.join(', ')
+    const text = labels.length > 0 ? label : (props.placeholder ?? ctx.placeholder() ?? '')
+    return { ...s, text, label, labels, placeholder: s.empty, hasValue: !s.empty }
   }
   const rest = omit(props, 'placeholder')
   const resolvedProps: PartProps<'span', SelectValueState> = merge(rest, {
@@ -534,6 +730,7 @@ export function SelectValue(
 
   return renderPart('span', resolvedProps, valState, {
     attrs: () => ({
+      'data-slot': 'select-value',
       'data-placeholder': !valState().hasValue ? '' : undefined,
     }),
   })
@@ -575,6 +772,14 @@ export function SelectContent(
   props: SelectContentProps & Omit<PartProps<'div', SelectContentState>, keyof SelectContentProps>,
 ) {
   const ctx = useSelect('Content')
+  const isAuto = useContext(AutoSelectContentContext)
+  if (!isAuto) {
+    if (typeof window === 'undefined') {
+      ctx.registerExplicitContent()
+    } else {
+      onSettled(() => ctx.registerExplicitContent())
+    }
+  }
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.triggerEl() ?? undefined,
@@ -605,10 +810,11 @@ export function SelectContent(
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <Portal mount={props.container ?? undefined}>
+      <SafePortal mount={props.container ?? undefined}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
+            'data-slot': 'select-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
           }),
@@ -617,7 +823,7 @@ export function SelectContent(
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }
@@ -898,6 +1104,8 @@ export function SelectSelectAll(props: Omit<PartProps<'button', SelectSelectAllS
   return renderPart('button', props, selectAllState, {
     attrs: () => ({
       type: 'button',
+      role: 'option',
+      'aria-selected': selectAllState().allSelected ? 'true' : 'false',
       'data-all-selected': selectAllState().allSelected ? '' : undefined,
     }),
     handlers: {

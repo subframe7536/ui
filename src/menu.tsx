@@ -1,14 +1,16 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
-  untrack,
-  createMemo,
+  Show,
   createContext,
+  createEffect,
+  createMemo,
   createSignal,
   createUniqueId,
+  merge,
   omit,
-  Show,
+  untrack,
   useContext,
+  For,
 } from 'solid-js'
 
 import { runAction } from './foundation/action'
@@ -27,9 +29,15 @@ import type { FocusTarget } from './foundation/focus'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import {
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+  SafePortal,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
+import { useOptionalMenubar } from './menubar'
 
 export type MenuOpenChangeReason =
   | 'trigger-press'
@@ -71,9 +79,11 @@ export function createMenuController<Payload = unknown>() {
 export type MenuController<Payload = unknown> = ReturnType<typeof createMenuController<Payload>>
 
 export type MenuOptions<Payload = unknown> = PortalProps & {
+  items?: Array<MenuDataItem>
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<MenuOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   loop?: boolean
   modal?: boolean
   closeOnEscape?: boolean
@@ -130,6 +140,8 @@ export type MenuItemProps = {
   disabled?: boolean
   closeOnSelect?: boolean
   onSelect?: (event: MouseEvent | KeyboardEvent, details: MenuActionDetails) => unknown
+  value?: string
+  shortcut?: string
 }
 
 export type MenuItemState = {
@@ -139,6 +151,7 @@ export type MenuItemState = {
 }
 
 export type MenuCheckboxItemProps = {
+  value?: string
   checked?: boolean
   defaultChecked?: boolean
   onCheckedChange?: (checked: boolean, details: MenuCheckedChangeDetails) => void
@@ -178,12 +191,17 @@ export type MenuItemIconState = { disabled: boolean }
 export type MenuItemIndicatorProps = { keepMounted?: boolean }
 export type MenuItemIndicatorState = { checked: boolean; disabled: boolean }
 
-export type MenuDataItem = {
-  id?: string
-  label: string
-  disabled?: boolean
-  onSelect?: () => unknown
-}
+export type MenuDataItem =
+  | {
+      type?: 'item'
+      id?: string
+      value?: string
+      label: string
+      disabled?: boolean
+      shortcut?: string
+      onSelect?: () => unknown
+    }
+  | { type: 'separator' }
 export type MenuData = Array<MenuDataItem>
 
 type MenuContextValue = {
@@ -192,6 +210,8 @@ type MenuContextValue = {
   payload: () => unknown
   container: () => HTMLElement | null | undefined
   contentId: string
+  claimTriggerId: () => string | undefined
+  markComposedContent: () => void
   openMenu: (reason: MenuOpenChangeReason, event?: Event, payload?: unknown) => void
   closeMenu: (reason: MenuOpenChangeReason, event?: Event) => void
   toggleMenu: (payload?: unknown, event?: Event) => void
@@ -234,6 +254,8 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   const parent = useContext(MenuContext)
   const contentId = `ui-menu-${createUniqueId()}`
   const items = new Set<HTMLElement>()
+  let triggerIdClaimed = false
+  let hasComposedContent = false
 
   const [open, setOpen] = createControlledSignal<boolean>({
     value: () => props.open,
@@ -293,6 +315,14 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   useDismissLayer({
     active: open,
@@ -337,6 +367,16 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
     payload: () => (props.payload !== undefined ? props.payload : payload()),
     container: () => props.container,
     contentId,
+    claimTriggerId: () => {
+      if (triggerIdClaimed) {
+        return undefined
+      }
+      triggerIdClaimed = true
+      return `${contentId}-trigger`
+    },
+    markComposedContent: () => {
+      hasComposedContent = true
+    },
     openMenu: (reason, event, nextPayload) => {
       if (nextPayload !== undefined) {
         setPayload(() => nextPayload as Payload)
@@ -366,7 +406,30 @@ export function Menu<Payload = unknown>(props: MenuProps<Payload>) {
 
   useControllerEntry(() => props.controller, ctx)
 
-  return <MenuContext value={ctx}>{props.children}</MenuContext>
+  return (
+    <MenuContext value={ctx}>
+      {props.children}
+      <Show when={!hasComposedContent ? props.items : undefined}>
+        {(dataItems) => (
+          <MenuContent>
+            <For each={dataItems()}>
+              {(item) => (
+                <Show when={item.type !== 'separator'} fallback={<MenuSeparator />}>
+                  <MenuItem
+                    value={item.type !== 'separator' ? item.value : undefined}
+                    disabled={item.type !== 'separator' ? item.disabled : undefined}
+                    shortcut={item.type !== 'separator' ? item.shortcut : undefined}
+                  >
+                    {item.type !== 'separator' ? item.label : null}
+                  </MenuItem>
+                </Show>
+              )}
+            </For>
+          </MenuContent>
+        )}
+      </Show>
+    </MenuContext>
+  )
 }
 
 export function MenuSub(props: MenuSubProps) {
@@ -381,7 +444,13 @@ export function MenuTrigger<Payload = unknown>(
   props: MenuTriggerProps<Payload> &
     Omit<PartProps<'button', MenuTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
-  const target = useControllerTarget(() => props.controller, useContext(MenuContext))
+  const directCtx = useContext(MenuContext)
+  const target = useControllerTarget(() => props.controller, directCtx)
+  const claimedTriggerId = directCtx?.claimTriggerId()
+  const menubar = useOptionalMenubar()
+  const isMenubarInitialStop = menubar
+    ? menubar.claimTabStop(untrack(() => !!props.disabled))
+    : false
   const rest = omit(props, 'disabled', 'focusableWhenDisabled', 'payload', 'shortcut', 'controller')
   const state = (): MenuTriggerState => ({
     open: target()?.open() ?? false,
@@ -397,7 +466,10 @@ export function MenuTrigger<Payload = unknown>(
           const s = state()
           const ctx = target()
           return {
+            id: props.id ?? claimedTriggerId,
             type: 'button',
+            role: menubar ? 'menuitem' : undefined,
+            tabindex: menubar ? (isMenubarInitialStop ? 0 : -1) : undefined,
             'aria-haspopup': 'menu',
             'aria-expanded': s.open ? 'true' : 'false',
             'aria-controls': ctx?.contentId,
@@ -464,6 +536,7 @@ export function MenuContent<Payload = unknown>(
     Omit<PartProps<'div', MenuContentState<Payload>>, keyof MenuContentProps>,
 ) {
   const ctx = useMenuContext('Content')
+  ctx.markComposedContent()
   const rest = omit(
     props,
     'container',
@@ -505,6 +578,7 @@ export function MenuContent<Payload = unknown>(
         const open = ctx.open()
         return {
           role: 'menu',
+          'data-slot': 'menu-content',
           id: props.id ?? ctx.contentId,
           tabindex: -1,
           hidden: open ? undefined : true,
@@ -521,7 +595,9 @@ export function MenuContent<Payload = unknown>(
   return (
     <Show when={ctx.open() || !!props.keepMounted}>
       <Show when={!props.inline} fallback={renderSurface()}>
-        <Portal mount={props.container ?? ctx.container() ?? undefined}>{renderSurface()}</Portal>
+        <SafePortal mount={props.container ?? ctx.container() ?? undefined}>
+          {renderSurface()}
+        </SafePortal>
       </Show>
     </Show>
   )
@@ -570,9 +646,27 @@ export function MenuItem(
     })
   }
 
-  const rest = omit(props, 'disabled', 'closeOnSelect', 'onSelect')
+  const rest = omit(props, 'value', 'shortcut', 'disabled', 'closeOnSelect', 'onSelect')
+  const resolvedItem: PartProps<'div', MenuItemState> = merge(rest, {
+    get children() {
+      const content =
+        typeof props.children === 'function' ? props.children(state()) : props.children
+      return (
+        <>
+          {content}
+          <Show when={props.shortcut}>
+            {(sc) => (
+              <span aria-hidden="true" data-slot="menu-shortcut">
+                {formatDisplayShortcut(sc())}
+              </span>
+            )}
+          </Show>
+        </>
+      )
+    },
+  })
 
-  return renderPart('div', rest, state, {
+  return renderPart('div', resolvedItem, state, {
     ref: (el: HTMLElement) => {
       elRef = el
       if (el) {
@@ -582,6 +676,7 @@ export function MenuItem(
     attrs: () => ({
       role: 'menuitem',
       tabindex: props.disabled ? undefined : -1,
+      'aria-keyshortcuts': props.shortcut ? formatAriaKeyShortcuts(props.shortcut) : undefined,
       'aria-disabled': props.disabled ? 'true' : undefined,
       'aria-busy': pending() ? 'true' : undefined,
       'data-disabled': props.disabled ? '' : undefined,
@@ -635,6 +730,7 @@ export function MenuSubTrigger(
     attrs: () => ({
       role: 'menuitem',
       tabindex: props.disabled ? undefined : -1,
+
       'aria-haspopup': 'menu',
       'aria-expanded': ctx.open() ? 'true' : 'false',
       'aria-controls': ctx.contentId,
@@ -709,6 +805,7 @@ export function MenuCheckboxItem(
 
   const rest = omit(
     props,
+    'value',
     'checked',
     'defaultChecked',
     'onCheckedChange',
@@ -733,6 +830,7 @@ export function MenuCheckboxItem(
             'aria-checked': s.checked ? 'true' : 'false',
             'aria-disabled': s.disabled ? 'true' : undefined,
             'data-checked': s.checked ? '' : undefined,
+            'data-unchecked': !s.checked ? '' : undefined,
             'data-state': s.checked ? 'checked' : 'unchecked',
           }
         },
@@ -830,6 +928,7 @@ export function MenuRadioItem<T extends string = string>(
             'aria-checked': s.checked ? 'true' : 'false',
             'aria-disabled': s.disabled ? 'true' : undefined,
             'data-checked': s.checked ? '' : undefined,
+            'data-unchecked': !s.checked ? '' : undefined,
             'data-state': s.checked ? 'checked' : 'unchecked',
           }
         },
@@ -895,7 +994,9 @@ export function MenuItemIndicator(
       {renderPart('span', rest, state, {
         attrs: () => ({
           'aria-hidden': 'true',
+          'data-slot': 'menu-item-indicator',
           'data-checked': state().checked ? '' : undefined,
+          'data-unchecked': !state().checked ? '' : undefined,
         }),
       })}
     </Show>

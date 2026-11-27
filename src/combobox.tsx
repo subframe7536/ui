@@ -1,14 +1,16 @@
-import { Portal } from '@solidjs/web'
 import type { JSX } from '@solidjs/web'
 import {
   For,
   Show,
   createContext,
+  createEffect,
   createSignal,
   createUniqueId,
   merge,
   omit,
   useContext,
+  untrack,
+  onSettled,
 } from 'solid-js'
 
 import { useFieldControl } from './field'
@@ -19,7 +21,7 @@ import { useDismissLayer } from './foundation/dismissal'
 import { usePopupPosition } from './foundation/popup'
 import type { PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart } from './foundation/render'
+import { renderPart, SafePortal } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 import { defaultListFilter } from './listbox'
@@ -96,6 +98,7 @@ export type ComboboxOptions<T extends string = string> = {
   open?: boolean
   defaultOpen?: boolean
   onOpenChange?: (open: boolean, details: ChangeDetails<ComboboxOpenChangeReason>) => void
+  onOpenChangeComplete?: (open: boolean) => void
   query?: string
   defaultQuery?: string
   onQueryChange?: (query: string, details: ChangeDetails<ComboboxQueryChangeReason>) => void
@@ -109,7 +112,8 @@ export type ComboboxOptions<T extends string = string> = {
   placeholder?: string
   name?: string
   filter?: ListFilter
-  items?: ListData<T>
+  items?: Array<T | ListData<T>[number]>
+  itemToLabel?: (value: T) => string
   controller?: ComboboxController<T>
   debug?: boolean
 }
@@ -204,7 +208,9 @@ type ComboboxContextValue = {
   arrowEl: () => HTMLElement | null
   setArrowEl: (el: HTMLElement | null) => void
   field: ReturnType<typeof useFieldControl>
+  registerExplicitContent: () => () => void
 }
+const AutoComboboxContentContext = createContext(false)
 
 const ComboboxContext = createContext<ComboboxContextValue | null>(null)
 const ComboboxItemContext = createContext<(() => ComboboxItemState) | null>(null)
@@ -235,17 +241,53 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     value: () => props.open,
     defaultValue: () => !!props.defaultOpen,
   })
+  const labelMap = new Map<string, string>()
+  const seedLabels = () => {
+    const raw = props.items
+    if (!raw) {
+      return
+    }
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        labelMap.set(entry, entry)
+      } else if ('items' in entry) {
+        for (const sub of entry.items) {
+          if (typeof sub === 'string') {
+            labelMap.set(sub, sub)
+          } else if ('value' in sub) {
+            labelMap.set(sub.value, sub.label ?? sub.value)
+          }
+        }
+      } else if ('value' in entry) {
+        labelMap.set(entry.value, entry.label ?? entry.value)
+      }
+    }
+  }
+  untrack(seedLabels)
+  const resolveLabel = (val: string): string =>
+    props.itemToLabel?.(val as T) ?? labelMap.get(val) ?? val
+
   const [query, setRawQuery] = createControlledSignal<string>({
     value: () => props.query,
-    defaultValue: () => props.defaultQuery ?? '',
+    defaultValue: () => {
+      if (props.defaultQuery !== undefined) {
+        return props.defaultQuery
+      }
+      const cur = props.value ?? props.defaultValue
+      if (!isMultiple() && typeof cur === 'string') {
+        return resolveLabel(cur)
+      }
+      return ''
+    },
   })
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | null>(null)
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
+  const [explicitContentCount, setExplicitContentCount] = createSignal(0)
+  let ssrExplicitContent = false
   const [arrowEl, setArrowEl] = createSignal<HTMLElement | null>(null)
 
   const optionList: Array<RegisteredComboboxOption> = []
-  const labelMap = new Map<string, string>()
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -427,6 +469,14 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
   }
 
   useController(() => props.controller, api)
+  let prevOpenForComplete = untrack(open)
+  createEffect(open, (isOpen) => {
+    if (isOpen === prevOpenForComplete) {
+      return
+    }
+    prevOpenForComplete = isOpen
+    queueMicrotask(() => props.onOpenChangeComplete?.(isOpen))
+  })
 
   const reg = registerComponent({
     component: 'combobox',
@@ -488,7 +538,10 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
         getOptions: () => optionList,
         getLabelFor,
         placeholder: () => props.placeholder,
-        items: () => props.items,
+        items: () =>
+          props.items?.map((entry) =>
+            typeof entry === 'string' ? { value: entry, label: entry } : entry,
+          ),
         creatable: () => !!props.creatable,
         anchorEl: () => inputEl(),
         setInputEl,
@@ -497,9 +550,61 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
         arrowEl,
         setArrowEl,
         field,
+        registerExplicitContent: () => {
+          if (typeof window === 'undefined') {
+            ssrExplicitContent = true
+            return () => {}
+          }
+          setExplicitContentCount((c) => c + 1)
+          return () => setExplicitContentCount((c) => Math.max(0, c - 1))
+        },
       }}
     >
       {props.children}
+      <Show when={props.items && explicitContentCount() === 0 && !ssrExplicitContent}>
+        <AutoComboboxContentContext value={true}>
+          <ComboboxContent>
+            <ComboboxList>
+              <ComboboxItems />
+            </ComboboxList>
+          </ComboboxContent>
+        </AutoComboboxContentContext>
+      </Show>
+      <Show when={props.name}>
+        {(formName) => (
+          <Show
+            when={isMultiple()}
+            fallback={
+              <textarea
+                name={formName()}
+                required={props.required || undefined}
+                readonly
+                tabindex={-1}
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  width: '1px',
+                  height: '1px',
+                  margin: '-1px',
+                  padding: '0',
+                  overflow: 'hidden',
+                  border: '0',
+                  clip: 'rect(0 0 0 0)',
+                }}
+              >
+                {(() => {
+                  const cur = value()
+                  return typeof cur === 'string' ? cur : ''
+                })()}
+              </textarea>
+            }
+          >
+            <For each={Array.isArray(value()) ? (value() as Array<T>) : []}>
+              {(v) => <input type="hidden" name={formName()} value={v} />}
+            </For>
+          </Show>
+        )}
+      </Show>
     </ComboboxContext>
   )
 }
@@ -512,10 +617,11 @@ export function ComboboxLabel(props: PartProps<'label', ComboboxState>) {
 }
 
 export function ComboboxInput(
-  props: Omit<PartProps<'input', ComboboxInputState>, 'type' | 'value'>,
+  props: Omit<PartProps<'input', ComboboxInputState>, 'type' | 'value' | 'readonly'>,
 ) {
   const ctx = useCombobox('Input')
-  return renderPart('input', props, ctx.state, {
+  const rest = omit(props, 'role')
+  return renderPart('input', rest, ctx.state, {
     ref: (el: HTMLInputElement) => ctx.setInputEl(el),
     attrs: () => {
       const s = ctx.state()
@@ -679,11 +785,17 @@ export function ComboboxChip(
     disabled: ctx.state().disabled,
   })
   const rest = omit(props, 'value', 'label')
+  const resolvedChip: PartProps<'span', ComboboxChipState> = merge(rest, {
+    get children() {
+      return props.children ?? ((s: ComboboxChipState) => s.label)
+    },
+  })
   return (
     <ComboboxChipContext value={chipState}>
-      {renderPart('span', rest, chipState, {
+      {renderPart('span', resolvedChip, chipState, {
         attrs: () => ({
           role: 'listitem',
+          'data-slot': 'combobox-chip',
           'data-value': props.value,
           'data-disabled': chipState().disabled ? '' : undefined,
         }),
@@ -733,6 +845,14 @@ export function ComboboxContent(
     Omit<PartProps<'div', ComboboxContentState>, keyof ComboboxContentProps>,
 ) {
   const ctx = useCombobox('Content')
+  const isAuto = useContext(AutoComboboxContentContext)
+  if (!isAuto) {
+    if (typeof window === 'undefined') {
+      ctx.registerExplicitContent()
+    } else {
+      onSettled(() => ctx.registerExplicitContent())
+    }
+  }
   const pos = usePopupPosition({
     open: () => ctx.state().open,
     reference: () => ctx.anchorEl() ?? undefined,
@@ -763,10 +883,11 @@ export function ComboboxContent(
 
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <Portal mount={props.container ?? undefined}>
+      <SafePortal mount={props.container ?? undefined}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
+            'data-slot': 'combobox-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
           }),
@@ -775,7 +896,7 @@ export function ComboboxContent(
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
-      </Portal>
+      </SafePortal>
     </Show>
   )
 }
@@ -1057,6 +1178,7 @@ export function ComboboxSelectAll(
   return renderPart('button', props, selectAllState, {
     attrs: () => ({
       type: 'button',
+      role: 'option',
       'data-all-selected': selectAllState().allSelected ? '' : undefined,
     }),
     handlers: {

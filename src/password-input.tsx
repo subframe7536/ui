@@ -36,6 +36,7 @@ export type PasswordInputOptions = {
     visible: boolean,
     details: ChangeDetails<PasswordInputVisibleChangeReason>,
   ) => void
+  name?: string
   disabled?: boolean
   readOnly?: boolean
   required?: boolean
@@ -55,6 +56,8 @@ export type PasswordInputState = {
 
 type PasswordContextValue = {
   state: () => PasswordInputState
+  name: () => string | undefined
+  required: () => boolean
   applyValue: (next: string, reason: InputValueChangeReason, event?: Event) => void
   toggleVisible: (event?: Event) => void
   setFocused: (v: boolean) => void
@@ -173,6 +176,8 @@ export function PasswordInput(
 
   const rest = omit(
     props,
+    'name',
+    'required',
     'value',
     'defaultValue',
     'onValueChange',
@@ -191,6 +196,8 @@ export function PasswordInput(
     <PasswordInputContext
       value={{
         state,
+        name: () => props.name,
+        required: () => !!props.required,
         applyValue,
         toggleVisible: (event) => applyVisible(!visible(), 'trigger-press', event),
         setFocused,
@@ -228,7 +235,10 @@ export function PasswordInputControl(
       const s = ctx.state()
       return {
         id: props.id ?? field?.controlId,
-        name: props.name ?? field?.name(),
+        name: props.name ?? ctx.name() ?? field?.name(),
+        required: props.required ?? (ctx.required() || undefined),
+        autocomplete: 'current-password',
+        spellcheck: 'false',
         type: s.visible ? 'text' : 'password',
         value: s.value,
         disabled: s.disabled || undefined,

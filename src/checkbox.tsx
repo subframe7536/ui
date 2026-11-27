@@ -36,6 +36,7 @@ export type CheckboxOptions = {
   name?: string
   value?: string
   form?: string
+  parent?: boolean
   controller?: CheckboxController
   debug?: boolean
 }
@@ -74,6 +75,7 @@ export type CheckboxGroupOptions<T extends string = string> = {
   disabled?: boolean
   readOnly?: boolean
   name?: string
+  allValues?: Array<T>
   controller?: CheckboxGroupController<T>
   debug?: boolean
 }
@@ -87,9 +89,12 @@ export type CheckboxGroupState<T extends string = string> = {
 type GroupContextValue = {
   isChecked: (value: string) => boolean
   toggleValue: (value: string, event?: Event) => void
+  parentState: () => CheckedState
+  toggleAll: (event?: Event) => void
   disabled: () => boolean
   readOnly: () => boolean
   name: () => string | undefined
+  field: ReturnType<typeof useFieldControl>
 }
 
 const CheckboxGroupContext = createContext<GroupContextValue | null>(null)
@@ -113,8 +118,15 @@ export function Checkbox(
     defaultValue: () => props.defaultChecked ?? false,
   })
 
-  const rawChecked = (): CheckedState =>
-    group && props.value !== undefined ? group.isChecked(props.value) : ownState()
+  const rawChecked = (): CheckedState => {
+    if (group && props.parent) {
+      return group.parentState()
+    }
+    if (group && props.value !== undefined) {
+      return group.isChecked(props.value)
+    }
+    return ownState()
+  }
 
   const isDisabled = () =>
     !!props.disabled || (group?.disabled() ?? false) || (field?.disabled() ?? false)
@@ -195,6 +207,7 @@ export function Checkbox(
     'name',
     'value',
     'form',
+    'parent',
     'controller',
     'debug',
   )
@@ -207,14 +220,16 @@ export function Checkbox(
         },
         attrs: () => {
           const s = state()
+          const ownField = field && field !== group?.field ? field : !group ? field : null
           return {
             type: 'button',
             role: 'checkbox',
-            id: props.id ?? (group ? undefined : field?.controlId),
+            id: props.id ?? ownField?.controlId,
             'aria-checked': s.indeterminate ? 'mixed' : s.checked ? 'true' : 'false',
+            'aria-disabled': s.disabled ? 'true' : undefined,
             'aria-readonly': s.readOnly ? 'true' : undefined,
             'aria-required': s.required ? 'true' : undefined,
-            'aria-describedby': field?.describedBy(),
+            'aria-describedby': ownField?.describedBy(),
             disabled: s.disabled || undefined,
             'data-state': s.indeterminate ? 'indeterminate' : s.checked ? 'checked' : 'unchecked',
             'data-checked': s.checked ? '' : undefined,
@@ -228,7 +243,9 @@ export function Checkbox(
             if (isDisabled() || isReadOnly()) {
               return
             }
-            if (group && props.value !== undefined) {
+            if (group && props.parent) {
+              group.toggleAll(event)
+            } else if (group && props.value !== undefined) {
               group.toggleValue(props.value, event)
             } else {
               applyChecked(rawChecked() !== true, 'press', event)
@@ -236,30 +253,33 @@ export function Checkbox(
           },
         },
       })}
-      <input
-        type="checkbox"
-        aria-hidden="true"
-        tabindex={-1}
-        name={props.name ?? group?.name() ?? field?.name()}
-        value={props.value ?? 'on'}
-        form={props.form}
-        checked={state().checked}
-        disabled={isDisabled()}
-        required={isRequired()}
-        readonly
-        style={{
-          position: 'absolute',
-          width: '1px',
-          height: '1px',
-          margin: '-1px',
-          padding: '0',
-          overflow: 'hidden',
-          clip: 'rect(0, 0, 0, 0)',
-          'white-space': 'nowrap',
-          border: '0',
-          'pointer-events': 'none',
-        }}
-      />
+      <Show when={!props.parent}>
+        <input
+          data-slot="checkbox-input"
+          type="checkbox"
+          aria-hidden="true"
+          tabindex={-1}
+          name={props.name ?? (group ? group.name() : field?.name())}
+          value={props.value ?? 'on'}
+          form={props.form}
+          checked={state().checked}
+          disabled={isDisabled()}
+          required={isRequired()}
+          readonly
+          style={{
+            position: 'absolute',
+            width: '1px',
+            height: '1px',
+            margin: '-1px',
+            padding: '0',
+            overflow: 'hidden',
+            clip: 'rect(0, 0, 0, 0)',
+            'white-space': 'nowrap',
+            border: '0',
+            'pointer-events': 'none',
+          }}
+        />
+      </Show>
     </CheckboxContext>
   )
 }
@@ -276,6 +296,7 @@ export function CheckboxIndicator(
         attrs: () => {
           const s = state()
           return {
+            'data-slot': 'checkbox-indicator',
             'aria-hidden': 'true',
             'data-state': s.indeterminate ? 'indeterminate' : s.checked ? 'checked' : 'unchecked',
             'data-checked': s.checked ? '' : undefined,
@@ -291,6 +312,7 @@ export function CheckboxGroup<T extends string = string>(
   props: CheckboxGroupOptions<T> &
     Omit<PartProps<'div', CheckboxGroupState<T>>, 'defaultValue' | 'onChange'>,
 ) {
+  const field = useFieldControl()
   let rootEl: HTMLElement | undefined
   const [value, setValue] = createControlledSignal<Array<T>>({
     value: () => props.value,
@@ -358,6 +380,7 @@ export function CheckboxGroup<T extends string = string>(
     'disabled',
     'readOnly',
     'name',
+    'allValues',
     'controller',
     'debug',
   )
@@ -367,9 +390,28 @@ export function CheckboxGroup<T extends string = string>(
       value={{
         isChecked: (v) => value().includes(v as T),
         toggleValue,
+        parentState: () => {
+          const all = props.allValues ?? []
+          const cur = value()
+          if (all.length === 0 || cur.length === 0) {
+            return false
+          }
+          const count = all.filter((v) => cur.includes(v)).length
+          if (count === 0) {
+            return false
+          }
+          return count === all.length ? true : 'indeterminate'
+        },
+        toggleAll: (event) => {
+          const all = props.allValues ?? []
+          const cur = value()
+          const allChecked = all.length > 0 && all.every((v) => cur.includes(v))
+          applyValue(allChecked ? [] : [...all], 'press', event)
+        },
         disabled: () => !!props.disabled,
         readOnly: () => !!props.readOnly,
         name: () => props.name,
+        field,
       }}
     >
       {renderPart('div', rest, state, {
@@ -378,6 +420,7 @@ export function CheckboxGroup<T extends string = string>(
         },
         attrs: () => ({
           role: 'group',
+          'aria-labelledby': field?.hasLabel() ? field.getLabelId() : undefined,
           'data-disabled': props.disabled ? '' : undefined,
         }),
       })}

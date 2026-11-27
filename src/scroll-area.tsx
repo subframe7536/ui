@@ -26,6 +26,7 @@ export type ScrollAreaController = ReturnType<typeof createScrollAreaController>
 
 export type ScrollAreaOptions = {
   type?: ScrollAreaType
+  stickToEnd?: boolean
   controller?: ScrollAreaController
   debug?: boolean
 }
@@ -126,7 +127,7 @@ export function ScrollArea(
 
   useController(() => props.controller, api)
 
-  const rest = omit(props, 'type', 'controller', 'debug')
+  const rest = omit(props, 'type', 'stickToEnd', 'controller', 'debug')
 
   return (
     <ScrollAreaContext
@@ -154,7 +155,8 @@ export function ScrollAreaViewport(props: PartProps<'div', ScrollAreaState>) {
   const ctx = useScrollArea('Viewport')
   return renderPart('div', props, ctx.state, {
     ref: (el: HTMLElement | null) => ctx.registerViewport(el),
-    style: () => ({ width: '100%', height: '100%', overflow: 'auto' }),
+    attrs: () => ({ 'data-slot': 'scroll-area-viewport' }),
+    style: () => ({ overflow: 'auto', 'scrollbar-width': 'none' }),
     handlers: {
       onScroll: () => ctx.updateMetrics(),
     },
@@ -163,7 +165,14 @@ export function ScrollAreaViewport(props: PartProps<'div', ScrollAreaState>) {
 
 export function ScrollAreaContent(props: PartProps<'div', ScrollAreaState>) {
   const ctx = useScrollArea('Content')
-  return renderPart('div', props, ctx.state)
+  return renderPart('div', props, ctx.state, {
+    style: () => ({
+      '--scroll-area-overflow-y-start': 'initial',
+      '--scroll-area-overflow-y-end': 'initial',
+      '--scroll-area-overflow-x-start': 'initial',
+      '--scroll-area-overflow-x-end': 'initial',
+    }),
+  })
 }
 
 export function ScrollAreaScrollbar(
@@ -185,11 +194,16 @@ export function ScrollAreaScrollbar(
   const rest = omit(props, 'orientation')
   return (
     <ScrollbarContext value={barState}>
-      <Show when={barState().visible}>
+      <Show when={barState().visible || typeof window === 'undefined'}>
         {renderPart('div', rest, barState, {
           attrs: () => ({
+            'data-slot': 'scroll-area-scrollbar',
+            'aria-hidden': 'true',
             'data-orientation': orientation(),
             'data-scrolling': barState().scrolling ? '' : undefined,
+          }),
+          style: () => ({
+            display: barState().visible ? undefined : 'none',
           }),
         })}
       </Show>
@@ -225,7 +239,7 @@ export function ScrollAreaScrollToEnd(
     visible: !ctx.state().atBottom,
   })
   return (
-    <Show when={endState().visible}>
+    <Show when={endState().visible || typeof window === 'undefined'}>
       {renderPart('button', props, endState, {
         attrs: () => ({
           type: 'button',

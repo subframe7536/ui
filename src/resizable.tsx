@@ -65,7 +65,7 @@ export type ResizablePrimitive = ResizableState
 
 export type ResizablePanelProps = {
   index?: number
-  defaultSize?: number
+  defaultSize?: number | string
   minSize?: number
   maxSize?: number
   collapsible?: boolean
@@ -280,6 +280,7 @@ export function Resizable(
     props,
     'layout',
     'defaultLayout',
+    'autoSaveId',
     'onLayoutChange',
     'onLayoutCommit',
     'orientation',
@@ -341,7 +342,8 @@ export function ResizablePanel(
   )
 
   const panelState = (): ResizablePanelState => {
-    const size = ctx.state().layout[index] ?? props.defaultSize ?? 50
+    const size =
+      ctx.state().layout[index] ?? (typeof props.defaultSize === 'number' ? props.defaultSize : 50)
     return {
       index,
       size,
@@ -365,7 +367,12 @@ export function ResizablePanel(
       'data-collapsed': panelState().collapsed ? '' : undefined,
     }),
     style: () => ({
-      flex: `${panelState().size} 1 0px`,
+      flex:
+        typeof window === 'undefined'
+          ? props.defaultSize !== undefined
+            ? `0 1 var(--resizable-panel-size, ${typeof props.defaultSize === 'number' ? `${props.defaultSize}%` : props.defaultSize})`
+            : '1 1 var(--resizable-panel-size, 0px)'
+          : `${panelState().size} 1 0px`,
     }),
   })
 }
@@ -392,9 +399,9 @@ export function ResizableHandle(
       const root = ctx.state()
       return {
         role: 'separator',
-        tabindex: s.disabled ? -1 : 0,
+        tabindex: typeof window === 'undefined' ? undefined : s.disabled ? -1 : 0,
         'aria-orientation': root.orientation === 'horizontal' ? 'vertical' : 'horizontal',
-        'aria-valuenow': root.layout[index] ?? 50,
+        'aria-valuenow': typeof window === 'undefined' ? undefined : (root.layout[index] ?? 50),
         'aria-valuemin': 0,
         'aria-valuemax': 100,
         'data-dragging': s.dragging ? '' : undefined,

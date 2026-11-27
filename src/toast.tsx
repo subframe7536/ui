@@ -1,4 +1,14 @@
-import { createContext, createSignal, omit, onCleanup, useContext } from 'solid-js'
+import type { JSX } from '@solidjs/web'
+import {
+  For,
+  Show,
+  createContext,
+  createSignal,
+  merge,
+  omit,
+  onCleanup,
+  useContext,
+} from 'solid-js'
 
 import { runAction } from './foundation/action'
 import type { ActionDetails } from './foundation/action'
@@ -19,12 +29,14 @@ export type ToastDismissDetails = {
 
 export type ToastActionData = {
   label: string
-  onClick: (details: ToastActionDetails) => unknown
+  onClick?: (details: ToastActionDetails) => unknown
+  onAction?: (event: Event | undefined, details: ToastActionDetails) => unknown
 }
 
 export type ToastCancel = {
   label: string
   onClick?: () => void
+  onCancel?: (event: Event | undefined, details: ToastActionDetails) => unknown
 }
 
 export type ToastOptions = {
@@ -43,7 +55,10 @@ export type ToastData = Required<Pick<ToastOptions, 'id' | 'type' | 'duration'>>
 
 export type ToastItem = ToastData
 
-export type Toaster = {
+export type Toaster = ((
+  title: string | ToastOptions,
+  options?: Omit<ToastOptions, 'title'>,
+) => string) & {
   toasts: () => Array<ToastItem>
   add: (options: ToastOptions) => string
   update: (id: string, options: Partial<ToastOptions>) => void
@@ -118,6 +133,9 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
 
   const add = (options: ToastOptions): string => {
     const id = options.id ?? `ui-toast-${toastSeq++}`
+    if (typeof window === 'undefined') {
+      return id
+    }
     const item: ToastItem = {
       ...options,
       id,
@@ -169,18 +187,25 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
     )
   }
 
-  return {
+  const call = (title: string | ToastOptions, options?: Omit<ToastOptions, 'title'>): string =>
+    typeof title === 'string' ? add({ ...options, title }) : add(title)
+
+  return Object.assign(call, {
     toasts,
     add,
     update,
     dismiss,
     dismissAll,
-    success: (title, opts) => add({ ...opts, title, type: 'success' }),
-    error: (title, opts) => add({ ...opts, title, type: 'error' }),
-    info: (title, opts) => add({ ...opts, title, type: 'info' }),
-    warning: (title, opts) => add({ ...opts, title, type: 'warning' }),
+    success: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
+      add({ ...opts, title, type: 'success' }),
+    error: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
+      add({ ...opts, title, type: 'error' }),
+    info: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
+      add({ ...opts, title, type: 'info' }),
+    warning: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
+      add({ ...opts, title, type: 'warning' }),
     promise: promiseHelper,
-  }
+  })
 }
 
 /**
@@ -191,6 +216,9 @@ export const toast = createToaster()
 export type ToastRegionOptions = {
   toaster?: Toaster
   label?: string
+  side?: 'top' | 'bottom'
+  align?: 'start' | 'center' | 'end'
+  children?: JSX.Element | ((item: ToastItem) => JSX.Element)
 }
 
 export type ToastRegionState = {
@@ -199,7 +227,7 @@ export type ToastRegionState = {
 }
 
 export type ToastRegionProps = ToastRegionOptions &
-  Omit<PartProps<'section', ToastRegionState>, keyof ToastRegionOptions>
+  Omit<PartProps<'section', ToastRegionState>, keyof ToastRegionOptions | 'children'>
 
 export type ToastState = {
   type: ToastType
@@ -256,22 +284,89 @@ export function ToastRegion(props: ToastRegionProps) {
     },
   })
 
-  onCleanup(() => setPaused(false))
+  onCleanup(() => {
+    if (typeof window !== 'undefined') {
+      setPaused(false)
+    }
+  })
 
-  const rest = omit(props, 'toaster', 'label')
+  const rest = omit(props, 'toaster', 'label', 'side', 'align', 'children')
+  const combinedProps: PartProps<'section', ToastRegionState> = merge(rest, {
+    get children() {
+      const renderChild = props.children
+      return (
+        <div data-slot="toast-list">
+          <For each={toaster().toasts()}>
+            {(item) => (
+              <ToastItemContext
+                value={{
+                  item: () => item,
+                  dismiss: (reason) => toaster().dismiss(item.id, reason),
+                }}
+              >
+                <Show
+                  when={typeof renderChild === 'function'}
+                  fallback={
+                    <Toast toast={item}>
+                      <Show when={item.title}>
+                        <ToastTitle>{item.title}</ToastTitle>
+                      </Show>
+                      <Show when={item.description}>
+                        <ToastDescription>{item.description}</ToastDescription>
+                      </Show>
+                      <Show when={item.action}>
+                        {(act) => <ToastAction>{act().label}</ToastAction>}
+                      </Show>
+                      <Show when={item.cancel}>
+                        {(can) => (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              const source = inferSource(event)
+                              if (can().onCancel) {
+                                can().onCancel?.(event, { source })
+                              } else {
+                                can().onClick?.()
+                              }
+                              toaster().dismiss(item.id, 'close-press')
+                            }}
+                          >
+                            {can().label}
+                          </button>
+                        )}
+                      </Show>
+                    </Toast>
+                  }
+                >
+                  {typeof renderChild === 'function' ? renderChild(item) : null}
+                </Show>
+              </ToastItemContext>
+            )}
+          </For>
+          <Show when={typeof renderChild !== 'function'}>{renderChild as JSX.Element}</Show>
+        </div>
+      )
+    },
+  })
 
   return (
     <ToastRegionContext value={{ toaster }}>
-      {renderPart('section', rest, state, {
+      {renderPart('section', combinedProps, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
         },
-        attrs: () => ({
-          role: 'region',
-          'aria-label': props.label ?? 'Notifications',
-          'aria-live': 'polite',
-          'data-count': String(toaster().toasts().length),
-        }),
+        attrs: () => {
+          const count = toaster().toasts().length
+          return {
+            role: count > 0 ? 'region' : undefined,
+            'aria-label': count > 0 ? (props.label ?? 'Notifications') : undefined,
+            'aria-live': 'polite',
+            'data-slot': 'toast-region',
+            'data-side': props.side ?? 'bottom',
+            'data-align': props.align ?? 'end',
+            'data-count': String(count),
+          }
+        },
         handlers: {
           onPointerEnter: () => setPaused(true),
           onPointerLeave: () => setPaused(false),
@@ -281,23 +376,35 @@ export function ToastRegion(props: ToastRegionProps) {
   )
 }
 
-export function Toast(props: { toast: ToastItem } & Omit<PartProps<'div', ToastState>, 'toast'>) {
+export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'div', ToastState>, 'toast'>) {
   const region = useContext(ToastRegionContext)
+  const inherited = useContext(ToastItemContext)
+  const currentItem = () =>
+    props.toast ??
+    inherited?.item() ?? {
+      id: '',
+      type: 'default' as ToastType,
+      duration: 5000,
+    }
   const state = (): ToastState => ({
-    type: props.toast.type,
+    type: currentItem().type,
     open: true,
   })
   const dismiss = (reason: ToastDismissReason) => {
-    ;(region?.toaster() ?? toast).dismiss(props.toast.id, reason)
+    const item = currentItem()
+    if (item.id) {
+      ;(region?.toaster() ?? toast).dismiss(item.id, reason)
+    }
   }
   const rest = omit(props, 'toast')
 
   return (
-    <ToastItemContext value={{ item: () => props.toast, dismiss }}>
+    <ToastItemContext value={{ item: currentItem, dismiss }}>
       {renderPart('div', rest, state, {
         attrs: () => ({
-          role: props.toast.type === 'error' ? 'alert' : 'status',
-          'data-type': props.toast.type,
+          role: currentItem().type === 'error' ? 'alert' : 'status',
+          'data-slot': 'toast',
+          'data-type': currentItem().type,
           'data-open': '',
         }),
       })}
@@ -306,7 +413,15 @@ export function Toast(props: { toast: ToastItem } & Omit<PartProps<'div', ToastS
 }
 
 export function ToastTitle(props: PartProps<'div'>) {
-  return renderPart('div', props, () => ({}))
+  const ctx = useContext(ToastItemContext)
+  const resolvedProps: PartProps<'div'> = merge(props, {
+    get children() {
+      return props.children ?? ctx?.item().title
+    },
+  })
+  return renderPart('div', resolvedProps, () => ({}), {
+    attrs: () => ({ 'data-slot': 'toast-title' }),
+  })
 }
 
 export function ToastDescription(props: PartProps<'div'>) {
@@ -333,12 +448,17 @@ export function ToastAction(
         if (pending()) {
           return
         }
-        const fn = props.action ?? ctx?.item().action?.onClick
+        const itemAction = ctx?.item().action
+        const fn = props.action ?? itemAction?.onAction ?? itemAction?.onClick
         if (!fn) {
           return
         }
+        const wrapped = (details: ToastActionDetails) =>
+          itemAction?.onAction && fn === itemAction.onAction
+            ? itemAction.onAction(event, details)
+            : (fn as (d: ToastActionDetails) => unknown)(details)
         setError(undefined)
-        runAction(fn, inferSource(event), {
+        runAction(wrapped, inferSource(event), {
           pending: setPending,
           done: () => ctx?.dismiss('close-press'),
           failed: setError,
