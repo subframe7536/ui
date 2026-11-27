@@ -71,7 +71,7 @@ export type NavigationMenuLinkIconProps = { mirror?: boolean }
 export type NavigationMenuLinkIconState = { active: boolean }
 export type NavigationMenuIndicatorProps = { followHover?: boolean }
 export type NavigationMenuIndicatorState = { open: boolean; orientation: NavigationMenuOrientation }
-export type NavigationMenuViewportProps = {}
+export type NavigationMenuViewportProps = object
 export type NavigationMenuViewportState = { open: boolean; orientation: NavigationMenuOrientation }
 
 type NavContextValue = {
@@ -106,6 +106,9 @@ function useNav(part: string): NavContextValue {
   return ctx
 }
 
+/**
+ * Top-level site navigation menu with expandable panels and keyboard roving.
+ */
 export function NavigationMenu<T extends string = string>(props: NavigationMenuProps<T>) {
   const baseId = `ui-nav-${createUniqueId()}`
   let rootEl: HTMLElement | undefined
@@ -166,7 +169,12 @@ export function NavigationMenu<T extends string = string>(props: NavigationMenuP
     getElements: () => [rootEl],
     getState: () => ({ value: value() }),
     actions: {
-      setValue: (v) => api.setValue(v === undefined ? undefined : (String(v) as T)),
+      setValue: (v) =>
+        api.setValue(
+          v === undefined
+            ? undefined
+            : ((typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '') as T),
+        ),
       close: () => api.close(),
     },
   })

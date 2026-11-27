@@ -463,17 +463,17 @@ export function FileInputDropzone(
   const ctx = useFileInput('Dropzone')
   const rest = omit(props, 'target', 'paste')
 
+  const onPaste = (e: ClipboardEvent) => {
+    const files = e.clipboardData?.files
+    if (files && files.length > 0) {
+      ctx.api.addFiles(files, { reason: 'paste', event: e })
+    }
+  }
   createEffect(
     () => props.paste,
     (pasteTarget) => {
       if (pasteTarget !== 'window') {
         return
-      }
-      const onPaste = (e: ClipboardEvent) => {
-        const files = e.clipboardData?.files
-        if (files && files.length > 0) {
-          ctx.api.addFiles(files, { reason: 'paste', event: e })
-        }
       }
       window.addEventListener('paste', onPaste)
       onCleanup(() => window.removeEventListener('paste', onPaste))

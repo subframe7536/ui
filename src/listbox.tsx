@@ -152,7 +152,7 @@ export type ListboxItemState = {
 
 export type ListboxItemIndicatorProps = { keepMounted?: boolean }
 export type ListboxItemIndicatorState = ListboxItemState
-export type ListboxItemIconProps = Record<string, never>
+export type ListboxItemIconProps = object
 export type ListboxItemIconState = ListboxItemState
 
 type RegisteredOption = {
@@ -217,15 +217,15 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     return cur === val
   }
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const commit = (next: ListboxValue<T>, reason: ListboxValueChangeReason, event?: Event) => {
     const prev = value()
@@ -236,7 +236,7 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
     }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({
+    emitRef.fn?.({
       key: 'value',
       previous: prev,
       value: next,
@@ -313,7 +313,7 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   const registerOption = (opt: RegisteredOption) => {
     options.push(opt)
@@ -331,11 +331,17 @@ export function Listbox<T extends string = string>(props: ListboxProps<T>) {
       return
     }
     if (delta === 'first') {
-      setHighlighted(enabled[0]!.value, 'keyboard')
+      const first = enabled[0]
+      if (first) {
+        setHighlighted(first.value, 'keyboard')
+      }
       return
     }
     if (delta === 'last') {
-      setHighlighted(enabled.at(-1)!.value, 'keyboard')
+      const last = enabled.at(-1)
+      if (last) {
+        setHighlighted(last.value, 'keyboard')
+      }
       return
     }
     const curIdx = enabled.findIndex((o) => o.value === highlighted())
@@ -450,22 +456,18 @@ export function ListboxItems(props: {
             <ListboxGroup>
               <ListboxGroupLabel>{entry.label}</ListboxGroupLabel>
               <For each={entry.items}>
-                {(sub) => (
-                  <Show
-                    when={sub.type === 'separator'}
-                    fallback={
-                      props.renderItem ? (
-                        props.renderItem(sub)
-                      ) : (
-                        <ListboxItem value={sub.value} label={sub.label} disabled={sub.disabled}>
-                          {sub.label ?? sub.value}
-                        </ListboxItem>
-                      )
-                    }
-                  >
-                    <ListboxSeparator />
-                  </Show>
-                )}
+                {(sub) => {
+                  if (sub.type === 'separator') {
+                    return <ListboxSeparator />
+                  }
+                  return props.renderItem ? (
+                    props.renderItem(sub)
+                  ) : (
+                    <ListboxItem value={sub.value} label={sub.label} disabled={sub.disabled}>
+                      {sub.label ?? sub.value}
+                    </ListboxItem>
+                  )
+                }}
               </For>
             </ListboxGroup>
           )

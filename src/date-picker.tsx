@@ -299,7 +299,7 @@ export function DatePicker(props: DatePickerOptions) {
         disabledDates: () => props.disabledDates,
         month: () => props.month,
         defaultMonth: () => props.defaultMonth,
-        onMonthChange: props.onMonthChange,
+        onMonthChange: (month, details) => props.onMonthChange?.(month, details),
         placeholder: () => props.placeholder,
         anchorEl,
         setAnchorEl,

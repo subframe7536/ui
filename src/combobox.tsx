@@ -146,7 +146,7 @@ export type ComboboxItemState = {
   visible: boolean
 }
 export type ComboboxItemTextState = ComboboxItemState
-export type ComboboxItemIconProps = Record<string, never>
+export type ComboboxItemIconProps = object
 export type ComboboxItemIconState = ComboboxItemState
 export type ComboboxItemIndicatorProps = { keepMounted?: boolean }
 export type ComboboxItemIndicatorState = ComboboxItemState
@@ -268,15 +268,15 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     invalid: invalid(),
   })
 
-  let emitChange:
-    | ((change: {
-        key: string
-        previous: unknown
-        value: unknown
-        reason: string
-        source: ChangeDetails['source']
-      }) => void)
-    | undefined
+  const emitRef: {
+    fn?: (change: {
+      key: string
+      previous: unknown
+      value: unknown
+      reason: string
+      source: ChangeDetails['source']
+    }) => void
+  } = {}
 
   const setOpen = (next: boolean, reason: ComboboxOpenChangeReason, event?: Event) => {
     if (next && disabled()) {
@@ -292,7 +292,7 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
       return
     }
     setRawOpen(next)
-    emitChange?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
+    emitRef.fn?.({ key: 'open', previous: prev, value: next, reason, source: details.source })
   }
 
   const setQuery = (next: string, reason: ComboboxQueryChangeReason, event?: Event) => {
@@ -317,7 +317,7 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     }
     setRawValue(next)
     field?.setDirty(true)
-    emitChange?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
+    emitRef.fn?.({ key: 'value', previous: prev, value: next, reason, source: details.source })
   }
 
   const selectItem = (val: string, reason: ComboboxValueChangeReason, event?: Event) => {
@@ -429,11 +429,12 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
       open: () => api.open(),
       close: () => api.close(),
       select: (v) => api.select(String(v) as T),
-      setQuery: (q) => api.setQuery(String(q ?? '')),
+      setQuery: (q) =>
+        api.setQuery(typeof q === 'string' ? q : typeof q === 'number' ? String(q) : ''),
       clear: () => api.clear(),
     },
   })
-  emitChange = reg.emit
+  emitRef.fn = reg.emit
 
   useDismissLayer({
     active: open,
@@ -614,8 +615,12 @@ export function ComboboxValue(
     return { ...s, text, hasValue: !s.empty }
   }
   const rest = omit(props, 'placeholder')
-  const resolvedProps: PartProps<'span', ComboboxValueState> =
-    props.children !== undefined ? rest : { ...rest, children: (s: ComboboxValueState) => s.text }
+  const resolvedProps: PartProps<'span', ComboboxValueState> = {
+    ...rest,
+    get children() {
+      return props.children ?? ((s: ComboboxValueState) => s.text)
+    },
+  }
   return renderPart('span', resolvedProps, valState)
 }
 
@@ -803,27 +808,23 @@ export function ComboboxItems(props: {
             <ComboboxGroup>
               <ComboboxGroupLabel>{entry.label}</ComboboxGroupLabel>
               <For each={entry.items}>
-                {(sub) => (
-                  <Show
-                    when={sub.type === 'separator'}
-                    fallback={
-                      props.renderItem ? (
-                        props.renderItem(sub)
-                      ) : (
-                        <ComboboxItem
-                          value={sub.value}
-                          label={sub.label}
-                          keywords={sub.keywords}
-                          disabled={sub.disabled}
-                        >
-                          <ComboboxItemText>{sub.label ?? sub.value}</ComboboxItemText>
-                        </ComboboxItem>
-                      )
-                    }
-                  >
-                    <ComboboxSeparator />
-                  </Show>
-                )}
+                {(sub) => {
+                  if (sub.type === 'separator') {
+                    return <ComboboxSeparator />
+                  }
+                  return props.renderItem ? (
+                    props.renderItem(sub)
+                  ) : (
+                    <ComboboxItem
+                      value={sub.value}
+                      label={sub.label}
+                      keywords={sub.keywords}
+                      disabled={sub.disabled}
+                    >
+                      <ComboboxItemText>{sub.label ?? sub.value}</ComboboxItemText>
+                    </ComboboxItem>
+                  )
+                }}
               </For>
             </ComboboxGroup>
           )
