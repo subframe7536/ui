@@ -154,7 +154,10 @@ export function PasswordInput(
     getState: () => ({ value: value() ? '[redacted]' : '', visible: visible() }),
     getDisabled: () => isDisabled() || isReadOnly(),
     actions: {
-      setValue: (next) => api.setValue(String(next ?? '')),
+      setValue: (next) =>
+        api.setValue(
+          typeof next === 'string' ? next : typeof next === 'number' ? String(next) : '',
+        ),
       toggleVisible: () => api.toggleVisible(),
     },
   })

@@ -1,4 +1,4 @@
-import { createContext, createUniqueId, omit, useContext } from 'solid-js'
+import { untrack, createContext, createUniqueId, omit, useContext } from 'solid-js'
 
 import { createController, useController } from './foundation/controller'
 import { registerComponent } from './foundation/registry'
@@ -136,7 +136,7 @@ export function TimelineItem(
   props: TimelineItemProps & Omit<PartProps<'li', TimelineItemState>, keyof TimelineItemProps>,
 ) {
   const ctx = useTimeline('Item')
-  const index = props.index ?? ctx.nextIndex()
+  const index = untrack(() => props.index) ?? ctx.nextIndex()
 
   const itemState = (): TimelineItemState => {
     const s = ctx.state()

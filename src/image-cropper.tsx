@@ -15,7 +15,7 @@ export type ImageCrop = {
   height: number
 }
 
-export type ImageRotation = 0 | 90 | 180 | 270 | number
+export type ImageRotation = number
 export type ImageCropperShape = 'rect' | 'circle'
 export type ImageCropperMode = 'crop' | 'pan'
 export type ImageCropperFlipDirection = 'horizontal' | 'vertical'
@@ -138,7 +138,7 @@ export function ImageCropper(
     disabled: disabled(),
   })
 
-  const updateCrop = (next: ImageCrop, reason: ImageCropperCropChangeReason, event?: Event) => {
+  const updateCrop = (next: ImageCropperOptions['crop'] & ImageCrop, reason: ImageCropperCropChangeReason, event?: Event) => {
     if (disabled()) {
       return
     }

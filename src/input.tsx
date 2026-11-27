@@ -211,7 +211,10 @@ export function Input(props: InputProps) {
     getState: () => ({ value: value(), required: isRequired() }),
     getDisabled: () => isDisabled() || isReadOnly(),
     actions: {
-      setValue: (next) => api.setValue(String(next ?? '')),
+      setValue: (next) =>
+        api.setValue(
+          typeof next === 'string' ? next : typeof next === 'number' ? String(next) : '',
+        ),
       clear: () => api.clear(),
     },
   })

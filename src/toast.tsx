@@ -65,6 +65,9 @@ export type Toaster = {
 
 let toastSeq = 1
 
+/**
+ * Creates a reactive Solid 2 toaster store with auto-dismiss timers and promise helper.
+ */
 export function createToaster(defaults: { duration?: number; limit?: number } = {}): Toaster {
   const defaultDuration = defaults.duration ?? 5000
   const limit = defaults.limit ?? 5
@@ -180,6 +183,9 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
   }
 }
 
+/**
+ * Default global toaster instance.
+ */
 export const toast = createToaster()
 
 export type ToastRegionOptions = {
@@ -209,8 +215,7 @@ export type ToastActionProps = {
   action?: (details: ToastActionDetails) => unknown
 }
 
-export type ToastCloseProps = {}
-
+export type ToastCloseProps = object
 const ToastRegionContext = createContext<{ toaster: () => Toaster } | null>(null)
 const ToastItemContext = createContext<{
   item: () => ToastItem
@@ -239,7 +244,10 @@ export function ToastRegion(props: ToastRegionProps) {
     actions: {
       dismiss: (id) => {
         if (id) {
-          toaster().dismiss(String(id), 'imperative')
+          toaster().dismiss(
+            typeof id === 'string' ? id : typeof id === 'number' ? String(id) : '',
+            'imperative',
+          )
         } else {
           toaster().dismissAll()
         }
