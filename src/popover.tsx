@@ -6,6 +6,7 @@ import {
   createContext,
   createSignal,
   createUniqueId,
+  merge,
   omit,
   Show,
   useContext,
@@ -26,7 +27,12 @@ import type { FocusTarget } from './foundation/focus'
 import { usePopupPosition } from './foundation/popup'
 import type { Align, PortalProps, PositionProps, Side } from './foundation/popup'
 import { registerComponent } from './foundation/registry'
-import { renderPart, SafePortal } from './foundation/render'
+import {
+  formatAriaKeyShortcuts,
+  formatDisplayShortcut,
+  renderPart,
+  SafePortal,
+} from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
 
@@ -84,12 +90,12 @@ export type PopoverProps<Payload = unknown, Result = string> = PopoverOptions<Pa
   children?: JSX.Element
 }
 
-export type PopoverTriggerProps<Payload = unknown> = {
+export type PopoverTriggerProps<Payload = unknown, Result = string> = {
   disabled?: boolean
   focusableWhenDisabled?: boolean
   payload?: Payload
   shortcut?: string
-  controller?: PopoverController<unknown, unknown>
+  controller?: PopoverController<Payload, Result>
 }
 
 export type PopoverTriggerState = {
@@ -314,8 +320,8 @@ export function Popover<Payload = unknown, Result = string>(props: PopoverProps<
 /**
  * Trigger button that toggles the popover. Supports external `controller`.
  */
-export function PopoverTrigger<Payload = unknown>(
-  props: PopoverTriggerProps<Payload> &
+export function PopoverTrigger<Payload = unknown, Result = string>(
+  props: PopoverTriggerProps<Payload, Result> &
     Omit<PartProps<'button', PopoverTriggerState>, 'value' | 'onChange' | 'type'>,
 ) {
   const directCtx = useContext(PopoverContext)
@@ -347,7 +353,7 @@ export function PopoverTrigger<Payload = unknown>(
             'aria-haspopup': 'dialog',
             'aria-expanded': s.open ? 'true' : 'false',
             'aria-controls': ctx?.contentId,
-            'aria-keyshortcuts': props.shortcut,
+            'aria-keyshortcuts': formatAriaKeyShortcuts(props.shortcut),
             disabled: s.disabled && !focusableDisabled ? true : undefined,
             'aria-disabled': focusableDisabled ? 'true' : undefined,
             'data-open': s.open ? '' : undefined,
@@ -509,10 +515,19 @@ export function PopoverArrow(props: PartProps<'div', PopoverArrowState>) {
 }
 
 export function PopoverShortcut(
-  props: PopoverShortcutProps & PartProps<'kbd', PopoverShortcutState>,
+  props: PopoverShortcutProps & PartProps<'span', PopoverShortcutState>,
 ) {
   const shortcut = useContext(PopoverShortcutContext)
-  return renderPart('kbd', props, () => ({ shortcut: shortcut() }), {
+  const resolvedProps: PartProps<'span', PopoverShortcutState> = merge(props, {
+    get children() {
+      if (props.children !== undefined) {
+        return props.children
+      }
+      const display = formatDisplayShortcut(shortcut())
+      return display ? `\u2066${display}\u2069` : undefined
+    },
+  })
+  return renderPart('span', resolvedProps, () => ({ shortcut: shortcut() }), {
     attrs: () => ({ 'aria-hidden': 'true' }),
   })
 }

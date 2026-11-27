@@ -7,6 +7,7 @@ import {
   createUniqueId,
   merge,
   omit,
+  untrack,
   useContext,
 } from 'solid-js'
 
@@ -96,6 +97,7 @@ export type SelectOptions<T extends string = string> = {
   name?: string
   filter?: ListFilter
   items?: Array<T | ListData<T>[number]>
+  itemToLabel?: (value: T) => string
   controller?: SelectController<T>
   debug?: boolean
 }
@@ -230,6 +232,28 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
 
   const optionList: Array<RegisteredSelectOption> = []
   const labelMap = new Map<string, string>()
+  const seedLabels = () => {
+    const raw = props.items
+    if (!raw) {
+      return
+    }
+    for (const entry of raw) {
+      if (typeof entry === 'string') {
+        labelMap.set(entry, entry)
+      } else if ('items' in entry) {
+        for (const sub of entry.items) {
+          if (typeof sub === 'string') {
+            labelMap.set(sub, sub)
+          } else if ('value' in sub) {
+            labelMap.set(sub.value, sub.label ?? sub.value)
+          }
+        }
+      } else if ('value' in entry) {
+        labelMap.set(entry.value, entry.label ?? entry.value)
+      }
+    }
+  }
+  untrack(seedLabels)
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -416,7 +440,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     }
   }
 
-  const getLabelFor = (val: string) => labelMap.get(val) ?? val
+  const getLabelFor = (val: string) => props.itemToLabel?.(val as T) ?? labelMap.get(val) ?? val
 
   return (
     <SelectContext
@@ -452,6 +476,41 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
       }}
     >
       {props.children}
+      <Show when={props.name}>
+        {(formName) => (
+          <Show
+            when={isMultiple()}
+            fallback={
+              <textarea
+                name={formName()}
+                required={props.required || undefined}
+                readonly
+                tabindex={-1}
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  width: '1px',
+                  height: '1px',
+                  margin: '-1px',
+                  padding: '0',
+                  overflow: 'hidden',
+                  border: '0',
+                  clip: 'rect(0 0 0 0)',
+                }}
+              >
+                {(() => {
+                  const cur = value()
+                  return typeof cur === 'string' ? cur : ''
+                })()}
+              </textarea>
+            }
+          >
+            <For each={Array.isArray(value()) ? (value() as Array<T>) : []}>
+              {(v) => <input type="hidden" name={formName()} value={v} />}
+            </For>
+          </Show>
+        )}
+      </Show>
     </SelectContext>
   )
 }
@@ -494,7 +553,16 @@ export function SelectTrigger<T extends string = string>(
     })
   }
   const rest = omit(props, 'disabled')
-  return renderPart('button', rest, ctx.state, {
+  const resolvedTrigger: PartProps<'button', SelectTriggerState> = merge(rest, {
+    get children() {
+      return (
+        <Show when={props.children !== undefined} fallback={<SelectValue />}>
+          {typeof props.children === 'function' ? props.children(ctx.state()) : props.children}
+        </Show>
+      )
+    },
+  })
+  return renderPart('button', resolvedTrigger, ctx.state, {
     ref: (el: HTMLElement) => ctx.setTriggerEl(el),
     attrs: () => {
       const s = ctx.state()
@@ -508,7 +576,9 @@ export function SelectTrigger<T extends string = string>(
         'aria-haspopup': 'listbox',
         'aria-controls': ctx.listId,
         'aria-labelledby': ctx.labelId,
-        'aria-describedby': ctx.field?.describedBy(),
+        'aria-describedby':
+          ctx.field?.describedBy() ??
+          (typeof window === 'undefined' && ctx.field ? ctx.field.descriptionId : undefined),
         'aria-invalid': s.invalid ? 'true' : undefined,
         'data-open': s.open ? '' : undefined,
         'data-empty': s.empty ? '' : undefined,
@@ -588,6 +658,7 @@ export function SelectValue(
 
   return renderPart('span', resolvedProps, valState, {
     attrs: () => ({
+      'data-slot': 'select-value',
       'data-placeholder': !valState().hasValue ? '' : undefined,
     }),
   })
