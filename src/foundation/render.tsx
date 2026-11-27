@@ -342,10 +342,14 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
     <>
       {(() => {
         const fn = userProps.render
-        return fn ? (
-          fn(propsWithChildren, reactiveState)
-        ) : (
-          <TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>
+        return (
+          <>
+            {fn ? (
+              fn(propsWithChildren, reactiveState)
+            ) : (
+              <TagComponent {...mergedProps}>{resolveChildren()}</TagComponent>
+            )}
+          </>
         )
       })()}
     </>

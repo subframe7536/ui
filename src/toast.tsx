@@ -1,5 +1,14 @@
 import type { JSX } from '@solidjs/web'
-import { For, Show, createContext, createSignal, merge, omit, onCleanup, useContext } from 'solid-js'
+import {
+  For,
+  Show,
+  createContext,
+  createSignal,
+  merge,
+  omit,
+  onCleanup,
+  useContext,
+} from 'solid-js'
 
 import { runAction } from './foundation/action'
 import type { ActionDetails } from './foundation/action'

@@ -35,7 +35,7 @@ it('a press hands the handler how the button was pressed', () => {
   expect(sources).toEqual(['agent'])
 })
 
-it("Solid's bound form runs with its data, the event on the button and how it was pressed", () => {
+it("solid's bound form runs with its data, the event on the button and how it was pressed", () => {
   const calls: Array<unknown> = []
   const handler = (data: string, event: MouseEvent, details: { source: string }) =>
     calls.push(data, event.currentTarget, details.source)

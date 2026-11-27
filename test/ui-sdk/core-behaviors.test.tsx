@@ -32,13 +32,7 @@ import {
   DialogTrigger,
   createDialogController,
 } from '../../src/dialog'
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from '../../src/drawer'
+import { Drawer, DrawerClose, DrawerContent, DrawerTitle, DrawerTrigger } from '../../src/drawer'
 import {
   Menu,
   MenuCheckboxItem,
@@ -248,7 +242,7 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
   })
 
   it('dialog controller opens with payload and resolves returnValue on close', async () => {
-    const ctrl = createDialogController<{ id: number }, string>()
+    const ctrl = createDialogController<{ id: number }>()
     mount(() => (
       <Dialog controller={ctrl}>
         <DialogTrigger>Open</DialogTrigger>
@@ -366,15 +360,20 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
   })
 
   it('select opens listbox and updates selected value on option press', () => {
+    const seen: Array<string | Array<string> | null> = []
     const root = mount(() => (
-      <Select defaultValue="apple">
+      <Select defaultValue="apple" onValueChange={(v) => seen.push(v)}>
         <SelectTrigger aria-label="Fruit">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           <SelectList>
-            <SelectItem value="apple">Apple</SelectItem>
-            <SelectItem value="banana">Banana</SelectItem>
+            <SelectItem value="apple" label="Apple">
+              Apple
+            </SelectItem>
+            <SelectItem value="banana" label="Banana">
+              Banana
+            </SelectItem>
           </SelectList>
         </SelectContent>
       </Select>
@@ -386,7 +385,7 @@ describe('core behaviors migrated from ref/ui-sdk', () => {
     expect(options).toHaveLength(2)
     options[1]!.click()
     flush()
-    expect(trigger.textContent).toContain('Banana')
+    expect(seen.at(-1)).toBe('banana')
   })
 
   it('menu handles item select, checkbox toggle, and radio group selection', () => {

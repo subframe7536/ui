@@ -65,7 +65,7 @@ describe('event handlers', () => {
     dispose()
   })
 
-  it('Escape in a nested popup closes only the innermost', async () => {
+  it('escape in a nested popup closes only the innermost', async () => {
     const outer = createPopoverController()
     const inner = createPopoverController()
     const { root, dispose } = mount(() => (
