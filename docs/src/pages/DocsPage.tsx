@@ -10,6 +10,8 @@ type NavGroup = {
   items: Array<{ slug: string; title: string }>
 }
 
+type DocSection = 'solid' | 'guides' | 'agents' | 'core'
+
 const DOCS_PAGES = docsDataRaw as Record<string, DocPageData>
 const NAV_GROUPS = navRaw as Array<NavGroup>
 
@@ -20,19 +22,42 @@ const FALLBACK_PAGE: DocPageData = {
   blocks: [],
 }
 
-const ALL_NAV_ENTRIES = NAV_GROUPS.flatMap((g) =>
-  g.items.map((item) => ({
-    slug: item.slug,
-    hash: `#/docs/${item.slug}`,
-    title: item.title,
-    group: g.group,
-  })),
-)
+const SECTION_GROUPS: Record<DocSection, Set<string>> = {
+  solid: new Set(['Get Started', 'Using Components', 'Build Your Own', 'Utilities', 'Components']),
+  guides: new Set(['Guides']),
+  agents: new Set(['Agents']),
+  core: new Set(['Core & Behaviors']),
+}
+
+function sectionForSlug(slug: string): DocSection {
+  if (slug === 'guides' || slug.startsWith('guides/')) {
+    return 'guides'
+  }
+  if (slug === 'agents' || slug.startsWith('agents/')) {
+    return 'agents'
+  }
+  if (slug === 'core' || slug.startsWith('core/')) {
+    return 'core'
+  }
+  return 'solid'
+}
+
+function sectionForHash(hash: string): DocSection {
+  const slug = hash.startsWith('#/docs/') ? (hash.slice('#/docs/'.length).split('#')[0] ?? '') : ''
+  return sectionForSlug(slug)
+}
+
+function groupsForSection(section: DocSection): Array<NavGroup> {
+  const allowed = SECTION_GROUPS[section]
+  return NAV_GROUPS.filter((g) => allowed.has(g.group))
+}
 
 export function DocsSidebar(props: { currentHash: string; onSelect?: () => void }) {
+  const visibleGroups = createMemo(() => groupsForSection(sectionForHash(props.currentHash)))
+
   return (
     <nav aria-label="Documentation navigation">
-      <For each={NAV_GROUPS}>
+      <For each={visibleGroups()}>
         {(group) => (
           <div class="sidebar-group">
             <h3 class="sidebar-group-title">{group.group}</h3>
@@ -80,11 +105,23 @@ export function DocsPage(props: { route: string }) {
 
   const currentHash = createMemo(() => `#/docs/${normalizedSlug()}`)
 
+  const sectionEntries = createMemo(() =>
+    groupsForSection(sectionForSlug(normalizedSlug())).flatMap((g) =>
+      g.items.map((item) => ({
+        slug: item.slug,
+        hash: `#/docs/${item.slug}`,
+        title: item.title,
+        group: g.group,
+      })),
+    ),
+  )
+
   const pager = createMemo(() => {
-    const idx = ALL_NAV_ENTRIES.findIndex((item) => item.slug === normalizedSlug())
+    const entries = sectionEntries()
+    const idx = entries.findIndex((item) => item.slug === normalizedSlug())
     return {
-      prev: idx > 0 ? ALL_NAV_ENTRIES[idx - 1] : undefined,
-      next: idx >= 0 && idx < ALL_NAV_ENTRIES.length - 1 ? ALL_NAV_ENTRIES[idx + 1] : undefined,
+      prev: idx > 0 ? entries[idx - 1] : undefined,
+      next: idx >= 0 && idx < entries.length - 1 ? entries[idx + 1] : undefined,
     }
   })
 

@@ -540,28 +540,15 @@ kbd {
 }
 
 @media (min-width: 1024px) {
-  .site-shell:has(.docs-shell) {
-    height: 100dvh;
-    overflow: hidden;
-  }
-
-  .site-shell:has(.docs-shell) .site-footer {
-    display: none;
-  }
-
   .docs-shell {
     grid-template-columns: 248px minmax(0, 1fr);
     gap: 44px;
-    min-height: 0;
-    overflow: hidden;
     padding-top: 0;
     padding-bottom: 0;
-    align-items: stretch;
+    align-items: start;
   }
 
   .docs-article {
-    height: 100%;
-    overflow-y: auto;
     max-width: none;
     padding: 28px 16px 88px 0;
   }
@@ -571,7 +558,7 @@ kbd {
   }
 
   .docs-h2 {
-    scroll-margin-top: 24px;
+    scroll-margin-top: 76px;
   }
 }
 
@@ -588,7 +575,10 @@ kbd {
 @media (min-width: 1024px) {
   .docs-sidebar {
     display: block;
-    height: 100%;
+    position: sticky;
+    top: 60px;
+    align-self: start;
+    max-height: calc(100dvh - 60px);
     overflow-y: auto;
     padding: 28px 12px 48px 0;
   }
@@ -825,7 +815,10 @@ kbd {
 @media (min-width: 1280px) {
   .docs-toc {
     display: block;
-    height: 100%;
+    position: sticky;
+    top: 60px;
+    align-self: start;
+    max-height: calc(100dvh - 60px);
     overflow-y: auto;
     padding: 28px 0 48px;
   }

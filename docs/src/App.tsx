@@ -26,7 +26,6 @@ function nextTheme(current: ColorScheme): ColorScheme {
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'instant' })
-  document.querySelector('.docs-article')?.scrollTo({ top: 0, behavior: 'instant' })
 }
 
 export function App() {
@@ -85,6 +84,11 @@ export function App() {
   }
 
   const isDocs = () => hash().startsWith('#/docs')
+  const isComponents = () => hash().startsWith('#/docs/components')
+  const isGuides = () => hash() === '#/docs/guides' || hash().startsWith('#/docs/guides/')
+  const isAgents = () => hash() === '#/docs/agents' || hash().startsWith('#/docs/agents/')
+  const isCore = () => hash() === '#/docs/core' || hash().startsWith('#/docs/core/')
+  const isSolidDocs = () => isDocs() && !isComponents() && !isGuides() && !isAgents() && !isCore()
   const isSink = () => hash().startsWith('#/sink')
 
   return (
@@ -103,16 +107,37 @@ export function App() {
             <a
               href="#/docs/index"
               class="header-nav-link"
-              data-active={isDocs() ? 'true' : undefined}
+              data-active={isSolidDocs() ? 'true' : undefined}
             >
               Docs
             </a>
             <a
               href="#/docs/components/index"
               class="header-nav-link"
-              data-active={hash().startsWith('#/docs/components/') ? 'true' : undefined}
+              data-active={isComponents() ? 'true' : undefined}
             >
               Components
+            </a>
+            <a
+              href="#/docs/guides"
+              class="header-nav-link"
+              data-active={isGuides() ? 'true' : undefined}
+            >
+              Guides
+            </a>
+            <a
+              href="#/docs/agents"
+              class="header-nav-link"
+              data-active={isAgents() ? 'true' : undefined}
+            >
+              Agents
+            </a>
+            <a
+              href="#/docs/core"
+              class="header-nav-link"
+              data-active={isCore() ? 'true' : undefined}
+            >
+              Core
             </a>
             <a href="#/sink" class="header-nav-link" data-active={isSink() ? 'true' : undefined}>
               Sink
@@ -202,6 +227,9 @@ export function App() {
           </span>
           <div class="ui-row footer-links">
             <a href="#/docs/index">Docs</a>
+            <a href="#/docs/guides">Guides</a>
+            <a href="#/docs/agents">Agents</a>
+            <a href="#/docs/core">Core</a>
             <a href="#/sink">Kitchen Sink</a>
             <a href="https://github.com/subframe7536/ui" target="_blank" rel="noreferrer">
               GitHub
@@ -226,20 +254,27 @@ export function App() {
             </DrawerClose>
           </div>
           <div class="drawer-quick-links">
-            <a href="#/" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
-              Home
-            </a>
-            <a href="#/sink" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
-              Sink
+            <a href="#/docs/index" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
+              Docs
             </a>
             <a
-              href="https://github.com/subframe7536/ui"
-              target="_blank"
-              rel="noreferrer"
+              href="#/docs/components/index"
               class="ui-btn"
               onClick={() => setMobileNavOpen(false)}
             >
-              GitHub
+              Components
+            </a>
+            <a href="#/docs/guides" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
+              Guides
+            </a>
+            <a href="#/docs/agents" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
+              Agents
+            </a>
+            <a href="#/docs/core" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
+              Core
+            </a>
+            <a href="#/sink" class="ui-btn" onClick={() => setMobileNavOpen(false)}>
+              Sink
             </a>
           </div>
           <DocsSidebar currentHash={hash()} onSelect={() => setMobileNavOpen(false)} />
