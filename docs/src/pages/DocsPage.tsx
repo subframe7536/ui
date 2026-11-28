@@ -1,6 +1,7 @@
 import { For, Show, createMemo } from 'solid-js'
 
-import { DocRenderer, type DocPageData } from '../components/DocRenderer'
+import { DocRenderer } from '../components/DocRenderer'
+import type { DocPageData } from '../components/DocRenderer'
 import docsDataRaw from '../generated/docs-data.json'
 import navRaw from '../generated/nav.json'
 
@@ -77,10 +78,6 @@ export function DocsPage(props: { route: string }) {
     () => DOCS_PAGES[normalizedSlug()] ?? DOCS_PAGES.index ?? FALLBACK_PAGE,
   )
 
-  const currentNav = createMemo(() =>
-    ALL_NAV_ENTRIES.find((item) => item.slug === normalizedSlug()),
-  )
-
   const currentHash = createMemo(() => `#/docs/${normalizedSlug()}`)
 
   const pager = createMemo(() => {
@@ -107,8 +104,101 @@ export function DocsPage(props: { route: string }) {
       </aside>
 
       <article class="docs-article">
-        <p class="docs-eyebrow">{currentNav()?.group ?? 'Documentation'}</p>
-        <h1 class="docs-title">{page().title}</h1>
+        <div class="docs-header-row">
+          <h1 class="docs-title">{page().title}</h1>
+          <div class="docs-header-nav" aria-label="Page navigation">
+            <Show
+              when={pager().prev}
+              fallback={
+                <span class="docs-nav-btn" aria-disabled="true">
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m12 19-7-7 7-7" />
+                    <path d="M19 12H5" />
+                  </svg>
+                </span>
+              }
+            >
+              {(prev) => (
+                <a
+                  href={prev().hash}
+                  class="docs-nav-btn"
+                  aria-label={`Previous: ${prev().title}`}
+                  title={prev().title}
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m12 19-7-7 7-7" />
+                    <path d="M19 12H5" />
+                  </svg>
+                </a>
+              )}
+            </Show>
+            <Show
+              when={pager().next}
+              fallback={
+                <span class="docs-nav-btn" aria-disabled="true">
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </span>
+              }
+            >
+              {(next) => (
+                <a
+                  href={next().hash}
+                  class="docs-nav-btn"
+                  aria-label={`Next: ${next().title}`}
+                  title={next().title}
+                >
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M5 12h14" />
+                    <path d="m12 5 7 7-7 7" />
+                  </svg>
+                </a>
+              )}
+            </Show>
+          </div>
+        </div>
         <Show when={page().description}>
           <p class="docs-lead">{page().description}</p>
         </Show>
