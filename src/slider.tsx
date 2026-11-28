@@ -122,6 +122,7 @@ function toPercent(val: number, min: number, max: number): number {
 type SliderContextValue = {
   id: string
   state: () => SliderState
+  lastThumbIndex: () => number
   setThumbValue: (
     index: number,
     nextVal: number,
@@ -173,6 +174,7 @@ export function Slider<T extends number | Array<number> = number>(
 
   const [dragging, setDraggingState] = createSignal(false)
   const [activeThumbIndex, setActiveThumbIndex] = createSignal(-1)
+  const [lastThumbIndex, setLastThumbIndex] = createSignal(-1)
   let trackEl: HTMLElement | null = null
   let rootEl: HTMLElement | null = null
 
@@ -243,6 +245,7 @@ export function Slider<T extends number | Array<number> = number>(
     if (disabled() || readOnly()) {
       return
     }
+    setLastThumbIndex(index)
     const current = [...values()]
     const snapped = snapValue(nextVal, min(), max(), step())
     const minGap = (props.minStepsBetweenValues ?? 0) * step()
@@ -331,11 +334,15 @@ export function Slider<T extends number | Array<number> = number>(
       value={{
         id,
         state,
+        lastThumbIndex,
         setThumbValue,
         commitValue,
         setDragging: (d, idx) => {
           setDraggingState(d)
           setActiveThumbIndex(d ? (idx ?? 0) : -1)
+          if (d && idx !== undefined) {
+            setLastThumbIndex(idx)
+          }
         },
         largeStep,
         formatValue,
@@ -372,6 +379,13 @@ export function Slider<T extends number | Array<number> = number>(
   )
 }
 
+function isRtl(el: Element | null): boolean {
+  if (!el || typeof getComputedStyle === 'undefined') {
+    return false
+  }
+  return getComputedStyle(el).direction === 'rtl'
+}
+
 function pointerToValue(e: PointerEvent, ctx: SliderContextValue): number {
   const track = ctx.getTrack()
   const s = ctx.state()
@@ -379,14 +393,14 @@ function pointerToValue(e: PointerEvent, ctx: SliderContextValue): number {
     return s.min
   }
   const rect = track.getBoundingClientRect()
-  const ratio =
-    s.orientation === 'vertical'
-      ? rect.height > 0
-        ? (rect.bottom - e.clientY) / rect.height
-        : 0
-      : rect.width > 0
-        ? (e.clientX - rect.left) / rect.width
-        : 0
+  let ratio = 0
+  if (s.orientation === 'vertical') {
+    ratio = rect.height > 0 ? (rect.bottom - e.clientY) / rect.height : 0
+  } else if (rect.width > 0) {
+    ratio = isRtl(track)
+      ? (rect.right - e.clientX) / rect.width
+      : (e.clientX - rect.left) / rect.width
+  }
   const clamped = Math.min(1, Math.max(0, ratio))
   return s.min + clamped * (s.max - s.min)
 }
@@ -400,8 +414,10 @@ export function SliderControl(props: PartProps<'div', SliderState>) {
         'data-orientation': s.orientation,
         'data-dragging': s.dragging ? '' : undefined,
         'data-disabled': s.disabled ? '' : undefined,
+        'data-readonly': s.readOnly ? '' : undefined,
       }
     },
+    style: () => ({ 'touch-action': 'none' }),
     handlers: {
       onPointerDown: (e: PointerEvent) => {
         const s = ctx.state()
@@ -441,28 +457,55 @@ export function SliderTrack(props: PartProps<'div', SliderState>) {
   const ctx = useSlider('Track')
   return renderPart('div', props, ctx.state, {
     ref: (el) => ctx.registerTrack(el),
-    attrs: () => ({
-      'data-orientation': ctx.state().orientation,
-      'data-disabled': ctx.state().disabled ? '' : undefined,
-    }),
+    attrs: () => {
+      const s = ctx.state()
+      return {
+        'data-orientation': s.orientation,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-readonly': s.readOnly ? '' : undefined,
+        'data-dragging': s.dragging ? '' : undefined,
+      }
+    },
+    style: () => ({ position: 'relative' }),
   })
 }
 
 export function SliderIndicator(props: PartProps<'div', SliderState>) {
   const ctx = useSlider('Indicator')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({
-      'data-orientation': ctx.state().orientation,
-      'data-disabled': ctx.state().disabled ? '' : undefined,
-    }),
+    attrs: () => {
+      const s = ctx.state()
+      return {
+        'data-orientation': s.orientation,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-readonly': s.readOnly ? '' : undefined,
+        'data-dragging': s.dragging ? '' : undefined,
+      }
+    },
     style: () => {
       const s = ctx.state()
       const start = s.values.length > 1 ? toPercent(s.values[0] ?? s.min, s.min, s.max) : 0
       const end = toPercent(s.values.at(-1) ?? s.min, s.min, s.max)
-      const size = Math.max(0, end - start)
+      const size = Math.round(Math.max(0, end - start) * 1e4) / 1e4
       return s.orientation === 'vertical'
-        ? { bottom: `${start}%`, height: `${size}%` }
-        : { 'inset-inline-start': `${start}%`, width: `${size}%` }
+        ? {
+            position: 'absolute',
+            bottom: `${start}%`,
+            height: `${size}%`,
+            left: '0',
+            right: '0',
+            '--slider-indicator-start': `${start}%`,
+            '--slider-indicator-size': `${size}%`,
+          }
+        : {
+            position: 'absolute',
+            'inset-inline-start': `${start}%`,
+            width: `${size}%`,
+            top: '0',
+            bottom: '0',
+            '--slider-indicator-start': `${start}%`,
+            '--slider-indicator-size': `${size}%`,
+          }
     },
   })
 }
@@ -512,10 +555,17 @@ export function SliderThumb(
             tabindex={-1}
             style={{
               position: 'absolute',
+              inset: '0',
+              width: '100%',
+              height: '100%',
+              margin: '0',
+              padding: '0',
+              border: '0',
               opacity: 0,
+              overflow: 'hidden',
+              'clip-path': 'inset(50%)',
+              'white-space': 'nowrap',
               'pointer-events': 'none',
-              width: '1px',
-              height: '1px',
             }}
           />
         </>
@@ -541,16 +591,35 @@ export function SliderThumb(
         'aria-labelledby': s.values.length === 1 ? ctx.field?.labelId : undefined,
         'aria-describedby': ctx.field?.describedBy(),
         'data-index': ts.index,
+        'data-orientation': s.orientation,
         'data-dragging': ts.dragging ? '' : undefined,
         'data-disabled': ts.disabled ? '' : undefined,
+        'data-readonly': s.readOnly ? '' : undefined,
       }
     },
     style: () => {
       const ts = thumbState()
       const s = ctx.state()
+      const percent = ts.percent || 0
       return s.orientation === 'vertical'
-        ? { bottom: `${ts.percent}%` }
-        : { 'inset-inline-start': `${ts.percent}%` }
+        ? {
+            position: 'absolute',
+            bottom: `${percent}%`,
+            left: '50%',
+            translate: '-50% 50%',
+            'z-index': ts.dragging ? 2 : ctx.lastThumbIndex() === ts.index ? 1 : undefined,
+            '--slider-thumb-position': `${percent}%`,
+          }
+        : {
+            position: 'absolute',
+            'inset-inline': `calc(${percent}% - 50%) calc(50% - ${percent}%)`,
+            'margin-inline': 'auto',
+            'justify-self': 'center',
+            top: '50%',
+            translate: '0 -50%',
+            'z-index': ts.dragging ? 2 : ctx.lastThumbIndex() === ts.index ? 1 : undefined,
+            '--slider-thumb-position': `${percent}%`,
+          }
     },
     handlers: {
       onKeyDown: (e: KeyboardEvent) => {
@@ -559,10 +628,15 @@ export function SliderThumb(
         if (s.disabled || s.readOnly) {
           return
         }
+        const rtl = s.orientation === 'horizontal' && isRtl(e.currentTarget as Element | null)
         let next: number | null = null
-        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        if (e.key === 'ArrowRight') {
+          next = ts.value + (rtl ? -s.step : s.step)
+        } else if (e.key === 'ArrowLeft') {
+          next = ts.value + (rtl ? s.step : -s.step)
+        } else if (e.key === 'ArrowUp') {
           next = ts.value + s.step
-        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        } else if (e.key === 'ArrowDown') {
           next = ts.value - s.step
         } else if (e.key === 'PageUp') {
           next = ts.value + ctx.largeStep()
