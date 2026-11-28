@@ -1,5 +1,5 @@
 import type { JSX } from '@solidjs/web'
-import { For, Show, createEffect, createSignal } from 'solid-js'
+import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
 
 import { LogContext } from '../examples-custom/_helpers/log'
 import exampleSourcesRaw from '../generated/example-sources.json'
@@ -22,9 +22,10 @@ export function ExampleViewer(props: { name: string; caption?: string }) {
   const [resetKey, setResetKey] = createSignal(1)
   const [logs, setLogs] = createSignal<Array<string>>([])
   const [copied, setCopied] = createSignal(false)
+  let consoleListRef: HTMLOListElement | undefined
 
   const pushLog = (message: string) => {
-    setLogs((prev) => [...prev.slice(-7), message])
+    setLogs((prev) => [...prev, message].slice(-50))
   }
 
   createEffect(
@@ -66,7 +67,17 @@ export function ExampleViewer(props: { name: string; caption?: string }) {
     },
   )
 
+  createEffect(
+    () => logs().length,
+    (len) => {
+      if (len > 0 && consoleListRef) {
+        consoleListRef.scrollTo({ top: consoleListRef.scrollHeight })
+      }
+    },
+  )
+
   const sourceCode = () => EXAMPLE_SOURCES[props.name] ?? ''
+  const hasConsole = createMemo(() => sourceCode().includes('useLog') || logs().length > 0)
 
   const handleCopy = () => {
     const code = sourceCode()
@@ -221,42 +232,55 @@ export function ExampleViewer(props: { name: string; caption?: string }) {
                     )}
                   </Show>
                 </Show>
-                <span
-                  class="example-style-note"
-                  title="Components from @subf/ui are unstyled; this preview uses example styles."
-                  aria-label="Components from @subf/ui are unstyled; this preview uses example styles."
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.7"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <path d="M12 17h.01" />
-                  </svg>
-                </span>
               </div>
 
-              <Show when={logs().length > 0}>
-                <div class="example-log" aria-live="polite">
-                  <div class="example-log-head">
-                    <span>Event log</span>
-                    <button type="button" class="example-log-clear" onClick={() => setLogs([])}>
-                      Clear
-                    </button>
-                  </div>
-                  <ul class="example-log-list">
-                    <For each={logs()}>{(entry) => <li>{entry}</li>}</For>
-                  </ul>
-                </div>
+              <Show when={hasConsole()}>
+                <section role="group" aria-label="Console" class="example-console">
+                  <div class="example-console-head">Console</div>
+                  <ol ref={consoleListRef} aria-live="polite" class="example-console-list">
+                    <For each={logs()}>
+                      {(entry) => <li class="example-console-item">{entry}</li>}
+                    </For>
+                    <li aria-hidden="true" class="example-console-prompt">
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="m9 18 6-6-6-6" />
+                      </svg>
+                    </li>
+                  </ol>
+                </section>
               </Show>
+
+              <span
+                class="example-style-note"
+                title="Components from @subf/ui are unstyled; this preview uses example styles."
+                aria-label="Components from @subf/ui are unstyled; this preview uses example styles."
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </span>
             </div>
 
             <Show when={sourceCode()}>
