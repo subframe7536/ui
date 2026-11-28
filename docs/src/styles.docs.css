@@ -1,27 +1,304 @@
 /* ============================================================================
-   Replicated ref/ui-sdk documentation blocks & interactive example frames
+   Replicated ref/ui-sdk documentation layout, sidebar, TOC & example frames
    ============================================================================ */
+
+/* Container width & header/footer hairlines matching ref/ui-sdk when on docs */
+.site-header:has(~ [data-docs]) .container,
+[data-docs].container,
+[data-docs] ~ .site-footer.container {
+  max-width: 1920px;
+}
+
+.site-header-rule-wrap {
+  position: relative;
+  height: 6px;
+}
+
+.site-header-rule {
+  position: absolute;
+  inset-inline: 0;
+  top: 5px;
+  height: 1px;
+  background: color-mix(in oklab, var(--foreground) 30%, var(--canvas));
+}
+
+.site-header:has(~ [data-docs]) .site-header-rule {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.site-footer {
+  border-top: 0;
+  padding-block: 0;
+}
+
+.site-footer-rule-wrap {
+  position: relative;
+  height: 1px;
+}
+
+.site-footer-rule {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 1px;
+  background: color-mix(in oklab, var(--foreground) 30%, var(--canvas));
+}
+
+[data-docs] ~ .site-footer .site-footer-rule {
+  background: color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+.site-footer-inner {
+  padding-block: 2rem;
+}
+
+/* 1:1 ref/ui-sdk DocsLayout DOM structure */
+.docs-layout {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+@media (max-width: 1023px) {
+  .docs-layout {
+    padding-inline: 0;
+  }
+}
+
+.docs-layout-body {
+  display: flex;
+  flex: 1;
+}
+
+/* Left Sidebar Rail: relative hidden w-64 shrink-0 border-e border-foreground/[0.06] contain-size lg:block */
+.docs-aside {
+  position: relative;
+  display: none;
+  width: 16rem;
+  flex-shrink: 0;
+  border-inline-end: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
+  contain: size;
+}
+
+@media (min-width: 1024px) {
+  .docs-aside {
+    display: block;
+  }
+}
+
+.docs-aside-sticky {
+  position: sticky;
+  top: 4.375rem;
+  display: flex;
+  max-height: min(100%, calc(100dvh - 4.375rem));
+  flex-direction: column;
+  padding-top: 0.5rem;
+}
+
+.docs-sidebar-wrap {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.docs-sidebar-scroller {
+  min-height: 0;
+  flex: 1;
+  margin: -0.25rem;
+  padding: 2.5rem 1rem 2rem 0.25rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-width: none;
+}
+
+.docs-sidebar-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.ui-drawer .docs-sidebar-scroller {
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.sidebar-nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-group {
+  margin: 2rem 0 0;
+}
+
+.sidebar-group:first-child {
+  margin-top: 0;
+}
+
+.sidebar-group-title {
+  margin: 0 0 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+.sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sidebar-link {
+  display: block;
+  padding: 0.25rem 0;
+  border-left: 0;
+  background: transparent;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--subtle);
+  transition: color 0.15s ease;
+}
+
+.sidebar-link:hover {
+  color: var(--foreground);
+  background: transparent;
+}
+
+.sidebar-link[aria-current='page'] {
+  color: var(--foreground);
+  font-weight: 500;
+  background: transparent;
+}
+
+/* Inline TOC inside sidebar below xl (matching sidebar.tsx xl:hidden) */
+.sidebar-inline-toc {
+  display: block;
+}
+
+@media (min-width: 1280px) {
+  .sidebar-inline-toc {
+    display: none;
+  }
+}
+
+.sidebar-inline-toc-list {
+  list-style: none;
+  margin: 0.125rem 0 0.5rem 0.25rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border-inline-start: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.sidebar-inline-toc-link {
+  position: relative;
+  margin-inline-start: -1px;
+  display: block;
+  border-inline-start: 1px solid transparent;
+  padding: 3px 0 3px 0.75rem;
+  font-size: 13px;
+  line-height: 1.25rem;
+  color: var(--subtle);
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sidebar-inline-toc-link:hover {
+  color: var(--foreground);
+}
+
+.sidebar-inline-toc-link[aria-current='location'] {
+  border-inline-start-color: var(--foreground);
+  color: var(--foreground);
+}
+
+/* Main Content Area: min-w-0 flex-1 -> main.flex */
+.docs-main-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.docs-main {
+  display: flex;
+}
+
+.docs-article-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+/* Article: w-full xl:mx-auto xl:max-w-2xl min-[100rem]:max-w-3xl px-6 pt-8 pb-24 sm:px-8 lg:px-10 lg:pt-10 */
+.docs-article {
+  width: 100%;
+  max-width: none;
+  padding: 2rem 1.5rem 6rem;
+}
+
+@media (min-width: 640px) {
+  .docs-article {
+    padding-inline: 2rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .docs-article {
+    padding-inline: 2.5rem;
+    padding-top: 2.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  .docs-article {
+    margin-inline: auto;
+    max-width: 42rem;
+  }
+}
+
+@media (min-width: 100rem) {
+  .docs-article {
+    max-width: 48rem;
+  }
+}
+
+.docs-article > * {
+  max-width: none;
+}
+
+.docs-article-header {
+  margin-bottom: 2.5rem;
+}
 
 .docs-header-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.45rem;
 }
 
 .docs-header-row .docs-title {
   margin: 0;
-  font-size: 1.95rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  text-wrap: balance;
 }
 
 .docs-header-nav {
   display: flex;
+  height: 35px;
   align-items: center;
-  gap: 0.375rem;
+  gap: 0.5rem;
   flex-shrink: 0;
 }
 
@@ -31,33 +308,206 @@
   justify-content: center;
   width: 2rem;
   height: 2rem;
+  flex-shrink: 0;
   border-radius: 0;
-  background: var(--muted);
+  background: color-mix(in oklab, var(--foreground) 5%, transparent);
   color: var(--foreground);
   text-decoration: none;
   transition: background-color 0.15s ease;
 }
 
-.docs-nav-btn:hover:not([aria-disabled='true']) {
-  background: var(--muted-strong);
+@media (min-width: 768px) {
+  .docs-nav-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
 }
 
-.docs-nav-btn[aria-disabled='true'] {
-  opacity: 0.35;
-  pointer-events: none;
+.docs-nav-btn:hover {
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
 }
 
 .docs-article .docs-lead {
-  margin: 0 0 1.75rem;
+  margin: 0.75rem 0 0;
   color: var(--subtle);
-  font-size: 0.98rem;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.625;
+  text-wrap: pretty;
+}
+
+@media (min-width: 640px) {
+  .docs-article .docs-lead {
+    font-size: 15px;
+  }
 }
 
 .docs-article .docs-p {
   color: var(--subtle);
   font-size: 0.95rem;
   line-height: 1.65;
+}
+
+.docs-h2 {
+  scroll-margin-top: 5.5rem;
+}
+
+/* Bottom Pager: mt-20 grid grid-cols-2 gap-4 border-t border-border/70 pt-6 */
+.docs-pager {
+  margin-top: 5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.pager-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.pager-link:hover {
+  border-color: transparent;
+}
+
+.pager-link-next {
+  grid-column: 2;
+  align-items: flex-end;
+  text-align: end;
+}
+
+.pager-label {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--subtle);
+}
+
+.pager-title {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--foreground);
+}
+
+.pager-link:hover .pager-title {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Right TOC Rail: relative hidden shrink-0 border-s border-foreground/[0.06] xl:block */
+.docs-toc-rail {
+  position: relative;
+  display: none;
+  flex-shrink: 0;
+  border-inline-start: 1px solid color-mix(in oklab, var(--foreground) 6%, transparent);
+}
+
+@media (min-width: 1280px) {
+  .docs-toc-rail {
+    display: block;
+  }
+}
+
+.docs-toc {
+  position: sticky;
+  top: 4.375rem;
+  margin-inline-start: auto;
+  margin-block: -0.25rem;
+  margin-inline-end: -0.25rem;
+  display: block;
+  max-height: calc(100dvh - 4.375rem);
+  width: 16rem;
+  flex-shrink: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  padding: 2.5rem 0.25rem 2rem 1.5rem;
+  scrollbar-width: none;
+}
+
+.docs-toc::-webkit-scrollbar {
+  display: none;
+}
+
+.toc-title {
+  margin: 0 0 0.625rem;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--subtle);
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0 0 0 -1.5rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.toc-link {
+  position: relative;
+  margin-inline-start: -1px;
+  display: block;
+  border-inline-start: 1px solid transparent;
+  padding: 3px 0 3px 1.5rem;
+  font-size: 13px;
+  line-height: 1.25rem;
+  color: var(--subtle);
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.toc-link[data-depth='3'] {
+  padding-inline-start: 2.25rem;
+}
+
+.toc-link:hover {
+  color: var(--foreground);
+}
+
+.toc-link[aria-current='location'] {
+  border-inline-start-color: var(--foreground);
+  color: var(--foreground);
+}
+
+.toc-divider {
+  margin-block: 1rem;
+  height: 1px;
+  background: color-mix(in oklab, var(--foreground) 10%, transparent);
+}
+
+.toc-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.toc-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1.25rem;
+  color: var(--subtle);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.toc-action:hover {
+  color: var(--foreground);
 }
 
 .doc-blocks {
@@ -72,7 +522,7 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--foreground);
-  scroll-margin-top: 5rem;
+  scroll-margin-top: 5.5rem;
 }
 
 .docs-h4 {
@@ -80,7 +530,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--foreground);
-  scroll-margin-top: 5rem;
+  scroll-margin-top: 5.5rem;
 }
 
 .doc-link {

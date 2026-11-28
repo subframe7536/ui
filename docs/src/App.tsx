@@ -199,7 +199,11 @@ export function App() {
             </button>
           </div>
         </div>
-        <div class="site-header-rule" />
+        <div aria-hidden="true" class="container">
+          <div class="site-header-rule-wrap">
+            <span class="site-header-rule" />
+          </div>
+        </div>
       </header>
 
       <Switch fallback={<HomePage />}>
@@ -211,8 +215,11 @@ export function App() {
         </Match>
       </Switch>
 
-      <footer class="site-footer">
-        <div class="container site-footer-inner">
+      <footer class="container site-footer">
+        <div aria-hidden="true" class="site-footer-rule-wrap">
+          <span class="site-footer-rule" />
+        </div>
+        <div class="site-footer-inner">
           <span>
             @subf/ui — SolidJS 2 native headless UI SDK, inspired by{' '}
             <a

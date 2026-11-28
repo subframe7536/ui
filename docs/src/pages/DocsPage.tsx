@@ -1,4 +1,4 @@
-import { For, Show, createMemo } from 'solid-js'
+import { For, Show, createEffect, createMemo, createSignal } from 'solid-js'
 
 import { DocRenderer } from '../components/DocRenderer'
 import type { DocPageData } from '../components/DocRenderer'
@@ -11,6 +11,12 @@ type NavGroup = {
 }
 
 type DocSection = 'solid' | 'guides' | 'agents' | 'core'
+
+type TocItem = {
+  id: string
+  label: string
+  level: number
+}
 
 const DOCS_PAGES = docsDataRaw as Record<string, DocPageData>
 const NAV_GROUPS = navRaw as Array<NavGroup>
@@ -52,38 +58,111 @@ function groupsForSection(section: DocSection): Array<NavGroup> {
   return NAV_GROUPS.filter((g) => allowed.has(g.group))
 }
 
-export function DocsSidebar(props: { currentHash: string; onSelect?: () => void }) {
+function revealCurrent(list: Element) {
+  const link = list.querySelector('[aria-current="page"]')
+  if (!link) {
+    return
+  }
+  const box = list.getBoundingClientRect()
+  const item = link.getBoundingClientRect()
+  if (item.top >= box.top && item.bottom <= box.bottom) {
+    return
+  }
+  list.scrollTop += item.top - box.top - (box.height - item.height) / 2
+}
+
+export function DocsSidebar(props: {
+  currentHash: string
+  tocItems?: Array<TocItem>
+  activeId?: string
+  onSelect?: () => void
+}) {
   const visibleGroups = createMemo(() => groupsForSection(sectionForHash(props.currentHash)))
+  let scroller: HTMLDivElement | undefined
+
+  createEffect(
+    () => props.currentHash,
+    () => {
+      const list = scroller
+      if (!list) {
+        return
+      }
+      let timeout: ReturnType<typeof setTimeout> | undefined
+      const frame = requestAnimationFrame(() => {
+        timeout = setTimeout(() => revealCurrent(list))
+      })
+      return () => {
+        cancelAnimationFrame(frame)
+        if (timeout !== undefined) {
+          clearTimeout(timeout)
+        }
+      }
+    },
+  )
 
   return (
-    <nav aria-label="Documentation navigation">
-      <For each={visibleGroups()}>
-        {(group) => (
-          <div class="sidebar-group">
-            <h3 class="sidebar-group-title">{group.group}</h3>
-            <ul class="sidebar-list">
-              <For each={group.items}>
-                {(item) => {
-                  const href = `#/docs/${item.slug}`
-                  return (
-                    <li>
-                      <a
-                        href={href}
-                        class="sidebar-link"
-                        data-active={props.currentHash === href ? 'true' : undefined}
-                        onClick={() => props.onSelect?.()}
-                      >
-                        {item.title}
-                      </a>
-                    </li>
-                  )
-                }}
-              </For>
-            </ul>
-          </div>
-        )}
-      </For>
-    </nav>
+    <div class="docs-sidebar-wrap">
+      <div ref={scroller} class="docs-sidebar-scroller">
+        <nav aria-label="Docs">
+          <ul class="sidebar-nodes">
+            <For each={visibleGroups()}>
+              {(group) => (
+                <li class="sidebar-group">
+                  <div class="sidebar-group-title">{group.group}</div>
+                  <ul class="sidebar-list">
+                    <For each={group.items}>
+                      {(item) => {
+                        const href = `#/docs/${item.slug}`
+                        const isActive = () => props.currentHash === href
+                        return (
+                          <li>
+                            <a
+                              href={href}
+                              class="sidebar-link"
+                              aria-current={isActive() ? 'page' : undefined}
+                              onClick={() => props.onSelect?.()}
+                            >
+                              {item.title}
+                            </a>
+                            <Show when={isActive() && (props.tocItems?.length ?? 0) > 1}>
+                              <div class="sidebar-inline-toc">
+                                <ul class="sidebar-inline-toc-list">
+                                  <For each={props.tocItems}>
+                                    {(heading) => (
+                                      <li>
+                                        <a
+                                          href={`#${heading.id}`}
+                                          class="sidebar-inline-toc-link"
+                                          aria-current={
+                                            props.activeId === heading.id ? 'location' : undefined
+                                          }
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            document
+                                              .getElementById(heading.id)
+                                              ?.scrollIntoView({ behavior: 'smooth' })
+                                          }}
+                                        >
+                                          {heading.label}
+                                        </a>
+                                      </li>
+                                    )}
+                                  </For>
+                                </ul>
+                              </div>
+                            </Show>
+                          </li>
+                        )
+                      }}
+                    </For>
+                  </ul>
+                </li>
+              )}
+            </For>
+          </ul>
+        </nav>
+      </div>
+    </div>
   )
 }
 
@@ -125,164 +204,215 @@ export function DocsPage(props: { route: string }) {
     }
   })
 
-  const tocItems = createMemo(() =>
+  const tocItems = createMemo<Array<TocItem>>(() =>
     page()
       .blocks.filter(
         (b): b is Extract<DocPageData['blocks'][number], { type: 'heading' }> =>
-          b.type === 'heading' && b.level === 2,
+          b.type === 'heading' && b.level >= 2 && b.level <= 3,
       )
-      .map((h) => ({ id: h.id, label: h.text })),
+      .map((h) => ({ id: h.id, label: h.text, level: h.level })),
+  )
+
+  const h2TocItems = createMemo(() => tocItems().filter((item) => item.level <= 2))
+  const [activeId, setActiveId] = createSignal('')
+
+  createEffect(
+    () => tocItems(),
+    (items) => {
+      if (items.length === 0) {
+        setActiveId('')
+        return
+      }
+      setActiveId(items[0]?.id ?? '')
+
+      const updateActive = () => {
+        const threshold = 110
+        let current = items[0]?.id ?? ''
+        for (const item of items) {
+          const el = document.getElementById(item.id)
+          if (el && el.getBoundingClientRect().top <= threshold) {
+            current = item.id
+          }
+        }
+        setActiveId(current)
+      }
+
+      const frame = requestAnimationFrame(updateActive)
+      window.addEventListener('scroll', updateActive, { passive: true })
+      return () => {
+        cancelAnimationFrame(frame)
+        window.removeEventListener('scroll', updateActive)
+      }
+    },
   )
 
   return (
-    <div class="container docs-shell">
-      <aside class="docs-sidebar">
-        <DocsSidebar currentHash={currentHash()} />
-      </aside>
-
-      <article class="docs-article">
-        <div class="docs-header-row">
-          <h1 class="docs-title">{page().title}</h1>
-          <div class="docs-header-nav" aria-label="Page navigation">
-            <Show
-              when={pager().prev}
-              fallback={
-                <span class="docs-nav-btn" aria-disabled="true">
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="m12 19-7-7 7-7" />
-                    <path d="M19 12H5" />
-                  </svg>
-                </span>
-              }
-            >
-              {(prev) => (
-                <a
-                  href={prev().hash}
-                  class="docs-nav-btn"
-                  aria-label={`Previous: ${prev().title}`}
-                  title={prev().title}
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="m12 19-7-7 7-7" />
-                    <path d="M19 12H5" />
-                  </svg>
-                </a>
-              )}
-            </Show>
-            <Show
-              when={pager().next}
-              fallback={
-                <span class="docs-nav-btn" aria-disabled="true">
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </span>
-              }
-            >
-              {(next) => (
-                <a
-                  href={next().hash}
-                  class="docs-nav-btn"
-                  aria-label={`Next: ${next().title}`}
-                  title={next().title}
-                >
-                  <svg
-                    width="15"
-                    height="15"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
-                  </svg>
-                </a>
-              )}
-            </Show>
+    <div data-docs="" class="container docs-layout">
+      <div class="docs-layout-body">
+        <aside class="docs-aside">
+          <div class="docs-aside-sticky">
+            <DocsSidebar
+              currentHash={currentHash()}
+              tocItems={h2TocItems()}
+              activeId={activeId()}
+            />
           </div>
+        </aside>
+
+        <div class="docs-main-wrap">
+          <main class="docs-main">
+            <div class="docs-article-wrap">
+              <article class="docs-article">
+                <header class="docs-article-header">
+                  <div class="docs-header-row">
+                    <h1 class="docs-title">{page().title}</h1>
+                    <Show when={pager().prev || pager().next}>
+                      <div class="docs-header-nav" aria-label="Page navigation">
+                        <Show when={pager().prev}>
+                          {(prev) => (
+                            <a
+                              href={prev().hash}
+                              class="docs-nav-btn"
+                              aria-label={`Previous: ${prev().title}`}
+                              title={prev().title}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="m12 19-7-7 7-7" />
+                                <path d="M19 12H5" />
+                              </svg>
+                            </a>
+                          )}
+                        </Show>
+                        <Show when={pager().next}>
+                          {(next) => (
+                            <a
+                              href={next().hash}
+                              class="docs-nav-btn"
+                              aria-label={`Next: ${next().title}`}
+                              title={next().title}
+                            >
+                              <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M5 12h14" />
+                                <path d="m12 5 7 7-7 7" />
+                              </svg>
+                            </a>
+                          )}
+                        </Show>
+                      </div>
+                    </Show>
+                  </div>
+                  <Show when={page().description}>
+                    <p class="docs-lead">{page().description}</p>
+                  </Show>
+                </header>
+
+                <DocRenderer blocks={page().blocks} />
+
+                <Show when={pager().prev || pager().next}>
+                  <nav aria-label="Pages" class="docs-pager">
+                    <Show when={pager().prev} fallback={<span />}>
+                      {(prev) => (
+                        <a href={prev().hash} class="pager-link pager-link-prev">
+                          <span class="pager-label">Previous</span>
+                          <span class="pager-title">{prev().title}</span>
+                        </a>
+                      )}
+                    </Show>
+                    <Show when={pager().next}>
+                      {(next) => (
+                        <a href={next().hash} class="pager-link pager-link-next">
+                          <span class="pager-label">Next</span>
+                          <span class="pager-title">{next().title}</span>
+                        </a>
+                      )}
+                    </Show>
+                  </nav>
+                </Show>
+              </article>
+            </div>
+
+            <div class="docs-toc-rail">
+              <nav aria-label="On this page" class="docs-toc">
+                <Show when={tocItems().length > 1}>
+                  <div class="toc-title">On this page</div>
+                  <ul class="toc-list">
+                    <For each={tocItems()}>
+                      {(item) => (
+                        <li>
+                          <a
+                            href={`#${item.id}`}
+                            class="toc-link"
+                            data-depth={item.level > 2 ? '3' : '2'}
+                            aria-current={activeId() === item.id ? 'location' : undefined}
+                            onClick={(e) => {
+                              e.preventDefault()
+                              document
+                                .getElementById(item.id)
+                                ?.scrollIntoView({ behavior: 'smooth' })
+                            }}
+                          >
+                            {item.label}
+                          </a>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                  <div class="toc-divider" />
+                </Show>
+                <div class="toc-actions">
+                  <Show when={tocItems().length > 1}>
+                    <button
+                      type="button"
+                      class="toc-action"
+                      onClick={() => {
+                        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                        window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+                      }}
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="m16 12-4-4-4 4" />
+                        <path d="M12 16V8" />
+                      </svg>
+                      Scroll to top
+                    </button>
+                  </Show>
+                </div>
+              </nav>
+            </div>
+          </main>
         </div>
-        <Show when={page().description}>
-          <p class="docs-lead">{page().description}</p>
-        </Show>
-
-        <DocRenderer blocks={page().blocks} />
-
-        <nav class="docs-pager" aria-label="Pagination">
-          <Show when={pager().prev}>
-            {(prev) => (
-              <a href={prev().hash} class="pager-link pager-link-prev">
-                <span class="pager-label">← Previous</span>
-                <span class="pager-title">{prev().title}</span>
-              </a>
-            )}
-          </Show>
-          <Show when={pager().next}>
-            {(next) => (
-              <a href={next().hash} class="pager-link pager-link-next">
-                <span class="pager-label">Next →</span>
-                <span class="pager-title">{next().title}</span>
-              </a>
-            )}
-          </Show>
-        </nav>
-      </article>
-
-      <aside class="docs-toc">
-        <div class="toc-title">On this page</div>
-        <ul class="toc-list">
-          <For each={tocItems()}>
-            {(item) => (
-              <li>
-                <a
-                  href={`#${item.id}`}
-                  class="toc-link"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' })
-                  }}
-                >
-                  {item.label}
-                </a>
-              </li>
-            )}
-          </For>
-        </ul>
-      </aside>
+      </div>
     </div>
   )
 }
