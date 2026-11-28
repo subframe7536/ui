@@ -1,5 +1,5 @@
+import type { JSX } from '@solidjs/web'
 import { For, Show, createEffect, createSignal } from 'solid-js'
-import type { JSX } from 'solid-js'
 
 import { LogContext } from '../examples-custom/_helpers/log'
 import exampleSourcesRaw from '../generated/example-sources.json'
@@ -12,7 +12,7 @@ type ExampleModule = {
 }
 
 const EXAMPLE_LOADERS = import.meta.glob<ExampleModule>('../examples/*/*.tsx')
-const EXAMPLE_SOURCES = exampleSourcesRaw as Record<string, string>
+const EXAMPLE_SOURCES = exampleSourcesRaw
 
 export function ExampleViewer(props: { name: string; caption?: string }) {
   const [comp, setComp] = createSignal<(() => JSX.Element) | null>(null)
@@ -52,11 +52,11 @@ export function ExampleViewer(props: { name: string; caption?: string }) {
           }
           setComp(() => fn)
         })
-        .catch((err: unknown) => {
+        .catch((error: unknown) => {
           if (cancelled) {
             return
           }
-          setLoadError(err instanceof Error ? err.message : String(err))
+          setLoadError(error instanceof Error ? error.message : String(error))
         })
       return () => {
         cancelled = true
@@ -119,7 +119,7 @@ export function ExampleViewer(props: { name: string; caption?: string }) {
                     {() => (
                       <LogContext value={pushLog}>
                         <div class="example-stage" data-example={props.name}>
-                          {ExampleComp()()}
+                          <div class="example-stage-inner">{ExampleComp()()}</div>
                         </div>
                       </LogContext>
                     )}

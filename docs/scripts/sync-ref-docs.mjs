@@ -15,7 +15,7 @@ const OUT_GENERATED = path.join(DOCS_DIR, 'src/generated')
 
 fs.mkdirSync(OUT_GENERATED, { recursive: true })
 fs.mkdirSync(OUT_EXAMPLES, { recursive: true })
-const CUSTOM_EXAMPLES = path.join(DOCS_DIR, 'src/examples-custom')
+const CUSTOM_EXAMPLES = path.join(DOCS_DIR, "src/examples-custom")
 if (fs.existsSync(CUSTOM_EXAMPLES)) {
   fs.cpSync(CUSTOM_EXAMPLES, OUT_EXAMPLES, { recursive: true })
 }
@@ -521,7 +521,20 @@ function parseMdx(raw, slug) {
     }
   }
 
-  content = content.replace(/^import\s+.*$/gm, '')
+  // Strip top-level ESM imports and unwrap <Collapsible> / <FrameworkTabs> keeping solid content
+  {
+    let inFence = false
+    content = content
+      .split('\n')
+      .filter((line) => {
+        if (/^\s*```/.test(line)) {
+          inFence = !inFence
+          return true
+        }
+        return inFence || !/^import\s+/.test(line)
+      })
+      .join('\n')
+  }
   content = content.replace(/<FrameworkTabs[^>]*>([\s\S]*?)<\/FrameworkTabs>/g, (_, inner) => {
     const solidTab =
       /<FrameworkTab[^>]*value=["']solid["'][^>]*>([\s\S]*?)<\/FrameworkTab>/.exec(inner) ||
@@ -850,10 +863,7 @@ function transformExampleCode(src) {
     .replace(/from\s+["']@ui-sdk\/core\/shortcuts["']/g, `from '../_helpers/shortcuts'`)
     .replace(/from\s+["']@ui-sdk\/core\/([^"']+)["']/g, `from '@subf/ui/$1'`)
     .replace(/from\s+["']@ui-sdk\/core["']/g, `from '@subf/ui/preferences'`)
-    .replace(
-      /from\s+["']\.\.\/\.\.\/\.\.\/shared\/solid\/log["']/g,
-      `from '../../examples-custom/_helpers/log'`,
-    )
+    .replace(/from\s+["']\.\.\/\.\.\/\.\.\/shared\/solid\/log["']/g, `from '../../examples-custom/_helpers/log'`)
     .replace(
       /import\s*\{\s*confirm\s*\}\s*from\s*["']@subf\/ui\/alert-dialog["']/g,
       `import { confirm } from '../_helpers/confirm'`,
@@ -908,6 +918,7 @@ function syncExamples() {
     }
   }
 
+  // Shortcuts examples
   const shortcutsCss = path.join(REF_EXAMPLES, 'shortcuts/shortcuts.css')
   if (fs.existsSync(shortcutsCss)) {
     cssChunks.push(`/* === shortcuts.css === */\n` + fs.readFileSync(shortcutsCss, 'utf8'))
@@ -927,6 +938,7 @@ function syncExamples() {
     }
   }
 
+  // Guides CSS & dark-mode example
   const guidesCss = path.join(REF_EXAMPLES, 'guides/guides.css')
   if (fs.existsSync(guidesCss)) {
     cssChunks.push(`/* === guides.css === */\n` + fs.readFileSync(guidesCss, 'utf8'))
@@ -945,6 +957,7 @@ function syncExamples() {
   exampleDisplaySources['guides/dark-mode'] = dmDisplay
   count++
 
+  // Include local hand-adapted Solid 2 guide & core examples in display sources if present
   for (const extra of [
     'guides/reactions',
     'guides/reactions-state',
@@ -957,6 +970,7 @@ function syncExamples() {
     }
   }
 
+  // Include source code for behaviors/* and core/* reference examples from ref/ui-sdk
   for (const [folder, prefix] of [
     ['behaviors/react', 'behaviors'],
     ['core/react', 'core'],
@@ -991,20 +1005,24 @@ function syncDocs() {
 
   const addDirRecursive = (dirPath, prefix) => {
     if (!fs.existsSync(dirPath)) return
-    for (const entry of fs
-      .readdirSync(dirPath, { withFileTypes: true })
-      .sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const entry of fs.readdirSync(dirPath, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       const full = path.join(dirPath, entry.name)
       if (entry.isDirectory()) {
         addDirRecursive(full, prefix ? `${prefix}/${entry.name}` : entry.name)
       } else if (entry.name.endsWith('.mdx')) {
         const base = entry.name.replace(/\.mdx$/, '')
-        const slug = base === 'index' ? prefix || 'index' : prefix ? `${prefix}/${base}` : base
+        let slug
+        if (base === 'index') {
+          slug = prefix || 'index'
+        } else {
+          slug = prefix ? `${prefix}/${base}` : base
+        }
         addFile(full, slug)
       }
     }
   }
 
+  // Solid root, utilities, components
   const solidRoot = path.join(REF_DOCS_CONTENT, 'solid')
   for (const file of fs.readdirSync(solidRoot).sort()) {
     if (file.endsWith('.mdx')) {
@@ -1018,6 +1036,7 @@ function syncDocs() {
     }
   }
 
+  // Guides, Agents, Core
   addDirRecursive(path.join(REF_DOCS_CONTENT, 'guides'), 'guides')
   addDirRecursive(path.join(REF_DOCS_CONTENT, 'agents'), 'agents')
   addDirRecursive(path.join(REF_DOCS_CONTENT, 'core'), 'core')

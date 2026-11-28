@@ -13,7 +13,7 @@
   font-size: 1.15rem;
   font-weight: 600;
   letter-spacing: -0.015em;
-  color: var(--fg);
+  color: var(--foreground);
   scroll-margin-top: 5rem;
 }
 
@@ -21,19 +21,19 @@
   margin: 1.25rem 0 0.45rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--fg);
+  color: var(--foreground);
   scroll-margin-top: 5rem;
 }
 
 .doc-link {
-  color: var(--fg);
+  color: var(--foreground);
   text-decoration: underline;
-  text-decoration-color: var(--border-strong, var(--border));
+  text-decoration-color: var(--rule);
   text-underline-offset: 3px;
 }
 
 .doc-link:hover {
-  text-decoration-color: var(--fg);
+  text-decoration-color: var(--foreground);
 }
 
 .doc-list {
@@ -42,7 +42,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  color: var(--fg-muted);
+  color: var(--subtle);
   line-height: 1.65;
 }
 
@@ -53,7 +53,7 @@
 .callout-title {
   font-weight: 600;
   margin-bottom: 0.35rem;
-  color: var(--fg);
+  color: var(--foreground);
 }
 
 .doc-cards {
@@ -70,7 +70,7 @@
   padding: 0.95rem 1.05rem;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--surface);
+  background: var(--canvas);
   text-decoration: none;
   color: inherit;
   transition:
@@ -79,19 +79,19 @@
 }
 
 .doc-card:hover {
-  border-color: var(--fg-muted);
+  border-color: var(--subtle);
 }
 
 .doc-card-title {
   font-weight: 600;
   font-size: 0.95rem;
-  color: var(--fg);
+  color: var(--foreground);
 }
 
 .doc-card-desc {
   font-size: 0.85rem;
   line-height: 1.45;
-  color: var(--fg-muted);
+  color: var(--subtle);
 }
 
 .doc-component-grid {
@@ -107,7 +107,7 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  background: var(--surface);
+  background: var(--canvas);
 }
 
 .example-toolbar {
@@ -117,9 +117,9 @@
   gap: 0.75rem;
   padding: 0.5rem 0.85rem;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-muted, var(--surface));
+  background: var(--muted);
   font-size: 0.78rem;
-  color: var(--fg-muted);
+  color: var(--subtle);
 }
 
 .example-name {
@@ -140,8 +140,8 @@
   padding: 0.25rem 0.6rem;
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--background);
+  color: var(--foreground);
   font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
@@ -149,22 +149,35 @@
 
 .example-tool-btn:hover,
 .example-tool-btn[data-active='true'] {
-  border-color: var(--fg);
+  border-color: var(--foreground);
 }
 
 .example-stage-wrap {
-  padding: 1.5rem 1.25rem;
-  background: var(--bg);
-  overflow-x: auto;
+  background: var(--background);
 }
 
 .example-stage {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 5.5rem;
+  min-width: 0;
+  min-height: 12rem;
   width: 100%;
+  padding: 2.5rem 2rem;
+  overflow-x: auto;
+  color: var(--foreground);
+}
+
+.example-stage-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .example-loading,
@@ -172,7 +185,7 @@
   padding: 1rem;
   text-align: center;
   font-size: 0.85rem;
-  color: var(--fg-muted);
+  color: var(--subtle);
 }
 
 .example-error {
@@ -182,7 +195,7 @@
 .example-log {
   border-top: 1px solid var(--border);
   padding: 0.6rem 0.85rem;
-  background: var(--surface);
+  background: var(--canvas);
   font-family: var(--font-mono, monospace);
   font-size: 0.76rem;
 }
@@ -192,7 +205,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.35rem;
-  color: var(--fg-muted);
+  color: var(--subtle);
   font-family: inherit;
   font-size: 0.74rem;
 }
@@ -200,7 +213,7 @@
 .example-log-clear {
   border: 0;
   background: none;
-  color: var(--fg-muted);
+  color: var(--subtle);
   cursor: pointer;
   font-size: 0.74rem;
   text-decoration: underline;
@@ -212,7 +225,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  color: var(--fg);
+  color: var(--foreground);
 }
 
 .example-code-pane {
@@ -229,7 +242,7 @@
   margin-top: 0.55rem;
   font-size: 0.86rem;
   line-height: 1.55;
-  color: var(--fg-muted);
+  color: var(--subtle);
 }
 
 /* Style Tabs (CSS / Tailwind) */
@@ -244,7 +257,7 @@
   padding: 0.2rem;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--canvas);
 }
 
 .style-tab-btn {
@@ -252,15 +265,15 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--subtle);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
 }
 
 .style-tab-btn[data-active='true'] {
-  background: var(--fg);
-  color: var(--bg);
+  background: var(--foreground);
+  color: var(--background);
 }
 
 /* API / DataAttributes / CssVariables definition lists */
@@ -269,7 +282,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  background: var(--surface);
+  background: var(--canvas);
 }
 
 .api-dl {
@@ -299,13 +312,13 @@
   font-family: var(--font-mono, monospace);
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--fg);
+  color: var(--foreground);
 }
 
 .api-prop-type {
   font-family: var(--font-mono, monospace);
   font-size: 0.78rem;
-  color: var(--fg-muted);
+  color: var(--subtle);
   word-break: break-word;
 }
 
@@ -313,7 +326,7 @@
   margin: 0;
   font-size: 0.87rem;
   line-height: 1.55;
-  color: var(--fg-muted);
+  color: var(--subtle);
 }
 
 /* Accessibility SpecList */
@@ -328,7 +341,7 @@
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 0.85rem 1rem;
-  background: var(--surface);
+  background: var(--canvas);
 }
 
 .spec-group-title {
@@ -336,7 +349,7 @@
   font-size: 0.86rem;
   font-weight: 600;
   text-transform: capitalize;
-  color: var(--fg);
+  color: var(--foreground);
 }
 
 .spec-group-items {
@@ -347,5 +360,5 @@
   gap: 0.28rem;
   font-size: 0.84rem;
   line-height: 1.5;
-  color: var(--fg-muted);
+  color: var(--subtle);
 }

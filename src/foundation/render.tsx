@@ -211,6 +211,7 @@ function elementForTag(tag: string) {
 const emptyAttrs: Record<string, unknown> = {}
 
 export type PartInternalProps = {
+  slot?: string
   attrs?: () => Record<string, unknown>
   style?: () => Record<string, string | number | undefined> | undefined
   handlers?: Record<string, (event: never) => void>
@@ -330,7 +331,12 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements, State extend
     }
   }
 
-  const mergedProps = merge(internal.attrs ?? emptyAttrs, passthrough, overrides)
+  const mergedProps = merge(
+    internal.slot ? { 'data-slot': internal.slot } : emptyAttrs,
+    internal.attrs ?? emptyAttrs,
+    passthrough,
+    overrides,
+  )
 
   const resolveChildren = createMemo(() => {
     const ch = userProps.children
