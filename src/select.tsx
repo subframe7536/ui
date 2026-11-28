@@ -29,7 +29,7 @@ import { registerComponent } from './foundation/registry'
 import { renderPart, SafePortal } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
-import { defaultListFilter } from './listbox'
+import { matchesListFilter } from './listbox'
 import type {
   ListAnnouncement,
   ListData,
@@ -273,7 +273,6 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
   const invalid = () => !!props.invalid || !!field?.invalid()
-  const filterFn = () => props.filter ?? defaultListFilter
 
   const isSelected = (val: string): boolean => {
     const cur = value()
@@ -370,13 +369,8 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     }
   }
 
-  const isItemVisible = (label: string, keywords?: Array<string>) => {
-    const q = query()
-    if (!q) {
-      return true
-    }
-    return filterFn()(label, q, keywords)
-  }
+  const isItemVisible = (label: string, keywords?: Array<string>) =>
+    matchesListFilter(props.filter, { value: label, label, keywords }, query())
 
   const selectAll = (event?: Event) => {
     if (!isMultiple() || disabled() || readOnly()) {

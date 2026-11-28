@@ -24,7 +24,7 @@ import { registerComponent } from './foundation/registry'
 import { renderPart, SafePortal } from './foundation/render'
 import type { PartProps } from './foundation/render'
 import { createControlledSignal } from './foundation/state'
-import { defaultListFilter } from './listbox'
+import { getMatchSegments, matchesListFilter } from './listbox'
 import type {
   ListAnnouncement,
   ListData,
@@ -103,6 +103,8 @@ export type ComboboxOptions<T extends string = string> = {
   defaultQuery?: string
   onQueryChange?: (query: string, details: ChangeDetails<ComboboxQueryChangeReason>) => void
   onCreate?: (query: string) => void
+  onHighlight?: (value: string | null, details: { index: number }) => void
+  status?: 'idle' | 'loading' | 'error'
   multiple?: boolean
   creatable?: boolean
   disabled?: boolean
@@ -128,6 +130,8 @@ export type ComboboxState<T extends string = string> = {
   disabled: boolean
   readOnly: boolean
   invalid: boolean
+  status: 'idle' | 'loading' | 'error'
+  loading: boolean
 }
 
 export type ComboboxPrimitive = ComboboxState
@@ -138,17 +142,24 @@ export type ComboboxProps<T extends string = string> = ComboboxOptions<T> & {
 export type ComboboxInputState = ComboboxState
 export type ComboboxTriggerState = ComboboxState
 export type ComboboxValueProps = { placeholder?: string }
-export type ComboboxValueState = ComboboxState & { text: string; hasValue: boolean }
+export type ComboboxValueState = ComboboxState & {
+  text: string
+  label: string
+  labels: Array<string>
+  hasValue: boolean
+}
 export type ComboboxClearProps = { disabled?: boolean }
 export type ComboboxClearState = ComboboxState
 export type ComboboxContentProps = PositionProps & PortalProps & { keepMounted?: boolean }
 export type ComboboxContentState = ComboboxState & { side: Side }
+export type ComboboxListState = ComboboxState & { items: ListData }
 export type ComboboxArrowState = { side: Side }
 export type ComboboxItemProps<T extends string = string> = {
   value: T
   label?: string
   keywords?: Array<string>
   disabled?: boolean
+  index?: number
 }
 export type ComboboxItemState = {
   value: string
@@ -158,7 +169,7 @@ export type ComboboxItemState = {
   disabled: boolean
   visible: boolean
 }
-export type ComboboxItemTextState = ComboboxItemState
+export type ComboboxItemTextState = ComboboxItemState & { segments: Array<MatchSegment> }
 export type ComboboxItemIconProps = object
 export type ComboboxItemIconState = ComboboxItemState
 export type ComboboxItemIndicatorProps = { keepMounted?: boolean }
@@ -198,10 +209,14 @@ type ComboboxContextValue = {
   registerOption: (opt: RegisteredComboboxOption) => () => void
   getOptions: () => Array<RegisteredComboboxOption>
   getLabelFor: (val: string) => string
+  updateLabel: (val: string, label: string) => void
+  filteredItems: () => ListData
   placeholder: () => string | undefined
   items: () => ListData | undefined
   creatable: () => boolean
   anchorEl: () => HTMLElement | null
+  triggerEl: () => HTMLElement | null
+  setTriggerEl: (el: HTMLElement | null) => void
   setInputEl: (el: HTMLInputElement | null) => void
   setContentEl: (el: HTMLElement | null) => void
   contentEl: () => HTMLElement | null
@@ -242,6 +257,8 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     defaultValue: () => !!props.defaultOpen,
   })
   const labelMap = new Map<string, string>()
+  const [labelVersion, setLabelVersion] = createSignal(0)
+  const [optionVersion, setOptionVersion] = createSignal(0)
   const seedLabels = () => {
     const raw = props.items
     if (!raw) {
@@ -282,6 +299,7 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
   })
   const [highlighted, setHighlighted] = createSignal<string | null>(null)
   const [inputEl, setInputEl] = createSignal<HTMLInputElement | null>(null)
+  const [triggerEl, setTriggerEl] = createSignal<HTMLElement | null>(null)
   const [contentEl, setContentEl] = createSignal<HTMLElement | null>(null)
   const [explicitContentCount, setExplicitContentCount] = createSignal(0)
   let ssrExplicitContent = false
@@ -292,7 +310,6 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
   const invalid = () => !!props.invalid || !!field?.invalid()
-  const filterFn = () => props.filter ?? defaultListFilter
 
   const isSelected = (val: string): boolean => {
     const cur = value()
@@ -317,6 +334,8 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     disabled: disabled(),
     readOnly: readOnly(),
     invalid: invalid(),
+    status: props.status ?? 'idle',
+    loading: props.status === 'loading',
   })
 
   const emitRef: {
@@ -404,12 +423,58 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
     }
   }
 
-  const isItemVisible = (label: string, keywords?: Array<string>) => {
-    const q = query()
-    if (!q) {
-      return true
+  const isItemVisible = (label: string, keywords?: Array<string>) =>
+    matchesListFilter(props.filter, { value: label, label, keywords }, query())
+
+  const filteredItems = (): ListData => {
+    const raw = props.items
+    if (!raw) {
+      return []
     }
-    return filterFn()(label, q, keywords)
+    const normalized: ListData = raw.map((entry) =>
+      typeof entry === 'string' ? { value: entry, label: entry } : entry,
+    )
+    const q = query()
+    if (!q.trim() || props.filter === false) {
+      return normalized
+    }
+    const filterList = (list: ListData): ListData => {
+      const out: ListData = []
+      for (const entry of list) {
+        if (entry.type === 'separator') {
+          if (out.length > 0) {
+            out.push(entry)
+          }
+        } else if (entry.type === 'group') {
+          const sub = entry.items.filter(
+            (subItem) =>
+              subItem.type === 'separator' ||
+              matchesListFilter(
+                props.filter,
+                {
+                  value: subItem.value,
+                  label: subItem.label ?? subItem.value,
+                  keywords: subItem.keywords,
+                },
+                q,
+              ),
+          )
+          if (sub.some((x) => x.type !== 'separator')) {
+            out.push({ ...entry, items: sub })
+          }
+        } else if (
+          matchesListFilter(
+            props.filter,
+            { value: entry.value, label: entry.label ?? entry.value, keywords: entry.keywords },
+            q,
+          )
+        ) {
+          out.push(entry)
+        }
+      }
+      return out
+    }
+    return filterList(normalized)
   }
 
   const selectAll = (event?: Event) => {
@@ -480,7 +545,7 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
 
   const reg = registerComponent({
     component: 'combobox',
-    getElements: () => [inputEl(), contentEl()],
+    getElements: () => [inputEl(), triggerEl(), contentEl()],
     getState: () => ({ value: value(), query: query(), open: open(), disabled: disabled() }),
     getItems: () => optionList.map((o) => ({ value: o.value, label: o.label })),
     getDisabled: disabled,
@@ -497,24 +562,44 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
 
   useDismissLayer({
     active: open,
-    getElements: () => [inputEl(), contentEl()],
+    getElements: () => [inputEl(), triggerEl(), contentEl()],
     onDismiss: (reason, event) => {
       setOpen(false, reason === 'escape-key' ? 'escape-key' : 'outside-press', event)
     },
   })
 
+  const updateLabel = (val: string, label: string) => {
+    const trimmed = label.trim()
+    if (!trimmed || labelMap.get(val) === trimmed) {
+      return
+    }
+    labelMap.set(val, trimmed)
+    setLabelVersion((v) => v + 1)
+  }
+
+  const bumpOptionVersion = () => {
+    queueMicrotask(() => setOptionVersion((v) => v + 1))
+  }
+
   const registerOption = (opt: RegisteredComboboxOption) => {
     optionList.push(opt)
-    labelMap.set(opt.value, opt.label)
+    if (opt.label.trim()) {
+      queueMicrotask(() => updateLabel(opt.value, opt.label))
+    }
+    bumpOptionVersion()
     return () => {
       const idx = optionList.indexOf(opt)
       if (idx >= 0) {
         optionList.splice(idx, 1)
+        bumpOptionVersion()
       }
     }
   }
 
-  const getLabelFor = (val: string) => labelMap.get(val) ?? val
+  const getLabelFor = (val: string) => {
+    labelVersion()
+    return props.itemToLabel?.(val as T) ?? labelMap.get(val) ?? val
+  }
 
   return (
     <ComboboxContext
@@ -535,8 +620,13 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
         setHighlighted,
         moveHighlight,
         registerOption,
-        getOptions: () => optionList,
+        getOptions: () => {
+          optionVersion()
+          return optionList
+        },
         getLabelFor,
+        updateLabel,
+        filteredItems,
         placeholder: () => props.placeholder,
         items: () =>
           props.items?.map((entry) =>
@@ -544,6 +634,8 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
           ),
         creatable: () => !!props.creatable,
         anchorEl: () => inputEl(),
+        triggerEl,
+        setTriggerEl,
         setInputEl,
         setContentEl,
         contentEl,
@@ -612,7 +704,12 @@ export function Combobox<T extends string = string>(props: ComboboxProps<T>) {
 export function ComboboxLabel(props: PartProps<'label', ComboboxState>) {
   const ctx = useCombobox('Label')
   return renderPart('label', props, ctx.state, {
-    attrs: () => ({ id: props.id ?? ctx.labelId, for: ctx.id }),
+    attrs: () => ({
+      id: props.id ?? ctx.labelId,
+      for: ctx.id,
+      'data-slot': 'combobox-label',
+      'data-disabled': ctx.state().disabled ? '' : undefined,
+    }),
   })
 }
 
@@ -629,6 +726,7 @@ export function ComboboxInput(
         id: ctx.id,
         type: 'text',
         role: 'combobox',
+        'data-slot': 'combobox-input',
         autocomplete: 'off',
         value: s.query,
         placeholder: props.placeholder ?? ctx.placeholder(),
@@ -701,13 +799,16 @@ export function ComboboxInput(
 export function ComboboxTrigger(props: Omit<PartProps<'button', ComboboxTriggerState>, 'type'>) {
   const ctx = useCombobox('Trigger')
   return renderPart('button', props, ctx.state, {
+    ref: (el: HTMLElement) => ctx.setTriggerEl(el),
     attrs: () => ({
       type: 'button',
       tabindex: -1,
       disabled: ctx.state().disabled,
+      'data-slot': 'combobox-trigger',
       'aria-expanded': ctx.state().open ? 'true' : 'false',
       'aria-controls': ctx.listId,
       'data-open': ctx.state().open ? '' : undefined,
+      'data-disabled': ctx.state().disabled ? '' : undefined,
     }),
     handlers: {
       onClick: (e: MouseEvent) => ctx.setOpen(!ctx.state().open, 'trigger-press', e),
@@ -722,12 +823,14 @@ export function ComboboxValue(
   const valState = (): ComboboxValueState => {
     const s = ctx.state()
     const val = s.value
-    const text = Array.isArray(val)
-      ? val.map((v) => ctx.getLabelFor(v)).join(', ')
+    const labels = Array.isArray(val)
+      ? val.map((v) => ctx.getLabelFor(v))
       : val !== null
-        ? ctx.getLabelFor(val)
-        : (props.placeholder ?? ctx.placeholder() ?? '')
-    return { ...s, text, hasValue: !s.empty }
+        ? [ctx.getLabelFor(val)]
+        : []
+    const label = labels.join(', ')
+    const text = labels.length > 0 ? label : (props.placeholder ?? ctx.placeholder() ?? '')
+    return { ...s, text, label, labels, hasValue: !s.empty }
   }
   const rest = omit(props, 'placeholder')
   const resolvedProps: PartProps<'span', ComboboxValueState> = merge(rest, {
@@ -735,12 +838,19 @@ export function ComboboxValue(
       return props.children ?? ((s: ComboboxValueState) => s.text)
     },
   })
-  return renderPart('span', resolvedProps, valState)
+  return renderPart('span', resolvedProps, valState, {
+    attrs: () => ({
+      'data-slot': 'combobox-value',
+      'data-placeholder': !valState().hasValue ? '' : undefined,
+    }),
+  })
 }
 
 export function ComboboxValueIcon(props: PartProps<'span', ComboboxState>) {
   const ctx = useCombobox('ValueIcon')
-  return renderPart('span', props, ctx.state, { attrs: () => ({ 'aria-hidden': true }) })
+  return renderPart('span', props, ctx.state, {
+    attrs: () => ({ 'aria-hidden': true, 'data-slot': 'combobox-value-icon' }),
+  })
 }
 
 export function ComboboxClear(
@@ -756,6 +866,7 @@ export function ComboboxClear(
           type: 'button',
           disabled: !!props.disabled || ctx.state().disabled,
           'aria-label': 'Clear',
+          'data-slot': 'combobox-clear',
         }),
         handlers: {
           onClick: (e: MouseEvent) => {
@@ -771,7 +882,7 @@ export function ComboboxClear(
 export function ComboboxChips(props: PartProps<'div', ComboboxState>) {
   const ctx = useCombobox('Chips')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ role: 'list' }),
+    attrs: () => ({ role: 'list', 'data-slot': 'combobox-chips' }),
   })
 }
 
@@ -815,6 +926,7 @@ export function ComboboxChipRemove(props: Omit<PartProps<'button', ComboboxChipS
       type: 'button',
       disabled: chipState().disabled || ctx.state().readOnly,
       'aria-label': `Remove ${chipState().label}`,
+      'data-slot': 'combobox-chip-remove',
     }),
     handlers: {
       onClick: (e: MouseEvent) => {
@@ -837,7 +949,13 @@ export function ComboboxChipsOverflow(
     return { count: hidden.length, values: hidden }
   }
   const rest = omit(props, 'maxVisible')
-  return <Show when={overflowState().count > 0}>{renderPart('span', rest, overflowState)}</Show>
+  return (
+    <Show when={overflowState().count > 0}>
+      {renderPart('span', rest, overflowState, {
+        attrs: () => ({ 'data-slot': 'combobox-chips-overflow' }),
+      })}
+    </Show>
+  )
 }
 
 export function ComboboxContent(
@@ -853,9 +971,10 @@ export function ComboboxContent(
       onSettled(() => ctx.registerExplicitContent())
     }
   }
+  const referenceEl = () => props.anchor ?? ctx.anchorEl() ?? ctx.triggerEl() ?? undefined
   const pos = usePopupPosition({
     open: () => ctx.state().open,
-    reference: () => ctx.anchorEl() ?? undefined,
+    reference: referenceEl,
     floating: () => ctx.contentEl() ?? undefined,
     arrow: () => ctx.arrowEl() ?? undefined,
     side: () => props.side ?? 'bottom',
@@ -877,22 +996,28 @@ export function ComboboxContent(
     'sideOffset',
     'alignOffset',
     'collisionPadding',
+    'anchor',
     'container',
     'keepMounted',
   )
 
+  const portalMount = () =>
+    props.container ?? (referenceEl()?.closest('[data-example]') as HTMLElement | null) ?? undefined
+
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <SafePortal mount={props.container ?? undefined}>
+      <SafePortal mount={portalMount()}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
             'data-slot': 'combobox-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
+            'data-align': pos.align(),
           }),
           style: () => ({
             ...pos.style(),
+            'z-index': 50,
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
@@ -905,16 +1030,21 @@ export function ComboboxArrow(props: PartProps<'div', ComboboxArrowState>) {
   const ctx = useCombobox('Arrow')
   return renderPart('div', props, () => ({ side: 'bottom' as Side }), {
     ref: (el: HTMLElement) => ctx.setArrowEl(el),
-    attrs: () => ({ 'aria-hidden': true }),
+    attrs: () => ({ 'aria-hidden': true, 'data-slot': 'combobox-arrow' }),
   })
 }
 
-export function ComboboxList(props: PartProps<'div', ComboboxState>) {
+export function ComboboxList(props: PartProps<'div', ComboboxListState>) {
   const ctx = useCombobox('List')
-  return renderPart('div', props, ctx.state, {
+  const listState = (): ComboboxListState => ({
+    ...ctx.state(),
+    items: ctx.filteredItems(),
+  })
+  return renderPart('div', props, listState, {
     attrs: () => ({
       id: ctx.listId,
       role: 'listbox',
+      'data-slot': 'combobox-list',
       'aria-multiselectable': ctx.state().multiple ? 'true' : undefined,
     }),
   })
@@ -981,7 +1111,7 @@ export function ComboboxGroup(props: PartProps<'div', ComboboxState>) {
   return (
     <ComboboxGroupLabelIdContext value={labelId}>
       {renderPart('div', props, ctx.state, {
-        attrs: () => ({ role: 'group', 'aria-labelledby': labelId }),
+        attrs: () => ({ role: 'group', 'data-slot': 'combobox-group', 'aria-labelledby': labelId }),
       })}
     </ComboboxGroupLabelIdContext>
   )
@@ -991,14 +1121,18 @@ export function ComboboxGroupLabel(props: PartProps<'div', ComboboxState>) {
   const ctx = useCombobox('GroupLabel')
   const labelId = useContext(ComboboxGroupLabelIdContext)
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ id: props.id ?? labelId, role: 'presentation' }),
+    attrs: () => ({
+      id: props.id ?? labelId,
+      role: 'presentation',
+      'data-slot': 'combobox-group-label',
+    }),
   })
 }
 
 export function ComboboxSeparator(props: PartProps<'div', ComboboxState>) {
   const ctx = useCombobox('Separator')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ role: 'separator' }),
+    attrs: () => ({ role: 'separator', 'data-slot': 'combobox-separator' }),
   })
 }
 
@@ -1019,7 +1153,7 @@ export function ComboboxItem<T extends string = string>(
     visible: ctx.isItemVisible(label(), props.keywords),
   })
 
-  const rest = omit(props, 'value', 'label', 'keywords', 'disabled')
+  const rest = omit(props, 'value', 'label', 'keywords', 'disabled', 'index')
 
   return (
     <Show when={itemState().visible}>
@@ -1028,11 +1162,20 @@ export function ComboboxItem<T extends string = string>(
           ref: (el: HTMLElement | null) => {
             cleanup?.()
             if (el) {
-              cleanup = ctx.registerOption({
+              const readText = () => props.label || el.textContent?.trim() || props.value
+              const opt: RegisteredComboboxOption = {
                 value: props.value,
-                label: props.label ?? el.textContent?.trim() ?? props.value,
+                label: readText(),
                 keywords: props.keywords,
                 disabled: !!props.disabled,
+              }
+              cleanup = ctx.registerOption(opt)
+              queueMicrotask(() => {
+                const text = readText()
+                if (text && text !== opt.label) {
+                  opt.label = text
+                  ctx.updateLabel(props.value, text)
+                }
               })
             }
           },
@@ -1040,6 +1183,7 @@ export function ComboboxItem<T extends string = string>(
             const s = itemState()
             return {
               role: 'option',
+              'data-slot': 'combobox-item',
               'aria-selected': s.selected ? 'true' : 'false',
               'aria-disabled': s.disabled ? 'true' : undefined,
               'data-value': s.value,
@@ -1068,11 +1212,26 @@ export function ComboboxItem<T extends string = string>(
 }
 
 export function ComboboxItemText(props: PartProps<'span', ComboboxItemTextState>) {
+  const ctx = useCombobox('ItemText')
   const itemState = useContext(ComboboxItemContext)
   if (!itemState) {
     throw new Error('<ComboboxItemText> must be used inside <ComboboxItem>.')
   }
-  return renderPart('span', props, itemState)
+  const textState = (): ComboboxItemTextState => {
+    const s = itemState()
+    const sourceText = typeof props.children === 'string' ? props.children : s.label
+    return {
+      ...s,
+      segments: getMatchSegments(sourceText, ctx.state().query),
+    }
+  }
+  const hasMatch = () => textState().segments.some((seg) => seg.match)
+  return renderPart('span', props, textState, {
+    attrs: () => ({
+      'data-slot': 'combobox-item-text',
+      'data-matched': hasMatch() ? '' : undefined,
+    }),
+  })
 }
 
 export function ComboboxItemIcon(
@@ -1082,7 +1241,9 @@ export function ComboboxItemIcon(
   if (!itemState) {
     throw new Error('<ComboboxItemIcon> must be used inside <ComboboxItem>.')
   }
-  return renderPart('span', props, itemState, { attrs: () => ({ 'aria-hidden': true }) })
+  return renderPart('span', props, itemState, {
+    attrs: () => ({ 'aria-hidden': true, 'data-slot': 'combobox-item-icon' }),
+  })
 }
 
 export function ComboboxItemIndicator(
@@ -1099,6 +1260,7 @@ export function ComboboxItemIndicator(
       {renderPart('span', rest, itemState, {
         attrs: () => ({
           'aria-hidden': true,
+          'data-slot': 'combobox-item-indicator',
           'data-selected': itemState().selected ? '' : undefined,
         }),
       })}
@@ -1129,7 +1291,7 @@ export function ComboboxCreate(
   return (
     <Show when={createState().canCreate}>
       {renderPart('div', rest, createState, {
-        attrs: () => ({ role: 'option', 'data-create': '' }),
+        attrs: () => ({ role: 'option', 'data-slot': 'combobox-create', 'data-create': '' }),
         handlers: {
           onClick: (e: MouseEvent) => ctx.createFromQuery(e),
         },
@@ -1140,10 +1302,17 @@ export function ComboboxCreate(
 
 export function ComboboxEmpty(props: PartProps<'div', ComboboxEmptyState>) {
   const ctx = useCombobox('Empty')
-  const hasVisible = () => ctx.getOptions().some((o) => ctx.isItemVisible(o.label, o.keywords))
+  const isEmpty = () => {
+    if (ctx.items()) {
+      return ctx.filteredItems().length === 0
+    }
+    return !ctx.getOptions().some((o) => ctx.isItemVisible(o.label, o.keywords))
+  }
   return (
-    <Show when={!hasVisible()}>
-      {renderPart('div', props, ctx.state, { attrs: () => ({ role: 'status' }) })}
+    <Show when={isEmpty() && !ctx.state().loading}>
+      {renderPart('div', props, ctx.state, {
+        attrs: () => ({ role: 'status', 'data-slot': 'combobox-empty' }),
+      })}
     </Show>
   )
 }
@@ -1152,10 +1321,12 @@ export function ComboboxStatus(props: PartProps<'div', ComboboxStatusState>) {
   const ctx = useCombobox('Status')
   const statusState = (): ComboboxStatusState => ({
     ...ctx.state(),
-    count: ctx.getOptions().filter((o) => ctx.isItemVisible(o.label, o.keywords)).length,
+    count: ctx.items()
+      ? ctx.filteredItems().length
+      : ctx.getOptions().filter((o) => ctx.isItemVisible(o.label, o.keywords)).length,
   })
   return renderPart('div', props, statusState, {
-    attrs: () => ({ role: 'status', 'aria-live': 'polite' }),
+    attrs: () => ({ role: 'status', 'aria-live': 'polite', 'data-slot': 'combobox-status' }),
   })
 }
 
@@ -1179,6 +1350,7 @@ export function ComboboxSelectAll(
     attrs: () => ({
       type: 'button',
       role: 'option',
+      'data-slot': 'combobox-select-all',
       'data-all-selected': selectAllState().allSelected ? '' : undefined,
     }),
     handlers: {

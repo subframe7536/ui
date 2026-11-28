@@ -52,12 +52,40 @@ export type MatchSegment = {
   match: boolean
 }
 
-export type ListFilter = (label: string, query: string, keywords?: Array<string>) => boolean
+export type ListFilterItem = {
+  value: string
+  label: string
+  keywords?: Array<string>
+}
+
+export type ListFilter =
+  | false
+  | 'contains'
+  | 'startsWith'
+  | 'fuzzy'
+  | ((label: string, query: string, keywords?: Array<string>) => boolean)
+  | ((item: ListFilterItem, query: string) => boolean)
+
 export type SearchFilter = ListFilter
 export type ListAnnouncement = {
   count: number
   query: string
   message: string
+}
+
+function fuzzyMatch(text: string, query: string): boolean {
+  const hay = text.toLowerCase()
+  const needle = query.toLowerCase()
+  let at = 0
+  for (const ch of hay) {
+    if (ch === needle[at]) {
+      at++
+      if (at === needle.length) {
+        return true
+      }
+    }
+  }
+  return at === needle.length
 }
 
 export function defaultListFilter(label: string, query: string, keywords?: Array<string>): boolean {
@@ -74,25 +102,85 @@ export function defaultListFilter(label: string, query: string, keywords?: Array
   return false
 }
 
+export function matchesListFilter(
+  filter: ListFilter | undefined,
+  item: ListFilterItem,
+  query: string,
+): boolean {
+  if (filter === false) {
+    return true
+  }
+  const q = query.trim()
+  if (!q) {
+    return true
+  }
+  if (filter === undefined || filter === 'contains') {
+    return defaultListFilter(item.label, q, item.keywords)
+  }
+  if (filter === 'startsWith') {
+    const low = q.toLowerCase()
+    return (
+      item.label.toLowerCase().startsWith(low) ||
+      !!item.keywords?.some((k) => k.toLowerCase().startsWith(low))
+    )
+  }
+  if (filter === 'fuzzy') {
+    return fuzzyMatch(item.label, q) || !!item.keywords?.some((k) => fuzzyMatch(k, q))
+  }
+  if (typeof filter === 'function') {
+    try {
+      return (filter as (i: ListFilterItem, q: string) => boolean)(item, q)
+    } catch {
+      return (filter as (label: string, q: string, kw?: Array<string>) => boolean)(
+        item.label,
+        q,
+        item.keywords,
+      )
+    }
+  }
+  return defaultListFilter(item.label, q, item.keywords)
+}
+
 export function getMatchSegments(text: string, query: string): Array<MatchSegment> {
   const q = query.trim()
   if (!q) {
     return [{ text, match: false }]
   }
   const lower = text.toLowerCase()
-  const idx = lower.indexOf(q.toLowerCase())
-  if (idx === -1) {
-    return [{ text, match: false }]
+  const needle = q.toLowerCase()
+  const idx = lower.indexOf(needle)
+  if (idx !== -1) {
+    const segments: Array<MatchSegment> = []
+    if (idx > 0) {
+      segments.push({ text: text.slice(0, idx), match: false })
+    }
+    segments.push({ text: text.slice(idx, idx + q.length), match: true })
+    if (idx + q.length < text.length) {
+      segments.push({ text: text.slice(idx + q.length), match: false })
+    }
+    return segments
   }
+  // Fallback fuzzy highlight segments
   const segments: Array<MatchSegment> = []
-  if (idx > 0) {
-    segments.push({ text: text.slice(0, idx), match: false })
+  let at = 0
+  let buf = ''
+  let inMatch = false
+  for (const ch of text) {
+    const matched = at < needle.length && ch.toLowerCase() === needle[at]
+    if (matched) {
+      at++
+    }
+    if (buf && matched !== inMatch) {
+      segments.push({ text: buf, match: inMatch })
+      buf = ''
+    }
+    inMatch = matched
+    buf += ch
   }
-  segments.push({ text: text.slice(idx, idx + q.length), match: true })
-  if (idx + q.length < text.length) {
-    segments.push({ text: text.slice(idx + q.length), match: false })
+  if (buf) {
+    segments.push({ text: buf, match: inMatch })
   }
-  return segments
+  return at === needle.length ? segments : [{ text, match: false }]
 }
 
 export type ListboxValue<T extends string = string> = T | Array<T> | null
