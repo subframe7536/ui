@@ -1041,17 +1041,24 @@ function syncDocs() {
   addDirRecursive(path.join(REF_DOCS_CONTENT, 'agents'), 'agents')
   addDirRecursive(path.join(REF_DOCS_CONTENT, 'core'), 'core')
 
-  const nav = [
-    {
-      group: 'Get Started',
-      items: ['index', 'installation', 'first-component'].map((s) => ({
+  const toItems = (slugs) =>
+    slugs
+      .filter((s) => Boolean(pages[s]))
+      .map((s) => ({
         slug: s,
         title: pages[s]?.title || s,
-      })),
+      }))
+
+  const nav = [
+    {
+      section: 'solid',
+      group: 'Get Started',
+      items: toItems(['index', 'installation', 'first-component']),
     },
     {
+      section: 'solid',
       group: 'Using Components',
-      items: [
+      items: toItems([
         'parts-and-composition',
         'state-and-events',
         'styling-and-animation',
@@ -1060,38 +1067,44 @@ function syncDocs() {
         'lists-and-menus',
         'forms',
         'server-rendering',
-      ].map((s) => ({
-        slug: s,
-        title: pages[s]?.title || s,
-      })),
+      ]),
     },
     {
+      section: 'solid',
       group: 'Build Your Own',
-      items: ['rendering', 'custom-parts'].map((s) => ({
-        slug: s,
-        title: pages[s]?.title || s,
-      })),
+      items: toItems(['rendering', 'custom-parts']),
     },
     {
+      section: 'solid',
       group: 'Utilities',
-      items: ['utilities/async-options', 'utilities/shortcuts'].map((s) => ({
-        slug: s,
-        title: pages[s]?.title || s,
-      })),
+      items: toItems(['utilities/async-options', 'utilities/shortcuts']),
     },
     {
-      group: 'Guides',
-      items: ['guides', 'guides/build-a-component', 'guides/dark-mode'].map((s) => ({
-        slug: s,
-        title: pages[s]?.title || s,
-      })),
+      section: 'solid',
+      group: 'Components',
+      indexSlug: 'components/index',
+      items: Object.keys(pages)
+        .filter((s) => s.startsWith('components/') && s !== 'components/index')
+        .map((s) => ({
+          slug: s,
+          title: pages[s].title,
+        }))
+        .sort((a, b) => a.title.localeCompare(b.title)),
     },
     {
-      group: 'Agents',
-      items: [
-        'agents',
-        'agents/build-with-an-agent',
-        'agents/skills',
+      section: 'guides',
+      group: '',
+      items: toItems(['guides', 'guides/build-a-component', 'guides/dark-mode']),
+    },
+    {
+      section: 'agents',
+      group: '',
+      items: toItems(['agents', 'agents/build-with-an-agent', 'agents/skills']),
+    },
+    {
+      section: 'agents',
+      group: 'Connect an Agent',
+      items: toItems([
         'agents/connect-an-agent',
         'agents/connect-an-agent/guide',
         'agents/connect-an-agent/your-components',
@@ -1101,24 +1114,30 @@ function syncDocs() {
         'agents/connect-an-agent/run-on-your-server',
         'agents/connect-an-agent/webmcp',
         'agents/connect-an-agent/reference',
-      ].map((s) => ({
-        slug: s,
-        title: pages[s]?.title || s,
-      })),
+      ]),
     },
     {
-      group: 'Core & Behaviors',
-      items: [
-        'core',
-        'core/start',
-        'core/build-a-component',
+      section: 'core',
+      group: 'Overview',
+      items: toItems(['core/start', 'core', 'core/build-a-component', 'core/changelog']),
+    },
+    {
+      section: 'core',
+      group: 'Core',
+      items: toItems([
         'core/kernel/define-a-primitive',
         'core/kernel/render-a-primitive',
         'core/kernel/style-a-component',
-        'core/kernel/handle-changes',
         'core/compose-behaviors',
+        'core/kernel/handle-changes',
         'core/customize-a-behavior',
         'core/reference',
+      ]),
+    },
+    {
+      section: 'core',
+      group: 'Utilities',
+      items: toItems([
         'core/text',
         'core/number',
         'core/date',
@@ -1127,41 +1146,29 @@ function syncDocs() {
         'core/storage',
         'core/platform',
         'core/mobile',
-        'core/observe',
-        'core/testing',
+      ]),
+    },
+    {
+      section: 'core',
+      group: 'Behaviors',
+      items: toItems([
         'core/behaviors',
-        'core/behaviors/canvas',
-        'core/behaviors/direct-manipulation',
-        'core/behaviors/drag-and-drop',
         'core/behaviors/focus',
+        'core/behaviors/selection',
+        'core/behaviors/drag-and-drop',
+        'core/behaviors/direct-manipulation',
         'core/behaviors/lists',
+        'core/behaviors/trees',
         'core/behaviors/motion',
         'core/behaviors/popups',
         'core/behaviors/preferences',
-        'core/behaviors/selection',
-        'core/behaviors/trees',
-        'core/changelog',
-        'core/changelog/introducing-ui-sdk',
-      ]
-        .filter((s) => Boolean(pages[s]))
-        .map((s) => ({
-          slug: s,
-          title: pages[s]?.title || s,
-        })),
+        'core/behaviors/canvas',
+      ]),
     },
     {
-      group: 'Components',
-      items: Object.keys(pages)
-        .filter((s) => s.startsWith('components/'))
-        .sort((a, b) => {
-          if (a === 'components/index') return -1
-          if (b === 'components/index') return 1
-          return a.localeCompare(b)
-        })
-        .map((s) => ({
-          slug: s,
-          title: s === 'components/index' ? 'Overview' : pages[s].title,
-        })),
+      section: 'core',
+      group: 'Tools',
+      items: toItems(['core/observe', 'core/testing']),
     },
   ]
 

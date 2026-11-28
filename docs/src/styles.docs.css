@@ -148,6 +148,20 @@
   color: var(--subtle);
 }
 
+.sidebar-group-link {
+  display: block;
+  width: fit-content;
+  text-underline-offset: 4px;
+}
+
+.sidebar-group-link:hover {
+  text-decoration: underline;
+}
+
+.sidebar-group-link[aria-current='page'] {
+  color: var(--foreground);
+}
+
 .sidebar-list {
   list-style: none;
   margin: 0;

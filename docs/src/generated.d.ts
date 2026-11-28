@@ -4,7 +4,12 @@ declare module '*generated/docs-data.json' {
 }
 
 declare module '*generated/nav.json' {
-  const nav: Array<{ group: string; items: Array<{ slug: string; title: string }> }>
+  const nav: Array<{
+    section?: 'solid' | 'guides' | 'agents' | 'core'
+    group: string
+    indexSlug?: string
+    items: Array<{ slug: string; title: string }>
+  }>
   export default nav
 }
 

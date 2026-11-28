@@ -5,12 +5,14 @@ import type { DocPageData } from '../components/DocRenderer'
 import docsDataRaw from '../generated/docs-data.json'
 import navRaw from '../generated/nav.json'
 
+type DocSection = 'solid' | 'guides' | 'agents' | 'core'
+
 type NavGroup = {
+  section?: DocSection
   group: string
+  indexSlug?: string
   items: Array<{ slug: string; title: string }>
 }
-
-type DocSection = 'solid' | 'guides' | 'agents' | 'core'
 
 type TocItem = {
   id: string
@@ -26,13 +28,6 @@ const FALLBACK_PAGE: DocPageData = {
   title: 'Documentation',
   description: '',
   blocks: [],
-}
-
-const SECTION_GROUPS: Record<DocSection, Set<string>> = {
-  solid: new Set(['Get Started', 'Using Components', 'Build Your Own', 'Utilities', 'Components']),
-  guides: new Set(['Guides']),
-  agents: new Set(['Agents']),
-  core: new Set(['Core & Behaviors']),
 }
 
 function sectionForSlug(slug: string): DocSection {
@@ -54,8 +49,7 @@ function sectionForHash(hash: string): DocSection {
 }
 
 function groupsForSection(section: DocSection): Array<NavGroup> {
-  const allowed = SECTION_GROUPS[section]
-  return NAV_GROUPS.filter((g) => allowed.has(g.group))
+  return NAV_GROUPS.filter((g) => (g.section ?? 'solid') === section)
 }
 
 function revealCurrent(list: Element) {
@@ -108,7 +102,26 @@ export function DocsSidebar(props: {
             <For each={visibleGroups()}>
               {(group) => (
                 <li class="sidebar-group">
-                  <div class="sidebar-group-title">{group.group}</div>
+                  <Show when={group.group}>
+                    <Show
+                      when={group.indexSlug}
+                      fallback={<div class="sidebar-group-title">{group.group}</div>}
+                    >
+                      {(indexSlug) => {
+                        const indexHref = () => `#/docs/${indexSlug()}`
+                        return (
+                          <a
+                            href={indexHref()}
+                            class="sidebar-group-title sidebar-group-link"
+                            aria-current={props.currentHash === indexHref() ? 'page' : undefined}
+                            onClick={() => props.onSelect?.()}
+                          >
+                            {group.group}
+                          </a>
+                        )
+                      }}
+                    </Show>
+                  </Show>
                   <ul class="sidebar-list">
                     <For each={group.items}>
                       {(item) => {
@@ -185,14 +198,23 @@ export function DocsPage(props: { route: string }) {
   const currentHash = createMemo(() => `#/docs/${normalizedSlug()}`)
 
   const sectionEntries = createMemo(() =>
-    groupsForSection(sectionForSlug(normalizedSlug())).flatMap((g) =>
-      g.items.map((item) => ({
+    groupsForSection(sectionForSlug(normalizedSlug())).flatMap((g) => {
+      const entries = g.items.map((item) => ({
         slug: item.slug,
         hash: `#/docs/${item.slug}`,
         title: item.title,
         group: g.group,
-      })),
-    ),
+      }))
+      if (g.indexSlug) {
+        entries.unshift({
+          slug: g.indexSlug,
+          hash: `#/docs/${g.indexSlug}`,
+          title: DOCS_PAGES[g.indexSlug]?.title ?? g.group,
+          group: g.group,
+        })
+      }
+      return entries
+    }),
   )
 
   const pager = createMemo(() => {
