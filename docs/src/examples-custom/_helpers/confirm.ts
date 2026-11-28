@@ -1,4 +1,5 @@
-import { createAlertDialogController, type AlertDialogController } from '@subf/ui/alert-dialog'
+import { createAlertDialogController } from '../../../../src/alert-dialog'
+import type { AlertDialogController } from '../../../../src/alert-dialog'
 
 export type ConfirmOptions = {
   title?: string
@@ -8,11 +9,11 @@ export type ConfirmOptions = {
 }
 
 export type ConfirmHelper<Payload = ConfirmOptions> = ((payload: Payload) => Promise<boolean>) & {
-  controller: AlertDialogController<Payload, string>
+  controller: AlertDialogController<Payload>
 }
 
 export function createConfirm<Payload = ConfirmOptions>(): ConfirmHelper<Payload> {
-  const controller = createAlertDialogController<Payload, string>()
+  const controller = createAlertDialogController<Payload>()
   let queue: Promise<unknown> = Promise.resolve()
 
   const ask = (payload: Payload): Promise<boolean> => {

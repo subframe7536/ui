@@ -1,4 +1,4 @@
-import type { ImageCrop } from '@subf/ui/image-cropper'
+import type { ImageCrop } from '../../../../src/image-cropper'
 
 export async function cropImage(
   src: string,

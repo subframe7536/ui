@@ -1,6 +1,7 @@
-import { createAgent } from '@subf/ui/agent'
-import { Rating, RatingItem } from '@subf/ui/rating'
 import { For, Show, createSignal } from 'solid-js'
+
+import { createAgent } from '../../../../src/agent'
+import { Rating, RatingItem } from '../../../../src/rating'
 
 function Example() {
   const [value, setValue] = createSignal(3)
