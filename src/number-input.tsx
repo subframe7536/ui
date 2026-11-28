@@ -205,12 +205,17 @@ export function NumberInput(
   const [scrubCursorPos, setScrubCursorPos] = createSignal({ x: 0, y: 0 })
   let inputEl: HTMLInputElement | null = null
   let rootEl: HTMLElement | null = null
+  let committedValue: number | null = untrack(() => value())
+  let hasPendingChange = false
 
   createEffect(
     () => [value(), props.locale, props.format] as const,
     ([v, locale, format]) => {
       if (typeof document === 'undefined' || document.activeElement !== inputEl) {
         setInputText(formatNumber(v, locale, format))
+        if (!hasPendingChange) {
+          committedValue = v
+        }
       }
     },
   )
@@ -266,6 +271,14 @@ export function NumberInput(
     }
     setRawValue(clamped)
     setInputText(formatNumber(clamped, props.locale, props.format))
+    if (clamped !== prev) {
+      if (reason === 'programmatic') {
+        committedValue = clamped
+        hasPendingChange = false
+      } else {
+        hasPendingChange = true
+      }
+    }
     field?.setDirty(true)
     emitRef.fn?.({
       key: 'value',
@@ -284,10 +297,18 @@ export function NumberInput(
       props.onValueChange?.(finalVal, details)
       if (!details.canceled) {
         setRawValue(finalVal)
+        hasPendingChange = true
       }
     }
-    setInputText(formatNumber(value(), props.locale, props.format))
-    props.onValueCommit?.(value(), details)
+    const nextVal = value()
+    setInputText(formatNumber(nextVal, props.locale, props.format))
+    if (hasPendingChange && nextVal !== committedValue) {
+      committedValue = nextVal
+      hasPendingChange = false
+      props.onValueCommit?.(nextVal, details)
+    } else {
+      hasPendingChange = false
+    }
     field?.setTouched(true)
   }
 

@@ -196,69 +196,83 @@ export function ExampleViewer(props: { name: string; caption?: string }) {
             </div>
           </div>
 
-          <Show
-            when={activeTab() === 'preview'}
-            fallback={
-              <div class="example-code-pane">
-                <pre class="code-pre">
-                  <code>{sourceCode()}</code>
-                </pre>
-              </div>
-            }
-          >
-            <div class="example-stage-wrap">
-              <Show when={!loadError()} fallback={<div class="example-error">{loadError()}</div>}>
-                <Show when={comp()} fallback={<div class="example-loading">Loading example…</div>}>
-                  {(ExampleComp) => (
-                    <For each={[resetKey()]}>
-                      {() => (
-                        <LogContext value={pushLog}>
-                          <div class="example-stage" data-example={props.name}>
-                            <div class="example-stage-inner">{ExampleComp()()}</div>
-                          </div>
-                        </LogContext>
-                      )}
-                    </For>
-                  )}
+          <div class="example-body">
+            <div
+              class="example-panel example-panel-preview"
+              data-inactive={activeTab() !== 'preview' ? '' : undefined}
+              aria-hidden={activeTab() !== 'preview' ? 'true' : undefined}
+            >
+              <div class="example-stage-wrap">
+                <Show when={!loadError()} fallback={<div class="example-error">{loadError()}</div>}>
+                  <Show
+                    when={comp()}
+                    fallback={<div class="example-loading">Loading example…</div>}
+                  >
+                    {(ExampleComp) => (
+                      <For each={[resetKey()]}>
+                        {() => (
+                          <LogContext value={pushLog}>
+                            <div class="example-stage" data-example={props.name}>
+                              <div class="example-stage-inner">{ExampleComp()()}</div>
+                            </div>
+                          </LogContext>
+                        )}
+                      </For>
+                    )}
+                  </Show>
                 </Show>
-              </Show>
-              <span
-                class="example-style-note"
-                title="Components from @subf/ui are unstyled; this preview uses example styles."
-                aria-label="Components from @subf/ui are unstyled; this preview uses example styles."
-              >
-                <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.7"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
+                <span
+                  class="example-style-note"
+                  title="Components from @subf/ui are unstyled; this preview uses example styles."
+                  aria-label="Components from @subf/ui are unstyled; this preview uses example styles."
                 >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <path d="M12 17h.01" />
-                </svg>
-              </span>
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </span>
+              </div>
+
+              <Show when={logs().length > 0}>
+                <div class="example-log" aria-live="polite">
+                  <div class="example-log-head">
+                    <span>Event log</span>
+                    <button type="button" class="example-log-clear" onClick={() => setLogs([])}>
+                      Clear
+                    </button>
+                  </div>
+                  <ul class="example-log-list">
+                    <For each={logs()}>{(entry) => <li>{entry}</li>}</For>
+                  </ul>
+                </div>
+              </Show>
             </div>
 
-            <Show when={logs().length > 0}>
-              <div class="example-log" aria-live="polite">
-                <div class="example-log-head">
-                  <span>Event log</span>
-                  <button type="button" class="example-log-clear" onClick={() => setLogs([])}>
-                    Clear
-                  </button>
+            <Show when={sourceCode()}>
+              <div
+                class="example-panel example-panel-code"
+                data-inactive={activeTab() !== 'code' ? '' : undefined}
+                aria-hidden={activeTab() !== 'code' ? 'true' : undefined}
+              >
+                <div class="example-code-pane">
+                  <pre class="code-pre">
+                    <code>{sourceCode()}</code>
+                  </pre>
                 </div>
-                <ul class="example-log-list">
-                  <For each={logs()}>{(entry) => <li>{entry}</li>}</For>
-                </ul>
               </div>
             </Show>
-          </Show>
+          </div>
         </Show>
       </div>
 

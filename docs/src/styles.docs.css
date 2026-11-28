@@ -340,6 +340,41 @@
   color: var(--foreground);
 }
 
+.example-body {
+  position: relative;
+}
+
+.example-panel-preview[data-inactive] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.example-panel-code {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.example-panel-code[data-inactive] {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.example-code-pane {
+  max-height: 28rem;
+  overflow: auto;
+}
+
+.example-panel-code .example-code-pane {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
 .example-code-pane .code-block {
   margin: 0;
   border: 0;
@@ -349,7 +384,6 @@
 .example-code-pane .code-pre {
   margin: 0;
   padding: 1.15rem 1.25rem;
-  overflow-x: auto;
   background: var(--background);
   font-family: var(--font-mono, monospace);
   font-size: 0.82rem;
