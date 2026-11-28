@@ -126,6 +126,9 @@ function formatNumber(val: number | null, locale?: string, format?: NumberFormat
   if (val === null || Number.isNaN(val)) {
     return ''
   }
+  if (typeof format === 'function') {
+    return format(val)
+  }
   if (!format && !locale) {
     return String(val)
   }

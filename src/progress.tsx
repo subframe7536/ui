@@ -4,13 +4,13 @@ import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 
 export type ProgressStatus = 'indeterminate' | 'progressing' | 'complete'
-export type NumberFormat = Intl.NumberFormatOptions
+export type NumberFormat = Intl.NumberFormatOptions | ((value: number) => string)
 
-export type GaugeLabelDetails = {
-  value: number | null
+export type GaugeLabelDetails<Value extends number | null = number | null> = {
+  formatted: string
   min: number
   max: number
-  percent: number | null
+  percent: number | Extract<Value, null>
 }
 
 export type ProgressOptions = {
@@ -19,7 +19,7 @@ export type ProgressOptions = {
   max?: number
   locale?: string
   format?: NumberFormat
-  getValueLabel?: (details: GaugeLabelDetails) => string
+  getValueLabel?: (value: number | null, details: GaugeLabelDetails) => string
   debug?: boolean
 }
 
@@ -76,21 +76,32 @@ export function Progress(
 
   const formattedValue = () => {
     const s = state()
-    if (props.getValueLabel) {
-      return props.getValueLabel({
-        value: s.value,
-        min: s.min,
-        max: s.max,
-        percent: s.percent,
-      })
-    }
-    if (s.percent === null) {
+    if (s.value === null || s.percent === null) {
       return ''
     }
+    const fmt = props.format
+    if (typeof fmt === 'function') {
+      return fmt(s.value)
+    }
     const locale = props.locale ?? (typeof document === 'undefined' ? 'en' : undefined)
-    return new Intl.NumberFormat(locale, props.format ?? { style: 'percent' }).format(
-      s.percent / 100,
-    )
+    if (fmt && fmt.style !== 'percent') {
+      return new Intl.NumberFormat(locale, fmt).format(s.value)
+    }
+    return new Intl.NumberFormat(locale, fmt ?? { style: 'percent' }).format(s.percent / 100)
+  }
+
+  const ariaValueText = () => {
+    const s = state()
+    const formatted = formattedValue()
+    if (!props.getValueLabel) {
+      return formatted || undefined
+    }
+    return props.getValueLabel(s.value, {
+      formatted,
+      min: s.min,
+      max: s.max,
+      percent: s.percent,
+    })
   }
 
   const rest = omit(props, 'value', 'min', 'max', 'locale', 'format', 'getValueLabel', 'debug')
@@ -106,7 +117,7 @@ export function Progress(
             'aria-valuemin': s.min,
             'aria-valuemax': s.max,
             'aria-valuenow': s.value ?? undefined,
-            'aria-valuetext': formattedValue() || undefined,
+            'aria-valuetext': ariaValueText(),
             'aria-labelledby': labelId,
             'data-status': s.status,
             'data-indeterminate': s.status === 'indeterminate' ? '' : undefined,
@@ -135,7 +146,7 @@ export function ProgressIndicator(props: PartProps<'div', ProgressState>) {
     attrs: () => ({ 'data-slot': 'progress-indicator', 'data-status': ctx.state().status }),
     style: () => {
       const pct = ctx.state().percent
-      return pct === null ? undefined : { width: `${pct}%` }
+      return pct === null ? undefined : { 'inset-inline-start': 0, width: `${pct}%` }
     },
   })
 }

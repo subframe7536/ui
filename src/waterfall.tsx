@@ -226,9 +226,11 @@ export function Waterfall(props: WaterfallProps) {
   const toPercent = (v: number) => Math.min(100, Math.max(0, ((v - min()) / span()) * 100))
 
   const formatTime = (v: number) => {
-    const num = props.format
-      ? new Intl.NumberFormat(undefined, props.format).format(v)
-      : String(Math.round(v))
+    const fmt = props.format
+    if (typeof fmt === 'function') {
+      return fmt(v)
+    }
+    const num = fmt ? new Intl.NumberFormat(undefined, fmt).format(v) : String(Math.round(v))
     return props.unit ? `${num}${props.unit}` : `${num}ms`
   }
 

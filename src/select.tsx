@@ -190,6 +190,7 @@ type SelectContextValue = {
   registerOption: (opt: RegisteredSelectOption) => () => void
   getOptions: () => Array<RegisteredSelectOption>
   getLabelFor: (val: string) => string
+  updateLabel: (val: string, label: string) => void
   placeholder: () => string | undefined
   items: () => ListData | undefined
   triggerEl: () => HTMLElement | null
@@ -245,6 +246,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
 
   const optionList: Array<RegisteredSelectOption> = []
   const labelMap = new Map<string, string>()
+  const [labelVersion, setLabelVersion] = createSignal(0)
   const seedLabels = () => {
     const raw = props.items
     if (!raw) {
@@ -450,9 +452,20 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     },
   })
 
+  const updateLabel = (val: string, label: string) => {
+    const trimmed = label.trim()
+    if (!trimmed || labelMap.get(val) === trimmed) {
+      return
+    }
+    labelMap.set(val, trimmed)
+    setLabelVersion((v) => v + 1)
+  }
+
   const registerOption = (opt: RegisteredSelectOption) => {
     optionList.push(opt)
-    labelMap.set(opt.value, opt.label)
+    if (opt.label.trim()) {
+      updateLabel(opt.value, opt.label)
+    }
     return () => {
       const idx = optionList.indexOf(opt)
       if (idx >= 0) {
@@ -497,8 +510,10 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     }
     return undefined
   }
-  const getLabelFor = (val: string) =>
-    props.itemToLabel?.(val as T) ?? findItemLabel(val) ?? labelMap.get(val) ?? val
+  const getLabelFor = (val: string) => {
+    labelVersion()
+    return props.itemToLabel?.(val as T) ?? findItemLabel(val) ?? labelMap.get(val) ?? val
+  }
 
   const selectCtx: SelectContextValue = {
     id,
@@ -517,6 +532,7 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
     registerOption,
     getOptions: () => optionList,
     getLabelFor,
+    updateLabel,
     placeholder: () => props.placeholder,
     items: () =>
       props.items?.map((entry) =>
@@ -586,7 +602,12 @@ export function Select<T extends string = string>(props: SelectProps<T>) {
 export function SelectLabel(props: PartProps<'label', SelectState>) {
   const ctx = useSelect('Label')
   return renderPart('label', props, ctx.state, {
-    attrs: () => ({ id: props.id ?? ctx.labelId, for: ctx.id }),
+    attrs: () => ({
+      id: props.id ?? ctx.labelId,
+      for: ctx.id,
+      'data-slot': 'select-label',
+      'data-disabled': ctx.state().disabled ? '' : undefined,
+    }),
   })
 }
 
@@ -637,6 +658,10 @@ export function SelectTrigger<T extends string = string>(
             id: ctx?.id,
             type: 'button',
             role: 'combobox',
+            'data-slot': 'select-trigger',
+            'data-readonly': s.readOnly ? '' : undefined,
+            'data-invalid': s.invalid ? '' : undefined,
+            'data-placeholder': s.empty ? '' : undefined,
             disabled: isDisabled || undefined,
             'aria-expanded': s.open ? 'true' : 'false',
             'aria-haspopup': 'listbox',
@@ -739,7 +764,7 @@ export function SelectValue(
 export function SelectValueIcon(props: PartProps<'span', SelectState>) {
   const ctx = useSelect('ValueIcon')
   return renderPart('span', props, ctx.state, {
-    attrs: () => ({ 'aria-hidden': true }),
+    attrs: () => ({ 'aria-hidden': true, 'data-slot': 'select-value-icon' }),
   })
 }
 
@@ -756,6 +781,7 @@ export function SelectClear(
           type: 'button',
           disabled: !!props.disabled || ctx.state().disabled,
           'aria-label': 'Clear selection',
+          'data-slot': 'select-clear',
         }),
         handlers: {
           onClick: (e: MouseEvent) => {
@@ -808,18 +834,25 @@ export function SelectContent(
     'keepMounted',
   )
 
+  const portalMount = () =>
+    props.container ??
+    (ctx.triggerEl()?.closest('[data-example]') as HTMLElement | null) ??
+    undefined
+
   return (
     <Show when={ctx.state().open || !!props.keepMounted}>
-      <SafePortal mount={props.container ?? undefined}>
+      <SafePortal mount={portalMount()}>
         {renderPart('div', rest, contentState, {
           ref: (el: HTMLElement) => ctx.setContentEl(el),
           attrs: () => ({
             'data-slot': 'select-content',
             'data-open': ctx.state().open ? '' : undefined,
             'data-side': pos.side(),
+            'data-align': pos.align(),
           }),
           style: () => ({
             ...pos.style(),
+            'z-index': 50,
             display: ctx.state().open ? undefined : 'none',
           }),
         })}
@@ -832,7 +865,7 @@ export function SelectArrow(props: PartProps<'div', SelectArrowState>) {
   const ctx = useSelect('Arrow')
   return renderPart('div', props, () => ({ side: 'bottom' as Side }), {
     ref: (el: HTMLElement) => ctx.setArrowEl(el),
-    attrs: () => ({ 'aria-hidden': true }),
+    attrs: () => ({ 'aria-hidden': true, 'data-slot': 'select-arrow' }),
   })
 }
 
@@ -844,6 +877,7 @@ export function SelectInput(props: Omit<PartProps<'input', SelectInputState>, 't
       value: ctx.state().query,
       autocomplete: 'off',
       'aria-controls': ctx.listId,
+      'data-slot': 'select-input',
     }),
     handlers: {
       onInput: (e: InputEvent & { currentTarget: HTMLInputElement }) => {
@@ -874,6 +908,7 @@ export function SelectList(props: PartProps<'div', SelectState>) {
     attrs: () => ({
       id: ctx.listId,
       role: 'listbox',
+      'data-slot': 'select-list',
       'aria-multiselectable': ctx.state().multiple ? 'true' : undefined,
     }),
   })
@@ -940,7 +975,7 @@ export function SelectGroup(props: PartProps<'div', SelectState>) {
   return (
     <SelectGroupLabelIdContext value={labelId}>
       {renderPart('div', props, ctx.state, {
-        attrs: () => ({ role: 'group', 'aria-labelledby': labelId }),
+        attrs: () => ({ role: 'group', 'data-slot': 'select-group', 'aria-labelledby': labelId }),
       })}
     </SelectGroupLabelIdContext>
   )
@@ -950,14 +985,18 @@ export function SelectGroupLabel(props: PartProps<'div', SelectState>) {
   const ctx = useSelect('GroupLabel')
   const labelId = useContext(SelectGroupLabelIdContext)
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ id: props.id ?? labelId, role: 'presentation' }),
+    attrs: () => ({
+      id: props.id ?? labelId,
+      role: 'presentation',
+      'data-slot': 'select-group-label',
+    }),
   })
 }
 
 export function SelectSeparator(props: PartProps<'div', SelectState>) {
   const ctx = useSelect('Separator')
   return renderPart('div', props, ctx.state, {
-    attrs: () => ({ role: 'separator' }),
+    attrs: () => ({ role: 'separator', 'data-slot': 'select-separator' }),
   })
 }
 
@@ -986,11 +1025,20 @@ export function SelectItem<T extends string = string>(
           ref: (el: HTMLElement | null) => {
             cleanup?.()
             if (el) {
-              cleanup = ctx.registerOption({
+              const readText = () => props.label || el.textContent?.trim() || props.value
+              const opt: RegisteredSelectOption = {
                 value: props.value,
-                label: props.label ?? el.textContent?.trim() ?? props.value,
+                label: readText(),
                 keywords: props.keywords,
                 disabled: !!props.disabled,
+              }
+              cleanup = ctx.registerOption(opt)
+              queueMicrotask(() => {
+                const text = readText()
+                if (text && text !== opt.label) {
+                  opt.label = text
+                  ctx.updateLabel(props.value, text)
+                }
               })
             }
           },
@@ -998,6 +1046,7 @@ export function SelectItem<T extends string = string>(
             const s = itemState()
             return {
               role: 'option',
+              'data-slot': 'select-item',
               'aria-selected': s.selected ? 'true' : 'false',
               'aria-disabled': s.disabled ? 'true' : undefined,
               'data-value': s.value,
@@ -1030,7 +1079,9 @@ export function SelectItemText(props: PartProps<'span', SelectItemTextState>) {
   if (!itemState) {
     throw new Error('<SelectItemText> must be used inside <SelectItem>.')
   }
-  return renderPart('span', props, itemState)
+  return renderPart('span', props, itemState, {
+    attrs: () => ({ 'data-slot': 'select-item-text' }),
+  })
 }
 
 export function SelectItemIcon(
@@ -1040,7 +1091,9 @@ export function SelectItemIcon(
   if (!itemState) {
     throw new Error('<SelectItemIcon> must be used inside <SelectItem>.')
   }
-  return renderPart('span', props, itemState, { attrs: () => ({ 'aria-hidden': true }) })
+  return renderPart('span', props, itemState, {
+    attrs: () => ({ 'aria-hidden': true, 'data-slot': 'select-item-icon' }),
+  })
 }
 
 export function SelectItemIndicator(
@@ -1057,6 +1110,7 @@ export function SelectItemIndicator(
       {renderPart('span', rest, itemState, {
         attrs: () => ({
           'aria-hidden': true,
+          'data-slot': 'select-item-indicator',
           'data-selected': itemState().selected ? '' : undefined,
         }),
       })}
@@ -1070,7 +1124,7 @@ export function SelectEmpty(props: PartProps<'div', SelectEmptyState>) {
   return (
     <Show when={!hasVisible()}>
       {renderPart('div', props, ctx.state, {
-        attrs: () => ({ role: 'status' }),
+        attrs: () => ({ role: 'status', 'data-slot': 'select-empty' }),
       })}
     </Show>
   )
@@ -1083,7 +1137,7 @@ export function SelectStatus(props: PartProps<'div', SelectStatusState>) {
     count: ctx.getOptions().filter((o) => ctx.isItemVisible(o.label, o.keywords)).length,
   })
   return renderPart('div', props, statusState, {
-    attrs: () => ({ role: 'status', 'aria-live': 'polite' }),
+    attrs: () => ({ role: 'status', 'aria-live': 'polite', 'data-slot': 'select-status' }),
   })
 }
 
@@ -1105,6 +1159,7 @@ export function SelectSelectAll(props: Omit<PartProps<'button', SelectSelectAllS
     attrs: () => ({
       type: 'button',
       role: 'option',
+      'data-slot': 'select-select-all',
       'aria-selected': selectAllState().allSelected ? 'true' : 'false',
       'data-all-selected': selectAllState().allSelected ? '' : undefined,
     }),

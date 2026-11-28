@@ -296,11 +296,15 @@ export function Slider<T extends number | Array<number> = number>(
   emitRef.fn = reg.emit
 
   const formatValue = (v: number): string => {
-    if (!props.format && !props.locale) {
+    const fmt = props.format
+    if (typeof fmt === 'function') {
+      return fmt(v)
+    }
+    if (!fmt && !props.locale) {
       return String(v)
     }
     try {
-      return new Intl.NumberFormat(props.locale, props.format).format(v)
+      return new Intl.NumberFormat(props.locale, fmt).format(v)
     } catch {
       return String(v)
     }
