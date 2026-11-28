@@ -3,6 +3,7 @@ import {
   For,
   Show,
   createContext,
+  createMemo,
   createSignal,
   merge,
   omit,
@@ -18,7 +19,7 @@ import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
 
 export type ToastType = 'default' | 'success' | 'error' | 'info' | 'warning' | 'loading'
-export type ToastDismissReason = 'close-press' | 'timeout' | 'swipe' | 'imperative'
+export type ToastDismissReason = 'close-press' | 'timeout' | 'swipe' | 'escape-key' | 'imperative'
 export type ToastPauseReason = 'pointer' | 'focus' | 'window-blur'
 export type ToastActionDetails = ActionDetails
 
@@ -29,6 +30,8 @@ export type ToastDismissDetails = {
 
 export type ToastActionData = {
   label: string
+  href?: string
+  dismiss?: boolean
   onClick?: (details: ToastActionDetails) => unknown
   onAction?: (event: Event | undefined, details: ToastActionDetails) => unknown
 }
@@ -45,6 +48,9 @@ export type ToastOptions = {
   description?: string
   type?: ToastType
   duration?: number
+  dismissible?: boolean
+  priority?: 'polite' | 'assertive'
+  data?: unknown
   action?: ToastActionData
   cancel?: ToastCancel
   onDismiss?: (details: ToastDismissDetails) => void
@@ -55,39 +61,63 @@ export type ToastData = Required<Pick<ToastOptions, 'id' | 'type' | 'duration'>>
 
 export type ToastItem = ToastData
 
+export type ToastPromiseMessage<T> = string | ToastOptions | ((value: T) => string | ToastOptions)
+
 export type Toaster = ((
   title: string | ToastOptions,
   options?: Omit<ToastOptions, 'title'>,
 ) => string) & {
   toasts: () => Array<ToastItem>
   add: (options: ToastOptions) => string
-  update: (id: string, options: Partial<ToastOptions>) => void
-  dismiss: (id: string, reason?: ToastDismissReason) => void
+  update: (id: string, options: Partial<ToastOptions>) => boolean
+  dismiss: (id?: string, reason?: ToastDismissReason) => void
   dismissAll: () => void
+  pause: () => void
+  resume: () => void
   success: (title: string, options?: Omit<ToastOptions, 'title' | 'type'>) => string
   error: (title: string, options?: Omit<ToastOptions, 'title' | 'type'>) => string
   info: (title: string, options?: Omit<ToastOptions, 'title' | 'type'>) => string
   warning: (title: string, options?: Omit<ToastOptions, 'title' | 'type'>) => string
+  loading: (title: string, options?: Omit<ToastOptions, 'title' | 'type'>) => string
   promise: <T>(
-    promise: Promise<T>,
+    promise: Promise<T> | (() => Promise<T>),
     messages: {
-      loading: string
-      success: string | ((value: T) => string)
-      error: string | ((error: unknown) => string)
+      loading: string | ToastOptions
+      success: ToastPromiseMessage<T>
+      error: ToastPromiseMessage<unknown>
     },
   ) => Promise<T>
 }
 
 let toastSeq = 1
 
+function normalizePromiseResult(
+  res: string | ToastOptions,
+  fallbackType: ToastType,
+  defaultDuration: number,
+): Partial<ToastOptions> {
+  if (typeof res === 'string') {
+    return { title: res, type: fallbackType, duration: defaultDuration }
+  }
+  return {
+    ...res,
+    type: res.type ?? fallbackType,
+    duration: res.duration ?? defaultDuration,
+  }
+}
+
 /**
  * Creates a reactive Solid 2 toaster store with auto-dismiss timers and promise helper.
  */
-export function createToaster(defaults: { duration?: number; limit?: number } = {}): Toaster {
+export function createToaster(
+  defaults: { duration?: number; limit?: number; overlays?: unknown } = {},
+): Toaster {
   const defaultDuration = defaults.duration ?? 5000
   const limit = defaults.limit ?? 5
   const [toasts, setToasts] = createSignal<Array<ToastItem>>([])
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
+  const remaining = new Map<string, { ms: number; startedAt: number }>()
+  let isPaused = false
 
   const clearTimer = (id: string) => {
     const timer = timers.get(id)
@@ -99,20 +129,73 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
 
   const scheduleDismiss = (id: string, duration: number) => {
     clearTimer(id)
+    remaining.delete(id)
     if (duration <= 0 || !Number.isFinite(duration)) {
+      return
+    }
+    remaining.set(id, { ms: duration, startedAt: Date.now() })
+    if (isPaused) {
       return
     }
     timers.set(
       id,
       setTimeout(() => {
         timers.delete(id)
+        remaining.delete(id)
         dismiss(id, 'timeout')
       }, duration),
     )
   }
 
-  const dismiss = (id: string, reason: ToastDismissReason = 'imperative') => {
+  const pause = () => {
+    if (isPaused) {
+      return
+    }
+    isPaused = true
+    const now = Date.now()
+    for (const [id, info] of remaining.entries()) {
+      clearTimer(id)
+      const left = Math.max(200, info.ms - (now - info.startedAt))
+      remaining.set(id, { ms: left, startedAt: now })
+    }
+  }
+
+  const resume = () => {
+    if (!isPaused) {
+      return
+    }
+    isPaused = false
+    const now = Date.now()
+    for (const [id, info] of remaining.entries()) {
+      remaining.set(id, { ms: info.ms, startedAt: now })
+      timers.set(
+        id,
+        setTimeout(() => {
+          timers.delete(id)
+          remaining.delete(id)
+          dismiss(id, 'timeout')
+        }, info.ms),
+      )
+    }
+  }
+
+  const dismissAll = () => {
+    const current = toasts()
+    for (const item of current) {
+      clearTimer(item.id)
+      remaining.delete(item.id)
+      item.onDismiss?.({ id: item.id, reason: 'imperative' })
+    }
+    setToasts([])
+  }
+
+  const dismiss = (id?: string, reason: ToastDismissReason = 'imperative') => {
+    if (id === undefined) {
+      dismissAll()
+      return
+    }
     clearTimer(id)
+    remaining.delete(id)
     const current = toasts()
     const target = current.find((t) => t.id === id)
     if (!target) {
@@ -120,15 +203,6 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
     }
     setToasts(current.filter((t) => t.id !== id))
     target.onDismiss?.({ id, reason })
-  }
-
-  const dismissAll = () => {
-    const current = toasts()
-    for (const item of current) {
-      clearTimer(item.id)
-      item.onDismiss?.({ id: item.id, reason: 'imperative' })
-    }
-    setToasts([])
   }
 
   const add = (options: ToastOptions): string => {
@@ -150,38 +224,52 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
     return id
   }
 
-  const update = (id: string, patch: Partial<ToastOptions>) => {
+  const update = (id: string, patch: Partial<ToastOptions>): boolean => {
+    let found = false
     setToasts((prev) =>
       prev.map((item) => {
         if (item.id !== id) {
           return item
         }
-        const next: ToastItem = { ...item, ...patch, id }
+        found = true
+        const nextDuration =
+          patch.duration ??
+          (patch.type && patch.type !== 'loading' && !Number.isFinite(item.duration)
+            ? defaultDuration
+            : item.duration)
+        const next: ToastItem = { ...item, ...patch, id, duration: nextDuration }
         scheduleDismiss(id, next.duration)
         return next
       }),
     )
+    return found
   }
 
   const promiseHelper = <T,>(
-    p: Promise<T>,
+    promiseOrFn: Promise<T> | (() => Promise<T>),
     messages: {
-      loading: string
-      success: string | ((value: T) => string)
-      error: string | ((error: unknown) => string)
+      loading: string | ToastOptions
+      success: ToastPromiseMessage<T>
+      error: ToastPromiseMessage<unknown>
     },
   ): Promise<T> => {
-    const id = add({ title: messages.loading, type: 'loading', duration: Infinity })
+    const loadingOpts: ToastOptions =
+      typeof messages.loading === 'string'
+        ? { title: messages.loading, type: 'loading', duration: Infinity }
+        : { ...messages.loading, type: messages.loading.type ?? 'loading', duration: Infinity }
+    const id = add(loadingOpts)
+    const p = typeof promiseOrFn === 'function' ? promiseOrFn() : promiseOrFn
     return p.then(
       (value) => {
-        const title =
+        const resolved =
           typeof messages.success === 'function' ? messages.success(value) : messages.success
-        update(id, { title, type: 'success', duration: defaultDuration })
+        update(id, normalizePromiseResult(resolved, 'success', defaultDuration))
         return value
       },
       (error) => {
-        const title = typeof messages.error === 'function' ? messages.error(error) : messages.error
-        update(id, { title, type: 'error', duration: defaultDuration })
+        const resolved =
+          typeof messages.error === 'function' ? messages.error(error) : messages.error
+        update(id, normalizePromiseResult(resolved, 'error', defaultDuration))
         throw error
       },
     )
@@ -196,6 +284,8 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
     update,
     dismiss,
     dismissAll,
+    pause,
+    resume,
     success: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
       add({ ...opts, title, type: 'success' }),
     error: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
@@ -204,6 +294,8 @@ export function createToaster(defaults: { duration?: number; limit?: number } = 
       add({ ...opts, title, type: 'info' }),
     warning: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
       add({ ...opts, title, type: 'warning' }),
+    loading: (title: string, opts?: Omit<ToastOptions, 'title' | 'type'>) =>
+      add({ ...opts, title, type: 'loading', duration: opts?.duration ?? Infinity }),
     promise: promiseHelper,
   })
 }
@@ -218,12 +310,21 @@ export type ToastRegionOptions = {
   label?: string
   side?: 'top' | 'bottom'
   align?: 'start' | 'center' | 'end'
+  maxVisible?: number
+  expanded?: boolean
+  shortcut?: string
+  pendingAnnouncement?: string
+  debug?: boolean
+  container?: Element
   children?: JSX.Element | ((item: ToastItem) => JSX.Element)
 }
 
 export type ToastRegionState = {
   count: number
   paused: boolean
+  side: 'top' | 'bottom'
+  align: 'start' | 'center' | 'end'
+  expanded: boolean
 }
 
 export type ToastRegionProps = ToastRegionOptions &
@@ -232,6 +333,10 @@ export type ToastRegionProps = ToastRegionOptions &
 export type ToastState = {
   type: ToastType
   open: boolean
+  index: number
+  front: boolean
+  expanded: boolean
+  leaving: boolean
 }
 
 export type ToastButtonState = {
@@ -241,23 +346,92 @@ export type ToastButtonState = {
 
 export type ToastActionProps = {
   action?: (details: ToastActionDetails) => unknown
+  onAction?: (event: Event | undefined, details: ToastActionDetails) => unknown
+  dismiss?: boolean
 }
 
-export type ToastCloseProps = object
-const ToastRegionContext = createContext<{ toaster: () => Toaster } | null>(null)
+export type ToastCloseProps = {
+  action?: (event: Event | undefined, details: ToastActionDetails) => unknown
+}
+
+type ToastRegionContextValue = {
+  toaster: () => Toaster
+  side: () => 'top' | 'bottom'
+  align: () => 'start' | 'center' | 'end'
+  expanded: () => boolean
+  registerHeight: (id: string, height: number) => void
+  getLayout: (id: string) => { index: number; offset: number; height: number }
+}
+
+const ToastRegionContext = createContext<ToastRegionContextValue | null>(null)
 const ToastItemContext = createContext<{
   item: () => ToastItem
+  index: () => number
   dismiss: (reason: ToastDismissReason) => void
 } | null>(null)
 
+function measureNaturalHeight(el: HTMLElement): number {
+  const prevHeight = el.style.getPropertyValue('height')
+  const prevPriority = el.style.getPropertyPriority('height')
+  el.style.setProperty('height', 'auto', 'important')
+  const rect = el.getBoundingClientRect()
+  const height = rect.height || el.offsetHeight || el.scrollHeight
+  if (prevHeight) {
+    el.style.setProperty('height', prevHeight, prevPriority)
+  } else {
+    el.style.removeProperty('height')
+  }
+  return Math.round(height)
+}
+
 export function ToastRegion(props: ToastRegionProps) {
   let rootEl: HTMLElement | undefined
-  const [paused, setPaused] = createSignal(false)
+  const [hovered, setHovered] = createSignal(false)
+  const [focused, setFocused] = createSignal(false)
+  const [heights, setHeights] = createSignal<Record<string, number>>({})
   const toaster = () => props.toaster ?? toast
+  const side = () => props.side ?? 'bottom'
+  const align = () => props.align ?? 'end'
+  const maxVisible = () => props.maxVisible ?? 3
+  const paused = () => hovered() || focused()
+  const expanded = () => !!props.expanded || paused()
+
+  // Newest toast sits at index 0 (front).
+  const orderedToasts = createMemo(() => {
+    const list = toaster().toasts()
+    const reversed = [...list].reverse()
+    return reversed.slice(0, maxVisible())
+  })
+
+  const stackMetrics = createMemo(() => {
+    const list = orderedToasts()
+    const map = heights()
+    let offset = 0
+    let total = 0
+    const layout: Record<string, { index: number; offset: number; height: number }> = {}
+    for (const [i, item] of list.entries()) {
+      const h = map[item.id] ?? 0
+      layout[item.id] = { index: i, offset, height: h }
+      offset += h
+      total += h
+    }
+    const front = list[0] ? (map[list[0].id] ?? 0) : 0
+    return { layout, total, front, count: list.length }
+  })
+
+  const registerHeight = (id: string, height: number) => {
+    if (!Number.isFinite(height) || height <= 0) {
+      return
+    }
+    setHeights((prev) => (prev[id] === height ? prev : { ...prev, [id]: height }))
+  }
 
   const state = (): ToastRegionState => ({
-    count: toaster().toasts().length,
+    count: orderedToasts().length,
     paused: paused(),
+    side: side(),
+    align: align(),
+    expanded: expanded(),
   })
 
   registerComponent({
@@ -286,99 +460,190 @@ export function ToastRegion(props: ToastRegionProps) {
 
   onCleanup(() => {
     if (typeof window !== 'undefined') {
-      setPaused(false)
+      toaster().resume()
     }
   })
 
-  const rest = omit(props, 'toaster', 'label', 'side', 'align', 'children')
+  const rest = omit(
+    props,
+    'toaster',
+    'label',
+    'side',
+    'align',
+    'maxVisible',
+    'expanded',
+    'shortcut',
+    'pendingAnnouncement',
+    'debug',
+    'container',
+    'children',
+  )
+
   const combinedProps: PartProps<'section', ToastRegionState> = merge(rest, {
     get children() {
       const renderChild = props.children
+      const hasStaticChildren = renderChild !== undefined && typeof renderChild !== 'function'
       return (
-        <div data-slot="toast-list">
-          <For each={toaster().toasts()}>
-            {(item) => (
-              <ToastItemContext
-                value={{
-                  item: () => item,
-                  dismiss: (reason) => toaster().dismiss(item.id, reason),
-                }}
-              >
-                <Show
-                  when={typeof renderChild === 'function'}
-                  fallback={
-                    <Toast toast={item}>
-                      <Show when={item.title}>
-                        <ToastTitle>{item.title}</ToastTitle>
-                      </Show>
-                      <Show when={item.description}>
-                        <ToastDescription>{item.description}</ToastDescription>
-                      </Show>
-                      <Show when={item.action}>
-                        {(act) => <ToastAction>{act().label}</ToastAction>}
-                      </Show>
-                      <Show when={item.cancel}>
-                        {(can) => (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              const source = inferSource(event)
-                              if (can().onCancel) {
-                                can().onCancel?.(event, { source })
-                              } else {
-                                can().onClick?.()
-                              }
-                              toaster().dismiss(item.id, 'close-press')
-                            }}
-                          >
-                            {can().label}
-                          </button>
-                        )}
-                      </Show>
-                    </Toast>
-                  }
+        <ol
+          data-slot="toast-list"
+          style={{
+            margin: '0',
+            padding: '0',
+            'list-style': 'none',
+          }}
+        >
+          <Show when={!hasStaticChildren} fallback={renderChild as JSX.Element}>
+            <For each={orderedToasts()}>
+              {(item, idx) => (
+                <ToastItemContext
+                  value={{
+                    item: () => item,
+                    index: idx,
+                    dismiss: (reason) => toaster().dismiss(item.id, reason),
+                  }}
                 >
-                  {typeof renderChild === 'function' ? renderChild(item) : null}
-                </Show>
-              </ToastItemContext>
-            )}
-          </For>
-          <Show when={typeof renderChild !== 'function'}>{renderChild as JSX.Element}</Show>
-        </div>
+                  <Show
+                    when={typeof renderChild === 'function'}
+                    fallback={
+                      <Toast toast={item}>
+                        <div data-slot="stack">
+                          <Show when={item.title}>
+                            <ToastTitle>{item.title}</ToastTitle>
+                          </Show>
+                          <Show when={item.description}>
+                            <ToastDescription>{item.description}</ToastDescription>
+                          </Show>
+                        </div>
+                        <Show when={item.action}>
+                          {(act) => <ToastAction>{act().label}</ToastAction>}
+                        </Show>
+                        <Show when={item.cancel}>
+                          {(can) => (
+                            <ToastClose
+                              action={(event, details) => {
+                                if (can().onCancel) {
+                                  return can().onCancel?.(event, details)
+                                }
+                                can().onClick?.()
+                                return undefined
+                              }}
+                            >
+                              {can().label}
+                            </ToastClose>
+                          )}
+                        </Show>
+                      </Toast>
+                    }
+                  >
+                    {typeof renderChild === 'function' ? renderChild(item) : null}
+                  </Show>
+                </ToastItemContext>
+              )}
+            </For>
+          </Show>
+        </ol>
       )
     },
   })
 
   return (
-    <ToastRegionContext value={{ toaster }}>
+    <ToastRegionContext
+      value={{
+        toaster,
+        side,
+        align,
+        expanded,
+        registerHeight,
+        getLayout: (id) => stackMetrics().layout[id] ?? { index: 0, offset: 0, height: 0 },
+      }}
+    >
       {renderPart('section', combinedProps, state, {
         ref: (el: HTMLElement) => {
           rootEl = el
         },
         attrs: () => {
-          const count = toaster().toasts().length
+          const metrics = stackMetrics()
+          const open = metrics.count > 0
           return {
-            role: count > 0 ? 'region' : undefined,
-            'aria-label': count > 0 ? (props.label ?? 'Notifications') : undefined,
+            role: open ? 'region' : undefined,
+            'aria-label': open
+              ? (props['aria-label'] ?? props.label ?? 'Notifications')
+              : undefined,
             'aria-live': 'polite',
             'data-slot': 'toast-region',
-            'data-side': props.side ?? 'bottom',
-            'data-align': props.align ?? 'end',
-            'data-count': String(count),
+            'data-side': side(),
+            'data-align': align(),
+            'data-expanded': expanded() ? '' : undefined,
+            'data-count': String(metrics.count),
+          }
+        },
+        style: () => {
+          const metrics = stackMetrics()
+          const s = side()
+          const a = align()
+          return {
+            position: 'fixed',
+            'z-index': 2_147_483_000,
+            display: 'flex',
+            'flex-direction': 'column',
+            'max-width': '100vw',
+            ...(s === 'top'
+              ? { top: 'env(safe-area-inset-top, 0px)' }
+              : { bottom: 'calc(var(--keyboard-inset, 0px) + env(safe-area-inset-bottom, 0px))' }),
+            ...(a === 'start'
+              ? { 'inset-inline-start': 'env(safe-area-inset-left, 0px)' }
+              : a === 'center'
+                ? { left: '50%', translate: '-50% 0' }
+                : { 'inset-inline-end': 'env(safe-area-inset-right, 0px)' }),
+            '--toast-count': String(metrics.count),
+            '--toast-front-height': metrics.front > 0 ? `${metrics.front}px` : undefined,
+            '--toast-stack-height': metrics.total > 0 ? `${metrics.total}px` : undefined,
           }
         },
         handlers: {
-          onPointerEnter: () => setPaused(true),
-          onPointerLeave: () => setPaused(false),
+          onPointerEnter: (e: PointerEvent) => {
+            if (e.pointerType !== 'touch') {
+              setHovered(true)
+              toaster().pause()
+            }
+          },
+          onPointerLeave: (e: PointerEvent) => {
+            if (e.pointerType !== 'touch') {
+              setHovered(false)
+              if (!focused()) {
+                toaster().resume()
+              }
+            }
+          },
+          onFocusIn: () => {
+            setFocused(true)
+            toaster().pause()
+          },
+          onFocusOut: (e: FocusEvent) => {
+            const next = e.relatedTarget as Node | null
+            if (!next || !rootEl?.contains(next)) {
+              setFocused(false)
+              if (!hovered()) {
+                toaster().resume()
+              }
+            }
+          },
         },
       })}
     </ToastRegionContext>
   )
 }
 
-export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'div', ToastState>, 'toast'>) {
+export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'li', ToastState>, 'toast'>) {
   const region = useContext(ToastRegionContext)
   const inherited = useContext(ToastItemContext)
+  const [swipeX, setSwipeX] = createSignal(0)
+  const [swipeY, setSwipeY] = createSignal(0)
+  const [swiping, setSwiping] = createSignal(false)
+  const [swipeDir, setSwipeDir] = createSignal<'left' | 'right' | 'up' | 'down' | undefined>(
+    undefined,
+  )
+
   const currentItem = () =>
     props.toast ??
     inherited?.item() ?? {
@@ -386,27 +651,157 @@ export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'div', Toast
       type: 'default' as ToastType,
       duration: 5000,
     }
-  const state = (): ToastState => ({
-    type: currentItem().type,
-    open: true,
-  })
+
+  const layout = () => {
+    const id = currentItem().id
+    return region && id
+      ? region.getLayout(id)
+      : { index: inherited?.index() ?? 0, offset: 0, height: 0 }
+  }
+
+  const state = (): ToastState => {
+    const l = layout()
+    return {
+      type: currentItem().type,
+      open: true,
+      index: l.index,
+      front: l.index === 0,
+      expanded: region?.expanded() ?? false,
+      leaving: false,
+    }
+  }
+
   const dismiss = (reason: ToastDismissReason) => {
     const item = currentItem()
     if (item.id) {
       ;(region?.toaster() ?? toast).dismiss(item.id, reason)
     }
   }
+
+  let elRef: HTMLElement | undefined
+  let ro: ResizeObserver | undefined
+
+  const measure = () => {
+    const id = currentItem().id
+    if (elRef && id && region) {
+      const h = measureNaturalHeight(elRef)
+      if (h > 0) {
+        region.registerHeight(id, h)
+      }
+    }
+  }
+
+  onCleanup(() => {
+    ro?.disconnect()
+  })
+
   const rest = omit(props, 'toast')
 
   return (
-    <ToastItemContext value={{ item: currentItem, dismiss }}>
-      {renderPart('div', rest, state, {
-        attrs: () => ({
-          role: currentItem().type === 'error' ? 'alert' : 'status',
-          'data-slot': 'toast',
-          'data-type': currentItem().type,
-          'data-open': '',
-        }),
+    <ToastItemContext value={{ item: currentItem, index: () => layout().index, dismiss }}>
+      {renderPart('li', rest, state, {
+        ref: (el: HTMLElement) => {
+          elRef = el
+          if (typeof window !== 'undefined') {
+            requestAnimationFrame(measure)
+            if (typeof ResizeObserver !== 'undefined') {
+              ro?.disconnect()
+              ro = new ResizeObserver(measure)
+              ro.observe(el)
+            }
+          }
+        },
+        attrs: () => {
+          const s = state()
+          return {
+            role: s.type === 'error' ? 'alert' : 'status',
+            tabindex: 0,
+            'data-slot': 'toast',
+            'data-type': s.type,
+            'data-open': '',
+            'data-front': s.front ? '' : undefined,
+            'data-expanded': s.expanded ? '' : undefined,
+            'data-swiping': swiping() ? '' : undefined,
+            'data-swipe-direction': swipeDir(),
+          }
+        },
+        style: () => {
+          const l = layout()
+          const item = currentItem()
+          return {
+            'touch-action': item.dismissible === false ? undefined : 'none',
+            '--toast-index': String(l.index),
+            '--toast-offset': `${l.offset}px`,
+            '--toast-height': l.height > 0 ? `${l.height}px` : undefined,
+            '--toast-swipe-x': swiping() ? `${swipeX()}px` : undefined,
+            '--toast-swipe-y': swiping() ? `${swipeY()}px` : undefined,
+          }
+        },
+        handlers: {
+          onKeyDown: (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && currentItem().dismissible !== false) {
+              e.preventDefault()
+              dismiss('escape-key')
+            }
+          },
+          onPointerDown: (e: PointerEvent) => {
+            if (currentItem().dismissible === false || e.button !== 0) {
+              return
+            }
+            const target = e.target as HTMLElement | null
+            if (target?.closest('button, a, input, select, textarea')) {
+              return
+            }
+            const startX = e.clientX
+            const startY = e.clientY
+            const side = region?.side() ?? 'bottom'
+            const align = region?.align() ?? 'end'
+            let axis: 'x' | 'y' | null = null
+
+            const onMove = (ev: PointerEvent) => {
+              const dx = ev.clientX - startX
+              const dy = ev.clientY - startY
+              if (!axis && Math.hypot(dx, dy) > 6) {
+                axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y'
+                setSwiping(true)
+              }
+              if (!axis) {
+                return
+              }
+              if (axis === 'x') {
+                const clampedX =
+                  align === 'end' ? Math.max(0, dx) : align === 'start' ? Math.min(0, dx) : dx
+                setSwipeX(clampedX)
+                setSwipeY(0)
+                setSwipeDir(clampedX >= 0 ? 'right' : 'left')
+              } else {
+                const clampedY = side === 'bottom' ? Math.max(0, dy) : Math.min(0, dy)
+                setSwipeX(0)
+                setSwipeY(clampedY)
+                setSwipeDir(clampedY >= 0 ? 'down' : 'up')
+              }
+            }
+
+            const onUp = () => {
+              const dist = axis === 'x' ? Math.abs(swipeX()) : Math.abs(swipeY())
+              setSwiping(false)
+              setSwipeX(0)
+              setSwipeY(0)
+              window.removeEventListener('pointermove', onMove)
+              window.removeEventListener('pointerup', onUp)
+              window.removeEventListener('pointercancel', onUp)
+              if (dist > 60) {
+                dismiss('swipe')
+              } else {
+                setSwipeDir(undefined)
+              }
+            }
+
+            window.addEventListener('pointermove', onMove)
+            window.addEventListener('pointerup', onUp)
+            window.addEventListener('pointercancel', onUp)
+          },
+        },
       })}
     </ToastItemContext>
   )
@@ -419,17 +814,125 @@ export function ToastTitle(props: PartProps<'div'>) {
       return props.children ?? ctx?.item().title
     },
   })
-  return renderPart('div', resolvedProps, () => ({}), {
-    attrs: () => ({ 'data-slot': 'toast-title' }),
-  })
+  return (
+    <Show when={'children' in props || ctx?.item().title !== undefined}>
+      {renderPart('div', resolvedProps, () => ({}), {
+        attrs: () => ({ 'data-slot': 'toast-title' }),
+      })}
+    </Show>
+  )
 }
 
 export function ToastDescription(props: PartProps<'div'>) {
-  return renderPart('div', props, () => ({}))
+  const ctx = useContext(ToastItemContext)
+  const resolvedProps: PartProps<'div'> = merge(props, {
+    get children() {
+      return props.children ?? ctx?.item().description
+    },
+  })
+  return (
+    <Show when={'children' in props || ctx?.item().description !== undefined}>
+      {renderPart('div', resolvedProps, () => ({}), {
+        attrs: () => ({ 'data-slot': 'toast-description' }),
+      })}
+    </Show>
+  )
 }
 
 export function ToastAction(
-  props: ToastActionProps & Omit<PartProps<'button', ToastButtonState>, 'action' | 'type'>,
+  props: ToastActionProps &
+    Omit<PartProps<'button', ToastButtonState>, 'action' | 'onAction' | 'type'>,
+) {
+  const ctx = useContext(ToastItemContext)
+  const [pending, setPending] = createSignal(false)
+  const [error, setError] = createSignal<unknown>(undefined)
+  const state = (): ToastButtonState => ({ pending: pending(), error: error() })
+  const rest = omit(props, 'action', 'onAction', 'dismiss')
+
+  const itemAction = () => ctx?.item().action
+  const hasAction = () => Boolean(itemAction() || props.action || props.onAction || props.children)
+
+  const resolvedProps: PartProps<'button', ToastButtonState> = merge(rest, {
+    get children() {
+      return props.children ?? itemAction()?.label
+    },
+  })
+
+  return (
+    <Show when={hasAction()}>
+      <Show
+        when={itemAction()?.href}
+        fallback={renderPart('button', resolvedProps, state, {
+          attrs: () => ({
+            type: 'button',
+            'data-slot': 'toast-action',
+            'aria-busy': pending() ? 'true' : undefined,
+            'aria-disabled': pending() ? 'true' : undefined,
+            'data-pending': pending() ? '' : undefined,
+          }),
+          handlers: {
+            onClick: (event: MouseEvent) => {
+              if (pending()) {
+                return
+              }
+              const act = itemAction()
+              const shouldDismiss = props.dismiss ?? act?.dismiss ?? true
+              const fn = props.onAction ?? props.action ?? act?.onAction ?? act?.onClick
+              if (!fn) {
+                if (shouldDismiss) {
+                  ctx?.dismiss('close-press')
+                }
+                return
+              }
+              const isActionWithEvent = fn === props.onAction || fn === act?.onAction
+              const wrapped = (details: ToastActionDetails) =>
+                isActionWithEvent
+                  ? fn(event, details)
+                  : (fn as (d: ToastActionDetails) => unknown)(details)
+              setError(undefined)
+              runAction(wrapped, inferSource(event), {
+                pending: setPending,
+                done: () => {
+                  if (shouldDismiss) {
+                    ctx?.dismiss('close-press')
+                  }
+                },
+                failed: setError,
+              })
+            },
+          },
+        })}
+      >
+        {(href) =>
+          renderPart(
+            'a',
+            merge(resolvedProps as unknown as PartProps<'a', ToastButtonState>, {
+              get href() {
+                return href()
+              },
+            }),
+            state,
+            {
+              attrs: () => ({
+                'data-slot': 'toast-action',
+              }),
+              handlers: {
+                onClick: () => {
+                  if (props.dismiss ?? itemAction()?.dismiss ?? true) {
+                    ctx?.dismiss('close-press')
+                  }
+                },
+              },
+            },
+          )
+        }
+      </Show>
+    </Show>
+  )
+}
+
+export function ToastClose(
+  props: ToastCloseProps & Omit<PartProps<'button', ToastButtonState>, 'action' | 'type'>,
 ) {
   const ctx = useContext(ToastItemContext)
   const [pending, setPending] = createSignal(false)
@@ -440,7 +943,10 @@ export function ToastAction(
   return renderPart('button', rest, state, {
     attrs: () => ({
       type: 'button',
+      'data-slot': 'toast-close',
+      'aria-label': props['aria-label'] ?? (props.children ? undefined : 'Close'),
       'aria-busy': pending() ? 'true' : undefined,
+      'aria-disabled': pending() ? 'true' : undefined,
       'data-pending': pending() ? '' : undefined,
     }),
     handlers: {
@@ -448,32 +954,18 @@ export function ToastAction(
         if (pending()) {
           return
         }
-        const itemAction = ctx?.item().action
-        const fn = props.action ?? itemAction?.onAction ?? itemAction?.onClick
+        const fn = props.action
         if (!fn) {
+          ctx?.dismiss('close-press')
           return
         }
-        const wrapped = (details: ToastActionDetails) =>
-          itemAction?.onAction && fn === itemAction.onAction
-            ? itemAction.onAction(event, details)
-            : (fn as (d: ToastActionDetails) => unknown)(details)
         setError(undefined)
-        runAction(wrapped, inferSource(event), {
+        runAction((details) => fn(event, details), inferSource(event), {
           pending: setPending,
           done: () => ctx?.dismiss('close-press'),
           failed: setError,
         })
       },
-    },
-  })
-}
-
-export function ToastClose(props: ToastCloseProps & Omit<PartProps<'button'>, 'type'>) {
-  const ctx = useContext(ToastItemContext)
-  return renderPart('button', props, () => ({}), {
-    attrs: () => ({ type: 'button', 'aria-label': 'Close' }),
-    handlers: {
-      onClick: () => ctx?.dismiss('close-press'),
     },
   })
 }

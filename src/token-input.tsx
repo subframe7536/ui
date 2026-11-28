@@ -496,6 +496,24 @@ export function TokenInput(props: TokenInputProps) {
   )
 }
 
+const innerInputStyle: JSX.CSSProperties = {
+  border: '0',
+  outline: 'none',
+  background: 'transparent',
+  'box-shadow': 'none',
+  padding: '0',
+  margin: '0',
+  height: 'auto',
+  'min-height': '24px',
+  'line-height': 'inherit',
+  font: 'inherit',
+  color: 'inherit',
+  flex: '1 1 60px',
+  'min-width': '4px',
+  width: '100%',
+  resize: 'none',
+}
+
 export function TokenInputEditor(
   props: TokenInputEditorProps &
     Omit<PartProps<'div', TokenInputEditorState>, keyof TokenInputEditorProps | 'children'> & {
@@ -579,13 +597,14 @@ export function TokenInputEditor(
                   ref={(el) => ctx.registerEditor(el)}
                   id={ctx.id}
                   type="text"
+                  data-slot="token-input-field"
                   value={ctx.state().text}
-                  placeholder={props.placeholder ?? ctx.placeholder()}
                   disabled={ctx.state().disabled}
                   readonly={ctx.state().readOnly}
                   aria-labelledby={ctx.field?.labelId}
                   aria-describedby={ctx.field?.describedBy()}
                   aria-invalid={ctx.state().invalid ? 'true' : undefined}
+                  style={innerInputStyle}
                   onFocus={() => ctx.setFocused(true)}
                   onBlur={() => {
                     ctx.setFocused(false)
@@ -601,13 +620,14 @@ export function TokenInputEditor(
               <textarea
                 ref={(el) => ctx.registerEditor(el)}
                 id={ctx.id}
+                data-slot="token-input-field"
                 value={ctx.state().text}
-                placeholder={props.placeholder ?? ctx.placeholder()}
                 disabled={ctx.state().disabled}
                 readonly={ctx.state().readOnly}
                 aria-labelledby={ctx.field?.labelId}
                 aria-describedby={ctx.field?.describedBy()}
                 aria-invalid={ctx.state().invalid ? 'true' : undefined}
+                style={innerInputStyle}
                 onFocus={() => ctx.setFocused(true)}
                 onBlur={() => {
                   ctx.setFocused(false)
@@ -652,12 +672,25 @@ export function TokenInputEditor(
       const ph = props.placeholder ?? ctx.placeholder()
       return {
         role: 'textbox',
-        contenteditable: s.disabled || s.readOnly ? 'false' : 'true',
+        contenteditable:
+          typeof window === 'undefined' ? (s.disabled || s.readOnly ? 'false' : 'true') : undefined,
         'aria-placeholder': ph,
         'data-empty': s.empty ? '' : undefined,
         'data-focused': s.focused ? '' : undefined,
+        'data-disabled': s.disabled ? '' : undefined,
+        'data-readonly': s.readOnly ? '' : undefined,
       }
     },
+    style: () =>
+      typeof window === 'undefined'
+        ? undefined
+        : {
+            display: 'flex',
+            'flex-wrap': 'wrap',
+            'align-items': 'baseline',
+            'align-content': 'flex-start',
+            gap: '4px',
+          },
     handlers: {
       onClick: () => ctx.api.focus(),
     },
