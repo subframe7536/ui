@@ -3,6 +3,7 @@ import {
   For,
   Show,
   createContext,
+  createEffect,
   createMemo,
   createSignal,
   merge,
@@ -354,21 +355,54 @@ export type ToastCloseProps = {
   action?: (event: Event | undefined, details: ToastActionDetails) => unknown
 }
 
+type ToastLayoutEntry = {
+  index: number
+  offset: number
+  height: number
+  leaving: boolean
+}
+
+type LeavingSnapshot = {
+  item: ToastItem
+  index: number
+  offset: number
+  height: number
+}
+
 type ToastRegionContextValue = {
   toaster: () => Toaster
   side: () => 'top' | 'bottom'
   align: () => 'start' | 'center' | 'end'
   expanded: () => boolean
   registerHeight: (id: string, height: number) => void
-  getLayout: (id: string) => { index: number; offset: number; height: number }
+  registerElement: (id: string, el: HTMLElement | undefined) => void
+  getLayout: (id: string) => ToastLayoutEntry
 }
 
 const ToastRegionContext = createContext<ToastRegionContextValue | null>(null)
 const ToastItemContext = createContext<{
   item: () => ToastItem
   index: () => number
+  leaving: () => boolean
   dismiss: (reason: ToastDismissReason) => void
 } | null>(null)
+
+function getTransitionDurationMs(el: HTMLElement | undefined): number {
+  if (!el || typeof getComputedStyle !== 'function') {
+    return 0
+  }
+  const raw = getComputedStyle(el).transitionDuration || ''
+  let maxMs = 0
+  for (const part of raw.split(',')) {
+    const trimmed = part.trim()
+    if (trimmed.endsWith('ms')) {
+      maxMs = Math.max(maxMs, Number.parseFloat(trimmed) || 0)
+    } else if (trimmed.endsWith('s')) {
+      maxMs = Math.max(maxMs, (Number.parseFloat(trimmed) || 0) * 1000)
+    }
+  }
+  return maxMs
+}
 
 function measureNaturalHeight(el: HTMLElement): number {
   const prevHeight = el.style.getPropertyValue('height')
@@ -389,6 +423,12 @@ export function ToastRegion(props: ToastRegionProps) {
   const [hovered, setHovered] = createSignal(false)
   const [focused, setFocused] = createSignal(false)
   const [heights, setHeights] = createSignal<Record<string, number>>({})
+  const [leavingMap, setLeavingMap] = createSignal<Record<string, LeavingSnapshot>>({})
+  const leaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  const toastElements = new Map<string, HTMLElement>()
+  let prevActive: Array<ToastItem> = []
+  let prevLayout: Record<string, { index: number; offset: number; height: number }> = {}
+
   const toaster = () => props.toaster ?? toast
   const side = () => props.side ?? 'bottom'
   const align = () => props.align ?? 'end'
@@ -419,11 +459,105 @@ export function ToastRegion(props: ToastRegionProps) {
     return { layout, total, front, count: list.length }
   })
 
+  // Keep recently dismissed toasts mounted briefly with data-ending-style when CSS exit transitions exist.
+  createEffect(
+    () => ({ current: orderedToasts(), layout: stackMetrics().layout }),
+    ({ current, layout }) => {
+      const currentIds = new Set(current.map((t) => t.id))
+      if (typeof window !== 'undefined') {
+        const removed = prevActive.filter((item) => !currentIds.has(item.id))
+        const animating: Array<{ item: ToastItem; durationMs: number }> = []
+        for (const item of removed) {
+          const durationMs = getTransitionDurationMs(toastElements.get(item.id))
+          if (durationMs > 0) {
+            animating.push({ item, durationMs })
+          }
+        }
+        if (animating.length > 0) {
+          setLeavingMap((prev) => {
+            const next = { ...prev }
+            for (const { item } of animating) {
+              const snap = prevLayout[item.id] ?? { index: 0, offset: 0, height: 0 }
+              next[item.id] = { item, ...snap }
+            }
+            return next
+          })
+          for (const { item, durationMs } of animating) {
+            const existing = leaveTimers.get(item.id)
+            if (existing !== undefined) {
+              clearTimeout(existing)
+            }
+            leaveTimers.set(
+              item.id,
+              setTimeout(
+                () => {
+                  leaveTimers.delete(item.id)
+                  setLeavingMap((prev) => {
+                    if (!(item.id in prev)) {
+                      return prev
+                    }
+                    const next = { ...prev }
+                    delete next[item.id]
+                    return next
+                  })
+                },
+                Math.min(durationMs, 400) + 20,
+              ),
+            )
+          }
+        }
+        // If a toast ID was re-added while leaving, cancel its leaving state.
+        setLeavingMap((prev) => {
+          let changed = false
+          const next = { ...prev }
+          for (const id of currentIds) {
+            if (id in next) {
+              delete next[id]
+              const timer = leaveTimers.get(id)
+              if (timer !== undefined) {
+                clearTimeout(timer)
+                leaveTimers.delete(id)
+              }
+              changed = true
+            }
+          }
+          return changed ? next : prev
+        })
+      }
+      prevActive = current
+      prevLayout = layout
+    },
+  )
+
+  const renderedToasts = createMemo(() => {
+    const active = orderedToasts()
+    const activeIds = new Set(active.map((t) => t.id))
+    const leaving = Object.values(leavingMap()).filter((snap) => !activeIds.has(snap.item.id))
+    return [...active, ...leaving.map((s) => s.item)]
+  })
+
   const registerHeight = (id: string, height: number) => {
     if (!Number.isFinite(height) || height <= 0) {
       return
     }
     setHeights((prev) => (prev[id] === height ? prev : { ...prev, [id]: height }))
+  }
+
+  const getLayout = (id: string): ToastLayoutEntry => {
+    const active = stackMetrics().layout[id]
+    if (active) {
+      return { ...active, leaving: false }
+    }
+    const leaving = leavingMap()[id]
+    if (leaving) {
+      return {
+        index: leaving.index,
+        offset: leaving.offset,
+        height: leaving.height,
+        leaving: true,
+      }
+    }
+    return { index: 0, offset: 0, height: 0, leaving: false }
   }
 
   const state = (): ToastRegionState => ({
@@ -459,6 +593,10 @@ export function ToastRegion(props: ToastRegionProps) {
   })
 
   onCleanup(() => {
+    for (const timer of leaveTimers.values()) {
+      clearTimeout(timer)
+    }
+    leaveTimers.clear()
     if (typeof window !== 'undefined') {
       toaster().resume()
     }
@@ -493,31 +631,32 @@ export function ToastRegion(props: ToastRegionProps) {
           }}
         >
           <Show when={!hasStaticChildren} fallback={renderChild as JSX.Element}>
-            <For each={orderedToasts()}>
+            <For each={renderedToasts()} keyed={(item) => item.id}>
               {(item, idx) => (
                 <ToastItemContext
                   value={{
-                    item: () => item,
+                    item,
                     index: idx,
-                    dismiss: (reason) => toaster().dismiss(item.id, reason),
+                    leaving: () => getLayout(item().id).leaving,
+                    dismiss: (reason) => toaster().dismiss(item().id, reason),
                   }}
                 >
                   <Show
                     when={typeof renderChild === 'function'}
                     fallback={
-                      <Toast toast={item}>
+                      <Toast toast={item()}>
                         <div data-slot="stack">
-                          <Show when={item.title}>
-                            <ToastTitle>{item.title}</ToastTitle>
+                          <Show when={item().title}>
+                            <ToastTitle>{item().title}</ToastTitle>
                           </Show>
-                          <Show when={item.description}>
-                            <ToastDescription>{item.description}</ToastDescription>
+                          <Show when={item().description}>
+                            <ToastDescription>{item().description}</ToastDescription>
                           </Show>
                         </div>
-                        <Show when={item.action}>
+                        <Show when={item().action}>
                           {(act) => <ToastAction>{act().label}</ToastAction>}
                         </Show>
-                        <Show when={item.cancel}>
+                        <Show when={item().cancel}>
                           {(can) => (
                             <ToastClose
                               action={(event, details) => {
@@ -535,7 +674,7 @@ export function ToastRegion(props: ToastRegionProps) {
                       </Toast>
                     }
                   >
-                    {typeof renderChild === 'function' ? renderChild(item) : null}
+                    {typeof renderChild === 'function' ? renderChild(item()) : null}
                   </Show>
                 </ToastItemContext>
               )}
@@ -554,7 +693,14 @@ export function ToastRegion(props: ToastRegionProps) {
         align,
         expanded,
         registerHeight,
-        getLayout: (id) => stackMetrics().layout[id] ?? { index: 0, offset: 0, height: 0 },
+        registerElement: (id, el) => {
+          if (el) {
+            toastElements.set(id, el)
+          } else {
+            toastElements.delete(id)
+          }
+        },
+        getLayout,
       }}
     >
       {renderPart('section', combinedProps, state, {
@@ -563,7 +709,7 @@ export function ToastRegion(props: ToastRegionProps) {
         },
         attrs: () => {
           const metrics = stackMetrics()
-          const open = metrics.count > 0
+          const open = metrics.count > 0 || renderedToasts().length > 0
           return {
             role: open ? 'region' : undefined,
             'aria-label': open
@@ -637,6 +783,7 @@ export function ToastRegion(props: ToastRegionProps) {
 export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'li', ToastState>, 'toast'>) {
   const region = useContext(ToastRegionContext)
   const inherited = useContext(ToastItemContext)
+  const [starting, setStarting] = createSignal(typeof window !== 'undefined')
   const [swipeX, setSwipeX] = createSignal(0)
   const [swipeY, setSwipeY] = createSignal(0)
   const [swiping, setSwiping] = createSignal(false)
@@ -652,22 +799,22 @@ export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'li', ToastS
       duration: 5000,
     }
 
-  const layout = () => {
+  const layout = (): ToastLayoutEntry => {
     const id = currentItem().id
     return region && id
       ? region.getLayout(id)
-      : { index: inherited?.index() ?? 0, offset: 0, height: 0 }
+      : { index: inherited?.index() ?? 0, offset: 0, height: 0, leaving: false }
   }
 
   const state = (): ToastState => {
     const l = layout()
     return {
       type: currentItem().type,
-      open: true,
+      open: !l.leaving,
       index: l.index,
       front: l.index === 0,
       expanded: region?.expanded() ?? false,
-      leaving: false,
+      leaving: l.leaving,
     }
   }
 
@@ -680,6 +827,8 @@ export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'li', ToastS
 
   let elRef: HTMLElement | undefined
   let ro: ResizeObserver | undefined
+  let enterFrame1: number | undefined
+  let enterFrame2: number | undefined
 
   const measure = () => {
     const id = currentItem().id
@@ -692,18 +841,50 @@ export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'li', ToastS
   }
 
   onCleanup(() => {
+    const id = currentItem().id
+    if (id) {
+      region?.registerElement(id, undefined)
+    }
     ro?.disconnect()
+    if (enterFrame1 !== undefined) {
+      cancelAnimationFrame(enterFrame1)
+    }
+    if (enterFrame2 !== undefined) {
+      cancelAnimationFrame(enterFrame2)
+    }
   })
 
   const rest = omit(props, 'toast')
 
   return (
-    <ToastItemContext value={{ item: currentItem, index: () => layout().index, dismiss }}>
+    <ToastItemContext
+      value={{
+        item: currentItem,
+        index: () => layout().index,
+        leaving: () => layout().leaving,
+        dismiss,
+      }}
+    >
       {renderPart('li', rest, state, {
         ref: (el: HTMLElement) => {
           elRef = el
+          const id = currentItem().id
+          if (id) {
+            region?.registerElement(id, el)
+          }
           if (typeof window !== 'undefined') {
-            requestAnimationFrame(measure)
+            measure()
+            if (starting()) {
+              enterFrame1 = requestAnimationFrame(() => {
+                measure()
+                if (elRef) {
+                  void elRef.offsetHeight
+                }
+                enterFrame2 = requestAnimationFrame(() => {
+                  setStarting(false)
+                })
+              })
+            }
             if (typeof ResizeObserver !== 'undefined') {
               ro?.disconnect()
               ro = new ResizeObserver(measure)
@@ -718,9 +899,11 @@ export function Toast(props: { toast?: ToastItem } & Omit<PartProps<'li', ToastS
             tabindex: 0,
             'data-slot': 'toast',
             'data-type': s.type,
-            'data-open': '',
+            'data-open': s.leaving ? undefined : '',
             'data-front': s.front ? '' : undefined,
             'data-expanded': s.expanded ? '' : undefined,
+            'data-starting-style': starting() ? '' : undefined,
+            'data-ending-style': s.leaving ? '' : undefined,
             'data-swiping': swiping() ? '' : undefined,
             'data-swipe-direction': swipeDir(),
           }

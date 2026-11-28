@@ -14,6 +14,8 @@ import { useFieldControl } from './field'
 import { createController, useController } from './foundation/controller'
 import { createChangeDetails } from './foundation/details'
 import type { ChangeDetails, ChangeOptions } from './foundation/details'
+import { EditorContext } from './foundation/editor-context'
+import type { EditorTriggerBinding } from './foundation/editor-context'
 import { registerComponent } from './foundation/registry'
 import { renderPart } from './foundation/render'
 import type { PartProps } from './foundation/render'
@@ -57,6 +59,7 @@ export type TokenInputChangeOptions = ChangeOptions<TokenInputValueChangeReason>
 
 export type TokenInputValueChangeDetails = ChangeDetails<TokenInputValueChangeReason> & {
   deleted?: TokenDeletion
+  removed: Array<Token>
 }
 
 export type TokenInputSubmitDetails = {
@@ -238,6 +241,9 @@ type TokenInputContextValue = {
   multiline: () => boolean
   setFocused: (v: boolean) => void
   registerEditor: (el: HTMLInputElement | HTMLTextAreaElement | null) => void
+  registerEditorWrap: (el: HTMLElement | null) => void
+  notifyInput: (el: HTMLInputElement | HTMLTextAreaElement, event: Event) => void
+  notifyKeyDown: (event: KeyboardEvent) => boolean
   field: ReturnType<typeof useFieldControl>
 }
 
@@ -266,8 +272,14 @@ export function TokenInput(props: TokenInputProps) {
   const [redoStack, setRedoStack] = createSignal<Array<TokenInputValue>>([])
 
   let editorEl: HTMLInputElement | HTMLTextAreaElement | null = null
+  let editorWrapEl: HTMLElement | null = null
   let rootEl: HTMLElement | null = null
   let tokenSeq = 0
+
+  const inputListeners = new Set<
+    (el: HTMLInputElement | HTMLTextAreaElement, event: Event) => void
+  >()
+  const keyDownListeners = new Set<(event: KeyboardEvent) => boolean>()
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -312,6 +324,7 @@ export function TokenInput(props: TokenInputProps) {
     const details: TokenInputValueChangeDetails = {
       ...createChangeDetails(reason, event),
       deleted,
+      removed: deleted ? [deleted.token] : [],
     }
     props.onValueChange?.(next, details)
     if (details.canceled) {
@@ -336,10 +349,38 @@ export function TokenInput(props: TokenInputProps) {
     const token: Token =
       typeof input === 'string'
         ? { id: `tok-${++tokenSeq}`, label: input, value: input }
-        : { id: input.id || `tok-${++tokenSeq}`, label: input.label, value: input.value }
+        : {
+            id: input.id || `tok-${++tokenSeq}`,
+            label: input.label,
+            value: input.value,
+            type: input.type,
+          }
     const cur = value()
     commit({ text: cur.text, tokens: [...cur.tokens, token] }, 'insert')
     return token
+  }
+
+  const insertTokenAtRange = (
+    range: { start: number; end: number },
+    input: { label: string; value: string; type?: string },
+  ) => {
+    const cur = value()
+    const before = cur.text.slice(0, range.start)
+    const after = cur.text.slice(range.end)
+    const nextText = (before + after).replace(/^\s+/, '')
+    const token: Token = {
+      id: `tok-${++tokenSeq}`,
+      label: input.label,
+      value: input.value,
+      type: input.type,
+    }
+    commit({ text: nextText, tokens: [...cur.tokens, token] }, 'insert')
+    if (editorEl) {
+      editorEl.value = nextText
+      const pos = Math.min(before.length, nextText.length)
+      editorEl.setSelectionRange(pos, pos)
+      editorEl.focus()
+    }
   }
 
   const removeToken = (targetId: string, reason: TokenDeletion['reason'] = 'remove') => {
@@ -364,6 +405,24 @@ export function TokenInput(props: TokenInputProps) {
       const nextText = text.slice(0, range.start) + replacement + text.slice(range.end)
       commit({ ...value(), text: nextText }, 'input')
     },
+  }
+
+  const editorBinding: EditorTriggerBinding = {
+    getElement: () => editorEl,
+    getAnchorElement: () => editorWrapEl ?? editorEl ?? rootEl,
+    getValue: () => adapter.getValue(),
+    getCaret: () => adapter.getCaret(),
+    replace: (range, replacement) => adapter.replace(range, replacement),
+    insertToken: insertTokenAtRange,
+    subscribeInput: (fn) => {
+      inputListeners.add(fn)
+      return () => inputListeners.delete(fn)
+    },
+    subscribeKeyDown: (fn) => {
+      keyDownListeners.add(fn)
+      return () => keyDownListeners.delete(fn)
+    },
+    focus: () => editorEl?.focus(),
   }
 
   const api: TokenInputApi = {
@@ -427,7 +486,6 @@ export function TokenInput(props: TokenInputProps) {
     'onSubmit',
     'renderToken',
     'codec',
-    'renderToken',
     'undo',
     'multiline',
     'disabled',
@@ -452,46 +510,65 @@ export function TokenInput(props: TokenInputProps) {
         registerEditor: (el) => {
           editorEl = el
         },
+        registerEditorWrap: (el) => {
+          editorWrapEl = el
+        },
+        notifyInput: (el, event) => {
+          for (const listener of inputListeners) {
+            listener(el, event)
+          }
+        },
+        notifyKeyDown: (event) => {
+          for (const listener of keyDownListeners) {
+            if (listener(event)) {
+              return true
+            }
+          }
+          return false
+        },
         field,
       }}
     >
-      {renderPart('div', rest, state, {
-        ref: (el) => {
-          rootEl = el
-        },
-        attrs: () => {
-          const s = state()
-          return {
-            'data-empty': s.empty ? '' : undefined,
-            'data-focused': s.focused ? '' : undefined,
-            'data-disabled': s.disabled ? '' : undefined,
-            'data-readonly': s.readOnly ? '' : undefined,
-            'data-invalid': s.invalid ? '' : undefined,
-          }
-        },
-      })}
-      <Show when={props.name ?? field?.name()}>
-        {(formName) => (
-          <textarea
-            name={formName()}
-            readonly
-            tabindex={-1}
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              width: '1px',
-              height: '1px',
-              margin: '-1px',
-              padding: '0',
-              overflow: 'hidden',
-              border: '0',
-              clip: 'rect(0 0 0 0)',
-            }}
-          >
-            {(props.codec ?? defaultCodec).serialize(value())}
-          </textarea>
-        )}
-      </Show>
+      <EditorContext value={() => editorBinding}>
+        {renderPart('div', rest, state, {
+          ref: (el) => {
+            rootEl = el
+          },
+          attrs: () => {
+            const s = state()
+            return {
+              'data-slot': 'token-input',
+              'data-empty': s.empty ? '' : undefined,
+              'data-focused': s.focused ? '' : undefined,
+              'data-disabled': s.disabled ? '' : undefined,
+              'data-readonly': s.readOnly ? '' : undefined,
+              'data-invalid': s.invalid ? '' : undefined,
+            }
+          },
+        })}
+        <Show when={props.name ?? field?.name()}>
+          {(formName) => (
+            <textarea
+              name={formName()}
+              readonly
+              tabindex={-1}
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                width: '1px',
+                height: '1px',
+                margin: '-1px',
+                padding: '0',
+                overflow: 'hidden',
+                border: '0',
+                clip: 'rect(0 0 0 0)',
+              }}
+            >
+              {(props.codec ?? defaultCodec).serialize(value())}
+            </textarea>
+          )}
+        </Show>
+      </EditorContext>
     </TokenInputContext>
   )
 }
@@ -526,6 +603,9 @@ export function TokenInputEditor(
   const handleKeyDown = (
     e: KeyboardEvent & { currentTarget: HTMLInputElement | HTMLTextAreaElement },
   ) => {
+    if (ctx.notifyKeyDown(e)) {
+      return
+    }
     const s = ctx.state()
     if (s.disabled || s.readOnly) {
       return
@@ -585,7 +665,20 @@ export function TokenInputEditor(
                         ? props.children(token)
                         : (props.children ?? toLabel(token))
                     })()}
-                    {token.type ? ` ${token.type}` : ''}
+                    <Show when={token.type}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          width: '1px',
+                          height: '1px',
+                          overflow: 'hidden',
+                          clip: 'rect(0 0 0 0)',
+                          'white-space': 'nowrap',
+                        }}
+                      >
+                        {` ${token.type}`}
+                      </span>
+                    </Show>
                   </span>
                 </CurrentTokenContext>
               )}
@@ -610,9 +703,10 @@ export function TokenInputEditor(
                     ctx.setFocused(false)
                     ctx.field?.setTouched(true)
                   }}
-                  onInput={(e) =>
+                  onInput={(e) => {
                     ctx.api.setText(e.currentTarget.value, { reason: 'input', event: e })
-                  }
+                    ctx.notifyInput(e.currentTarget, e)
+                  }}
                   onKeyDown={handleKeyDown}
                 />
               }
@@ -633,9 +727,10 @@ export function TokenInputEditor(
                   ctx.setFocused(false)
                   ctx.field?.setTouched(true)
                 }}
-                onInput={(e) =>
+                onInput={(e) => {
                   ctx.api.setText(e.currentTarget.value, { reason: 'input', event: e })
-                }
+                  ctx.notifyInput(e.currentTarget, e)
+                }}
                 onKeyDown={handleKeyDown}
               />
             </Show>
@@ -667,6 +762,7 @@ export function TokenInputEditor(
   })
 
   return renderPart('div', combinedProps, ctx.state, {
+    ref: (el: HTMLElement) => ctx.registerEditorWrap(el),
     attrs: () => {
       const s = ctx.state()
       const ph = props.placeholder ?? ctx.placeholder()
@@ -674,6 +770,7 @@ export function TokenInputEditor(
         role: 'textbox',
         contenteditable:
           typeof window === 'undefined' ? (s.disabled || s.readOnly ? 'false' : 'true') : undefined,
+        'data-slot': 'token-input-editor',
         'aria-placeholder': ph,
         'data-empty': s.empty ? '' : undefined,
         'data-focused': s.focused ? '' : undefined,
@@ -763,6 +860,7 @@ export function TokenInputTokenRemove(
       const s = tokenState()
       return {
         type: 'button',
+        'data-slot': 'token-input-token-remove',
         disabled: s.disabled,
         'aria-label': `Remove ${toLabel(s.token)}`,
         'data-disabled': s.disabled ? '' : undefined,

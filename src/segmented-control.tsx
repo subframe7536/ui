@@ -4,6 +4,7 @@ import {
   createSignal,
   createUniqueId,
   omit,
+  onCleanup,
   untrack,
   useContext,
 } from 'solid-js'
@@ -19,6 +20,7 @@ import { createControlledSignal } from './foundation/state'
 
 export type SegmentedControlOrientation = 'horizontal' | 'vertical'
 export type SegmentedControlDirection = 'ltr' | 'rtl'
+export type SegmentedControlActivationDirection = 'left' | 'right' | 'up' | 'down' | 'none'
 export type SegmentedControlValueChangeReason = 'click' | 'keyboard' | 'programmatic'
 
 export type SegmentedControlChangeOptions = ChangeOptions<SegmentedControlValueChangeReason>
@@ -76,6 +78,7 @@ export type SegmentedControlIndicatorState = {
   y: number
   width: number
   height: number
+  activationDirection: SegmentedControlActivationDirection
 }
 
 type SegmentedControlContextValue = {
@@ -119,8 +122,11 @@ export function SegmentedControl<T extends string = string>(
     y: 0,
     width: 0,
     height: 0,
+    activationDirection: 'none',
   })
   let rootEl: HTMLElement | null = null
+  let ro: ResizeObserver | undefined
+  let rafId: number | undefined
 
   const disabled = () => !!props.disabled || !!field?.disabled()
   const readOnly = () => !!props.readOnly || !!field?.readOnly()
@@ -133,25 +139,65 @@ export function SegmentedControl<T extends string = string>(
     readOnly: readOnly(),
   })
 
-  const measureIndicator = (val: T | undefined = untrack(value)) => {
+  const measureIndicator = (val: string | undefined = untrack(value), isResize = false) => {
     const el = val ? itemEls.get(val) : undefined
     if (!el) {
-      setIndicatorRect({ ready: false, x: 0, y: 0, width: 0, height: 0 })
+      setIndicatorRect({
+        ready: false,
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        activationDirection: 'none',
+      })
       return
     }
-    setIndicatorRect({
-      ready: true,
-      x: el.offsetLeft,
-      y: el.offsetTop,
-      width: el.offsetWidth,
-      height: el.offsetHeight,
+    const nextX = el.offsetLeft
+    const nextY = el.offsetTop
+    const nextW = el.offsetWidth
+    const nextH = el.offsetHeight
+
+    setIndicatorRect((prev) => {
+      let dir: SegmentedControlActivationDirection = 'none'
+      if (prev.ready && !isResize) {
+        if (orientation() === 'vertical') {
+          if (nextY > prev.y) {
+            dir = 'down'
+          } else if (nextY < prev.y) {
+            dir = 'up'
+          } else {
+            dir = prev.activationDirection
+          }
+        } else if (nextX > prev.x) {
+          dir = 'right'
+        } else if (nextX < prev.x) {
+          dir = 'left'
+        } else {
+          dir = prev.activationDirection
+        }
+      }
+      return {
+        ready: true,
+        x: nextX,
+        y: nextY,
+        width: nextW,
+        height: nextH,
+        activationDirection: dir,
+      }
     })
   }
 
   createEffect(
     () => value(),
-    (val) => measureIndicator(val),
+    (val) => measureIndicator(val, false),
   )
+
+  onCleanup(() => {
+    ro?.disconnect()
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId)
+    }
+  })
 
   const emitRef: {
     fn?: (change: {
@@ -255,8 +301,14 @@ export function SegmentedControl<T extends string = string>(
           } else {
             itemEls.delete(val)
           }
-          if (val === value()) {
-            measureIndicator()
+          if (val === untrack(value)) {
+            measureIndicator(val, true)
+            if (typeof window !== 'undefined' && el) {
+              if (rafId !== undefined) {
+                cancelAnimationFrame(rafId)
+              }
+              rafId = requestAnimationFrame(() => measureIndicator(untrack(value), true))
+            }
           }
         },
         moveFocus,
@@ -266,6 +318,11 @@ export function SegmentedControl<T extends string = string>(
       {renderPart('div', rest, state, {
         ref: (el) => {
           rootEl = el
+          if (typeof window !== 'undefined' && typeof ResizeObserver !== 'undefined') {
+            ro?.disconnect()
+            ro = new ResizeObserver(() => measureIndicator(untrack(value), true))
+            ro.observe(el)
+          }
         },
         attrs: () => {
           const s = state()
@@ -273,6 +330,7 @@ export function SegmentedControl<T extends string = string>(
             id,
             role: 'radiogroup',
             dir: props.dir,
+            'data-slot': 'segmented-control',
             'aria-orientation': s.orientation,
             'aria-labelledby': field?.labelId,
             'aria-describedby': field?.describedBy(),
@@ -310,6 +368,7 @@ export function SegmentedControlItem<T extends string = string>(
       return {
         type: 'button',
         role: 'radio',
+        'data-slot': 'segmented-control-item',
         tabindex: s.checked || !root.value ? 0 : -1,
         disabled: s.disabled,
         'aria-checked': s.checked ? 'true' : 'false',
@@ -347,17 +406,23 @@ export function SegmentedControlIndicator(
 ) {
   const ctx = useSegmentedControl('Indicator')
   return renderPart('span', props, ctx.indicatorRect, {
-    attrs: () => ({
-      'aria-hidden': true,
-      'data-ready': ctx.indicatorRect().ready ? '' : undefined,
-    }),
+    attrs: () => {
+      const r = ctx.indicatorRect()
+      return {
+        'aria-hidden': true,
+        'data-slot': 'segmented-control-indicator',
+        'data-ready': r.ready ? '' : undefined,
+        'data-activation-direction': r.activationDirection,
+      }
+    },
     style: () => {
       const r = ctx.indicatorRect()
       return r.ready
         ? {
-            transform: `translate(${r.x}px, ${r.y}px)`,
-            width: `${r.width}px`,
-            height: `${r.height}px`,
+            '--segmented-control-indicator-left': `${r.x}px`,
+            '--segmented-control-indicator-top': `${r.y}px`,
+            '--segmented-control-indicator-width': `${r.width}px`,
+            '--segmented-control-indicator-height': `${r.height}px`,
             'pointer-events': 'none',
           }
         : { display: 'none' }
