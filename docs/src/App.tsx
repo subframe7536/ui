@@ -108,7 +108,7 @@ export function App() {
               Docs
             </a>
             <a
-              href="#/docs/components/button"
+              href="#/docs/components/index"
               class="header-nav-link"
               data-active={hash().startsWith('#/docs/components/') ? 'true' : undefined}
             >

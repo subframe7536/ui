@@ -2,7 +2,7 @@ import { subfLint } from '@subf/config/oxlint'
 
 export default subfLint(
   {
-    ignorePatterns: ['ref'],
+    ignorePatterns: ['ref', 'docs/src/examples', 'docs/src/generated', 'docs/scripts'],
     solid: true,
     options: {
       typeAware: true,

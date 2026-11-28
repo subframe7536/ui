@@ -344,9 +344,10 @@
     "oxc": "pnpm run lint && pnpm run format",
     "qa": "pnpm run lint && pnpm run format && pnpm run typecheck",
     "prepublishOnly": "pnpm run build",
-    "docs:dev": "vite -c docs/vite.config.ts",
-    "docs:build": "vite build -c docs/vite.config.ts",
-    "docs:preview": "vite preview -c docs/vite.config.ts"
+    "docs:dev": "pnpm run docs:sync && vite -c docs/vite.config.ts",
+    "docs:build": "pnpm run docs:sync && vite build -c docs/vite.config.ts",
+    "docs:preview": "vite preview -c docs/vite.config.ts",
+    "docs:sync": "node docs/scripts/sync-ref-docs.mjs"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.8.0"

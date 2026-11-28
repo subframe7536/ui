@@ -1,9 +1,9 @@
 import { For, Show, createMemo, createSignal } from 'solid-js'
 
 import { SegmentedControl, SegmentedControlItem, createAgent } from '../../../src'
+import { ExampleViewer } from '../components/ExampleViewer'
 import { COMPONENTS } from '../data/components'
 import type { ComponentCategory } from '../data/components'
-import { DEMO_REGISTRY, renderComponentDemo } from '../demos'
 
 type FilterOption = 'All' | ComponentCategory
 
@@ -24,9 +24,9 @@ export function SinkPage() {
     Array<{ ref: string; component: string; state: unknown }>
   >([])
 
-  const visibleDemos = createMemo(() => {
+  const visibleComponents = createMemo(() => {
     const f = filter()
-    return COMPONENTS.filter((c) => c.slug in DEMO_REGISTRY && (f === 'All' || c.category === f))
+    return COMPONENTS.filter((c) => f === 'All' || c.category === f)
   })
 
   const refreshRegistry = () => {
@@ -45,8 +45,9 @@ export function SinkPage() {
       <p class="docs-eyebrow">Playground</p>
       <h1 class="section-heading">Kitchen Sink</h1>
       <p class="section-lead">
-        Interactive showcase of live <code class="inline-code">@subf/ui</code> primitives side by
-        side, plus a live <code class="inline-code">@subf/ui/agent</code> registry inspector.
+        Interactive showcase of all {COMPONENTS.length} live{' '}
+        <code class="inline-code">@subf/ui</code> components side by side, plus a live{' '}
+        <code class="inline-code">@subf/ui/agent</code> registry inspector.
       </p>
 
       <div class="sink-filter-bar">
@@ -62,7 +63,7 @@ export function SinkPage() {
       </div>
 
       <div class="bento-grid">
-        <For each={visibleDemos()}>
+        <For each={visibleComponents()}>
           {(comp) => (
             <div class="bento-tile">
               <div class="bento-tile-head">
@@ -71,7 +72,9 @@ export function SinkPage() {
                   /{comp.slug} →
                 </a>
               </div>
-              <div class="bento-tile-body">{renderComponentDemo(comp.slug)}</div>
+              <div class="bento-tile-body">
+                <ExampleViewer name={`${comp.slug}/basic`} />
+              </div>
             </div>
           )}
         </For>

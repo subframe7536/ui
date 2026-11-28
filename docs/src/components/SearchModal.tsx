@@ -10,8 +10,56 @@ import {
   DialogBackdrop,
   DialogContent,
 } from '../../../src'
-import { COMPONENTS } from '../data/components'
-import { GUIDES } from '../data/guides'
+import docsDataRaw from '../generated/docs-data.json'
+import navRaw from '../generated/nav.json'
+
+import type { DocPageData } from './DocRenderer'
+
+type NavGroup = {
+  group: string
+  items: Array<{ slug: string; title: string }>
+}
+
+type SearchEntry = {
+  slug: string
+  title: string
+  group: string
+  description: string
+  keywords: string
+}
+
+const DOCS_PAGES = docsDataRaw as Record<string, DocPageData>
+const NAV_GROUPS = navRaw as Array<NavGroup>
+
+const GUIDE_ENTRIES: Array<SearchEntry> = NAV_GROUPS.filter(
+  (g) => g.group !== 'Components',
+).flatMap((g) =>
+  g.items.map((item) => {
+    const desc = DOCS_PAGES[item.slug]?.description ?? ''
+    return {
+      slug: item.slug,
+      title: item.title,
+      group: g.group,
+      description: desc,
+      keywords: `${item.title} ${item.slug} ${g.group} ${desc}`.toLowerCase(),
+    }
+  }),
+)
+
+const COMPONENT_ENTRIES: Array<SearchEntry> = NAV_GROUPS.filter(
+  (g) => g.group === 'Components',
+).flatMap((g) =>
+  g.items.map((item) => {
+    const desc = DOCS_PAGES[item.slug]?.description ?? ''
+    return {
+      slug: item.slug,
+      title: item.title,
+      group: g.group,
+      description: desc,
+      keywords: `${item.title} ${item.slug} ${desc}`.toLowerCase(),
+    }
+  }),
+)
 
 export function SearchModal(props: {
   open: boolean
@@ -32,25 +80,17 @@ export function SearchModal(props: {
   const filteredGuides = createMemo(() => {
     const q = query().trim().toLowerCase()
     if (!q) {
-      return GUIDES
+      return GUIDE_ENTRIES.slice(0, 12)
     }
-    return GUIDES.filter(
-      (g) => g.title.toLowerCase().includes(q) || g.description.toLowerCase().includes(q),
-    )
+    return GUIDE_ENTRIES.filter((g) => g.keywords.includes(q))
   })
 
   const filteredComponents = createMemo(() => {
     const q = query().trim().toLowerCase()
     if (!q) {
-      return COMPONENTS.slice(0, 14)
+      return COMPONENT_ENTRIES.slice(0, 16)
     }
-    return COMPONENTS.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.slug.toLowerCase().includes(q) ||
-        c.category.toLowerCase().includes(q) ||
-        c.summary.toLowerCase().includes(q),
-    )
+    return COMPONENT_ENTRIES.filter((c) => c.keywords.includes(q))
   })
 
   const select = (hash: string) => {
@@ -65,7 +105,10 @@ export function SearchModal(props: {
         <Command query={query()} onQueryChange={(v) => setQuery(v)}>
           <div class="search-input-wrap">
             <span class="ui-state-pill">/</span>
-            <CommandInput class="search-input" placeholder="Search guides and 56 components..." />
+            <CommandInput
+              class="search-input"
+              placeholder="Search 119 docs pages & 55 components..."
+            />
             <button
               type="button"
               class="search-close-btn"
@@ -81,7 +124,7 @@ export function SearchModal(props: {
           <CommandList class="search-list">
             <Show when={filteredGuides().length > 0}>
               <>
-                <div class="search-group-label">Guides</div>
+                <div class="search-group-label">Docs &amp; Guides</div>
                 <For each={filteredGuides()}>
                   {(guide) => (
                     <CommandItem
@@ -104,10 +147,12 @@ export function SearchModal(props: {
                     <CommandItem
                       class="ui-command-item"
                       value={`comp-${comp.slug}`}
-                      onSelect={() => select(`#/docs/components/${comp.slug}`)}
+                      onSelect={() => select(`#/docs/${comp.slug}`)}
                     >
-                      <span class="search-item-label">{comp.name}</span>
-                      <span class="ui-state-pill search-item-meta">@subf/ui/{comp.slug}</span>
+                      <span class="search-item-label">{comp.title}</span>
+                      <span class="ui-state-pill search-item-meta">
+                        @subf/ui/{comp.slug.replace(/^components\//, '')}
+                      </span>
                     </CommandItem>
                   )}
                 </For>

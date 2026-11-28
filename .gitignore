@@ -3,3 +3,5 @@ dist
 .DS_Store
 *.log
 coverage
+docs/src/examples
+docs/src/generated
